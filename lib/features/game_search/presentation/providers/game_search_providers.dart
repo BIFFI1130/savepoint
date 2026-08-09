@@ -9,9 +9,13 @@ final igdbRepositoryProvider = Provider<IgdbRepository>((ref) {
   return IgdbRepository();
 });
 
-/// ゲーム検索の状態。入力のたびに [search] を呼ぶと、内部でデバウンスしてから検索を実行する。
+/// ゲーム検索の状態。[search]・[setPlatform]・[setDeveloper] を呼ぶと、
+/// 内部でデバウンスしてから（プラットフォーム選択のみ即時に）検索を実行する。
 class GameSearchNotifier extends AsyncNotifier<List<Game>> {
   Timer? _debounce;
+  String _query = '';
+  String? _platform;
+  String _developer = '';
 
   @override
   FutureOr<List<Game>> build() {
@@ -20,17 +24,43 @@ class GameSearchNotifier extends AsyncNotifier<List<Game>> {
   }
 
   void search(String query) {
+    _query = query;
+    _schedule();
+  }
+
+  /// プラットフォームフィルタは選択肢をタップして選ぶだけなので即時反映する。
+  void setPlatform(String? platform) {
+    _platform = platform;
+    _schedule(immediate: true);
+  }
+
+  void setDeveloper(String developer) {
+    _developer = developer;
+    _schedule();
+  }
+
+  void _schedule({bool immediate = false}) {
     _debounce?.cancel();
-    if (query.trim().isEmpty) {
+    if (_query.trim().isEmpty) {
       state = const AsyncData([]);
       return;
     }
-    _debounce = Timer(const Duration(milliseconds: 450), () async {
-      state = const AsyncLoading();
-      state = await AsyncValue.guard(
-        () => ref.read(igdbRepositoryProvider).search(query),
-      );
-    });
+    if (immediate) {
+      _runSearch();
+    } else {
+      _debounce = Timer(const Duration(milliseconds: 450), _runSearch);
+    }
+  }
+
+  Future<void> _runSearch() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => ref.read(igdbRepositoryProvider).search(
+            _query,
+            platform: _platform,
+            developer: _developer.isEmpty ? null : _developer,
+          ),
+    );
   }
 }
 

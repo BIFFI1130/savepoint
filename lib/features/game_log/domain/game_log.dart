@@ -1,20 +1,39 @@
 import '../../game_search/domain/game.dart';
 
-/// ユーザーが投稿した「記録」（評価＋レビュー）。
+/// 「遊んだ」か「遊びたい」かのステータス。
+enum GameLogStatus {
+  played,
+  wantToPlay;
+
+  static GameLogStatus fromDb(String value) {
+    return value == 'want_to_play' ? GameLogStatus.wantToPlay : GameLogStatus.played;
+  }
+
+  String toDb() => this == GameLogStatus.wantToPlay ? 'want_to_play' : 'played';
+}
+
+/// ユーザーが投稿した「記録」（ステータス・評価・レビュー）。
+///
+/// [status] が [GameLogStatus.wantToPlay] の場合、[rating] は null になりうる
+/// （未プレイのため評価がまだ無い）。
 class GameLog {
   const GameLog({
     required this.id,
     required this.gameId,
-    required this.rating,
+    required this.status,
+    this.rating,
     this.reviewText,
+    this.hasSpoiler = false,
     required this.createdAt,
     required this.updatedAt,
   });
 
   final String id;
   final int gameId;
-  final int rating;
+  final GameLogStatus status;
+  final int? rating;
   final String? reviewText;
+  final bool hasSpoiler;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -22,8 +41,10 @@ class GameLog {
     return GameLog(
       id: json['id'] as String,
       gameId: json['game_id'] as int,
-      rating: json['rating'] as int,
+      status: GameLogStatus.fromDb(json['status'] as String? ?? 'played'),
+      rating: json['rating'] as int?,
       reviewText: json['review_text'] as String?,
+      hasSpoiler: json['has_spoiler'] as bool? ?? false,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );

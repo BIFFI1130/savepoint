@@ -27,19 +27,37 @@ class LogRepository {
     return GameLog.fromJson(row);
   }
 
-  /// 記録を新規作成 or 更新する（1ユーザー1ゲームにつき1件）。
-  Future<void> upsertLog({
+  /// 「遊んだ」記録を新規作成 or 更新する（1ユーザー1ゲームにつき1件）。評価は必須。
+  Future<void> upsertPlayedLog({
     required int gameId,
     required int rating,
     String? reviewText,
+    bool hasSpoiler = false,
   }) async {
     final userId = supabase.auth.currentUser!.id;
     await supabase.from('game_logs').upsert(
       {
         'user_id': userId,
         'game_id': gameId,
+        'status': GameLogStatus.played.toDb(),
         'rating': rating,
         'review_text': reviewText,
+        'has_spoiler': hasSpoiler,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      },
+      onConflict: 'user_id,game_id',
+    );
+  }
+
+  /// 「遊びたい」としてワンタップで記録する。既存の評価・レビューがあれば保持される
+  /// （upsertのペイロードに含めない列はON CONFLICT時に上書きされないため）。
+  Future<void> markWantToPlay(int gameId) async {
+    final userId = supabase.auth.currentUser!.id;
+    await supabase.from('game_logs').upsert(
+      {
+        'user_id': userId,
+        'game_id': gameId,
+        'status': GameLogStatus.wantToPlay.toDb(),
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       },
       onConflict: 'user_id,game_id',

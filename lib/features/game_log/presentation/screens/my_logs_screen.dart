@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/star_rating.dart';
+import '../../domain/game_log.dart';
 import '../providers/log_providers.dart';
 
 class MyLogsScreen extends ConsumerWidget {
@@ -36,6 +37,7 @@ class MyLogsScreen extends ConsumerWidget {
               separatorBuilder: (context, index) => const Divider(height: 1),
               itemBuilder: (context, index) {
                 final entry = logs[index];
+                final isWantToPlay = entry.log.status == GameLogStatus.wantToPlay;
                 return ListTile(
                   leading: CoverImage(
                     url: entry.game.coverUrl,
@@ -46,8 +48,24 @@ class MyLogsScreen extends ConsumerWidget {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      StarRating(rating: entry.log.rating.toDouble(), size: 16),
-                      if (entry.log.reviewText != null &&
+                      if (isWantToPlay)
+                        const Text('遊びたい')
+                      else if (entry.log.rating != null)
+                        Row(
+                          children: [
+                            StarRating(rating: entry.log.rating!.toDouble(), size: 16),
+                            if (entry.log.hasSpoiler) ...[
+                              const SizedBox(width: 6),
+                              const Chip(
+                                label: Text('ネタバレ'),
+                                visualDensity: VisualDensity.compact,
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                            ],
+                          ],
+                        ),
+                      if (!isWantToPlay &&
+                          entry.log.reviewText != null &&
                           entry.log.reviewText!.isNotEmpty)
                         Text(
                           entry.log.reviewText!,
@@ -56,9 +74,10 @@ class MyLogsScreen extends ConsumerWidget {
                         ),
                     ],
                   ),
-                  isThreeLine: entry.log.reviewText != null &&
+                  isThreeLine: !isWantToPlay &&
+                      entry.log.reviewText != null &&
                       entry.log.reviewText!.isNotEmpty,
-                  onTap: () => context.push('/games/${entry.game.id}/log'),
+                  onTap: () => context.push('/games/${entry.game.id}'),
                 );
               },
             );

@@ -19,6 +19,7 @@ class LogReviewScreen extends ConsumerStatefulWidget {
 class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
   final _reviewController = TextEditingController();
   double _rating = 0;
+  bool _hasSpoiler = false;
   bool _isSaving = false;
   bool _initialized = false;
 
@@ -36,12 +37,13 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
     }
     setState(() => _isSaving = true);
     try {
-      await ref.read(logRepositoryProvider).upsertLog(
+      await ref.read(logRepositoryProvider).upsertPlayedLog(
             gameId: widget.gameId,
             rating: _rating.round(),
             reviewText: _reviewController.text.trim().isEmpty
                 ? null
                 : _reviewController.text.trim(),
+            hasSpoiler: _hasSpoiler,
           );
       ref.invalidate(myLogsProvider);
       ref.invalidate(existingLogProvider(widget.gameId));
@@ -69,8 +71,9 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
     existingLogAsync.whenData((existingLog) {
       if (!_initialized && existingLog != null) {
         _initialized = true;
-        _rating = existingLog.rating.toDouble();
+        _rating = existingLog.rating?.toDouble() ?? 0;
         _reviewController.text = existingLog.reviewText ?? '';
+        _hasSpoiler = existingLog.hasSpoiler;
       }
     });
 
@@ -107,7 +110,15 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
                     alignLabelWithHint: true,
                   ),
                 ),
-                const SizedBox(height: 24),
+                CheckboxListTile(
+                  value: _hasSpoiler,
+                  onChanged: (value) => setState(() => _hasSpoiler = value ?? false),
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: const Text('ネタバレを含む'),
+                  subtitle: const Text('ストーリーの結末や重要な展開に触れている場合はオンにしてください'),
+                ),
+                const SizedBox(height: 8),
                 FilledButton(
                   onPressed: _isSaving ? null : _save,
                   child: _isSaving

@@ -4,12 +4,21 @@ import '../domain/game.dart';
 /// IGDB検索は Supabase Edge Function `igdb-proxy` を経由して行う。
 /// IGDB/TwitchのシークレットはFlutter側に一切持たせず、サーバー側（Edge Function）のみが保持する。
 class IgdbRepository {
-  Future<List<Game>> search(String query) async {
+  Future<List<Game>> search(
+    String query, {
+    String? platform,
+    String? developer,
+  }) async {
     if (query.trim().isEmpty) return [];
 
     final response = await supabase.functions.invoke(
       'igdb-proxy',
-      body: {'action': 'search', 'query': query.trim()},
+      body: {
+        'action': 'search',
+        'query': query.trim(),
+        if (platform != null && platform.isNotEmpty) 'platform': platform,
+        if (developer != null && developer.isNotEmpty) 'developer': developer,
+      },
     );
 
     final data = response.data;

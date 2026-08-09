@@ -8,6 +8,12 @@
 //   supabase.functions.invoke('igdb-proxy', body: {action: 'search', query: '...'})
 //   supabase.functions.invoke('igdb-proxy', body: {action: 'details', id: 1234})
 //
+// 'details' は 'search' より重いフィールド（企業情報・関連作品・日本語翻訳概要）まで
+// 取得してキャッシュする。'search' は一覧表示に必要な軽いフィールドのみを都度
+// upsertするため、既存のキャッシュ済み詳細情報（developers/publishers/similar_games/
+// summary_ja）を空値で上書きしてしまわないよう、あえてこれらのキーをペイロードに
+// 含めていない（Postgrestのupsertはペイロードに含まれる列だけをUPDATEする）。
+//
 // 必要な環境変数（`supabase secrets set` で設定する）:
 //   TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET
 // 以下はSupabaseが自動的に注入する:
@@ -17,9 +23,25 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const IGDB_BASE_URL = 'https://api.igdb.com/v4';
 const TWITCH_TOKEN_URL = 'https://id.twitch.tv/oauth2/token';
+const MYMEMORY_URL = 'https://api.mymemory.translated.net/get';
+const TRANSLATE_CHUNK_MAX_LEN = 450;
 
-const GAME_FIELDS =
-  'id,name,cover.url,first_release_date,platforms.name,summary';
+const SEARCH_FIELDS = 'id,name,cover.url,first_release_date,platforms.name,summary';
+const DETAILS_FIELDS = `${SEARCH_FIELDS},` +
+  'involved_companies.company.name,involved_companies.developer,involved_companies.publisher,' +
+  'similar_games.name,similar_games.cover.url,similar_games.first_release_date';
+
+interface InvolvedCompany {
+  company?: { name?: string };
+  developer?: boolean;
+  publisher?: boolean;
+}
+
+interface SimilarGameRaw {
+  id: number;
+  name?: string;
+  cover?: { url?: string };
+}
 
 interface RawIgdbGame {
   id: number;
@@ -28,17 +50,14 @@ interface RawIgdbGame {
   first_release_date?: number; // unix seconds
   platforms?: { name: string }[];
   summary?: string;
+  involved_companies?: InvolvedCompany[];
+  similar_games?: SimilarGameRaw[];
 }
 
-interface GameRow {
+interface SimilarGameSummary {
   id: number;
   name: string;
   cover_url: string | null;
-  first_release_date: string | null;
-  platforms: string[];
-  summary: string | null;
-  raw_igdb_json: RawIgdbGame;
-  cached_at: string;
 }
 
 function serviceRoleClient() {
@@ -59,7 +78,8 @@ function toIsoDate(unixSeconds: number | undefined): string | null {
   return new Date(unixSeconds * 1000).toISOString().slice(0, 10);
 }
 
-function toGameRow(raw: RawIgdbGame): GameRow {
+/** 一覧表示に必要な軽いフィールドのみの行。search結果のキャッシュに使う。 */
+function toSearchRow(raw: RawIgdbGame) {
   return {
     id: raw.id,
     name: raw.name ?? '(タイトル不明)',
@@ -70,6 +90,70 @@ function toGameRow(raw: RawIgdbGame): GameRow {
     raw_igdb_json: raw,
     cached_at: new Date().toISOString(),
   };
+}
+
+/** 詳細表示用に、企業情報・関連作品まで含めた行。details取得時のみ使う。 */
+function toDetailRow(raw: RawIgdbGame) {
+  const involved = raw.involved_companies ?? [];
+  const developers = involved
+    .filter((c) => c.developer && c.company?.name)
+    .map((c) => c.company!.name!);
+  const publishers = involved
+    .filter((c) => c.publisher && c.company?.name)
+    .map((c) => c.company!.name!);
+  const similarGames: SimilarGameSummary[] = (raw.similar_games ?? []).map((g) => ({
+    id: g.id,
+    name: g.name ?? '(タイトル不明)',
+    cover_url: toBigCoverUrl(g.cover?.url),
+  }));
+
+  return {
+    ...toSearchRow(raw),
+    developers,
+    publishers,
+    similar_games: similarGames,
+  };
+}
+
+/** 英語の長文を文単位でMyMemory APIの1リクエスト上限に収まるよう分割する。 */
+function chunkText(text: string, maxLen: number): string[] {
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  const chunks: string[] = [];
+  let current = '';
+  for (const sentence of sentences) {
+    const candidate = current ? `${current} ${sentence}` : sentence;
+    if (candidate.length > maxLen && current) {
+      chunks.push(current.trim());
+      current = sentence;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) chunks.push(current.trim());
+  return chunks.length > 0 ? chunks : [text.slice(0, maxLen)];
+}
+
+/**
+ * MyMemory Translation API（無料・登録不要）で英語→日本語に翻訳する。
+ * 失敗した場合はnullを返し、呼び出し側は英語の概要をそのまま表示する。
+ */
+async function translateToJapanese(text: string): Promise<string | null> {
+  const chunks = chunkText(text, TRANSLATE_CHUNK_MAX_LEN);
+  const translated: string[] = [];
+  for (const chunk of chunks) {
+    try {
+      const url = `${MYMEMORY_URL}?q=${encodeURIComponent(chunk)}&langpair=en|ja`;
+      const res = await fetch(url);
+      if (!res.ok) break;
+      const json = await res.json();
+      const piece = json?.responseData?.translatedText;
+      if (!piece) break;
+      translated.push(piece);
+    } catch {
+      break;
+    }
+  }
+  return translated.length > 0 ? translated.join('') : null;
 }
 
 /** igdb_tokens テーブルから有効なTwitchトークンを取得し、なければ新規取得して保存する。 */
@@ -121,7 +205,15 @@ async function queryIgdb(
   accessToken: string,
   apicalypseQuery: string,
 ): Promise<RawIgdbGame[]> {
-  const response = await fetch(`${IGDB_BASE_URL}/games`, {
+  return await queryIgdbEndpoint(accessToken, 'games', apicalypseQuery);
+}
+
+async function queryIgdbEndpoint<T>(
+  accessToken: string,
+  endpoint: string,
+  apicalypseQuery: string,
+): Promise<T[]> {
+  const response = await fetch(`${IGDB_BASE_URL}/${endpoint}`, {
     method: 'POST',
     headers: {
       'Client-ID': Deno.env.get('TWITCH_CLIENT_ID')!,
@@ -136,13 +228,45 @@ async function queryIgdb(
   return await response.json();
 }
 
+/**
+ * 開発元名から会社IDを解決する。
+ *
+ * games側で `involved_companies.company.name` のような2階層のネストしたフィールドを
+ * where句で直接絞り込もうとするとIGDB側でタイムアウトする（実測で確認済み）。
+ * そのため /companies エンドポイントで先に名前からIDを引き、
+ * gamesの絞り込みは1階層の `involved_companies.company = (id...)` に留める。
+ */
+async function resolveCompanyIds(
+  accessToken: string,
+  name: string,
+): Promise<number[]> {
+  const escaped = name.replace(/"/g, '\\"');
+
+  // 完全一致を優先する。あいまい一致だけだと「Nintendo」で検索したときに
+  // 本家(id=70)より先に子会社（Nintendo R&D4 等）がヒットしてしまい、
+  // 期待した開発元のタイトルが絞り込みから漏れることがあるため。
+  const exact = await queryIgdbEndpoint<{ id: number }>(
+    accessToken,
+    'companies',
+    `fields id; where name = "${escaped}"; limit 1;`,
+  );
+  if (exact.length > 0) return exact.map((c) => c.id);
+
+  const fuzzy = await queryIgdbEndpoint<{ id: number }>(
+    accessToken,
+    'companies',
+    `fields id; where name ~ *"${escaped}"*; limit 10;`,
+  );
+  return fuzzy.map((c) => c.id);
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response('Method Not Allowed', { status: 405 });
   }
 
   try {
-    const { action, query, id } = await req.json();
+    const { action, query, id, platform, developer } = await req.json();
     const db = serviceRoleClient();
     const accessToken = await getTwitchAccessToken(db);
 
@@ -154,11 +278,30 @@ Deno.serve(async (req) => {
         );
       }
       const escaped = query.replace(/"/g, '\\"');
-      const raws = await queryIgdb(
-        accessToken,
-        `search "${escaped}"; fields ${GAME_FIELDS}; limit 20;`,
-      );
-      const rows = raws.map(toGameRow);
+
+      const filters: string[] = [];
+      if (typeof platform === 'string' && platform.trim()) {
+        const p = platform.trim().replace(/"/g, '\\"');
+        filters.push(`platforms.name ~ *"${p}"*`);
+      }
+      if (typeof developer === 'string' && developer.trim()) {
+        const companyIds = await resolveCompanyIds(accessToken, developer.trim());
+        if (companyIds.length === 0) {
+          // 該当する開発元が見つからない場合は、無条件に0件を返す。
+          return new Response(JSON.stringify([]), {
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        filters.push(
+          `involved_companies.company = (${companyIds.join(',')}) & involved_companies.developer = true`,
+        );
+      }
+      const clauses = [`search "${escaped}"`, `fields ${SEARCH_FIELDS}`];
+      if (filters.length > 0) clauses.push(`where ${filters.join(' & ')}`);
+      clauses.push('limit 20');
+
+      const raws = await queryIgdb(accessToken, `${clauses.join('; ')};`);
+      const rows = raws.map(toSearchRow);
       if (rows.length > 0) {
         const { error: upsertError } = await db.from('games').upsert(rows);
         if (upsertError) {
@@ -179,19 +322,30 @@ Deno.serve(async (req) => {
       }
       const raws = await queryIgdb(
         accessToken,
-        `where id = ${id}; fields ${GAME_FIELDS}; limit 1;`,
+        `where id = ${id}; fields ${DETAILS_FIELDS}; limit 1;`,
       );
       if (raws.length === 0) {
         return new Response(JSON.stringify(null), {
           headers: { 'Content-Type': 'application/json' },
         });
       }
-      const row = toGameRow(raws[0]);
-      const { error: upsertError } = await db.from('games').upsert(row);
+      const row = toDetailRow(raws[0]);
+
+      // 既に翻訳済みならAPIを呼ばずに使い回す（無料枠の節約とレスポンス短縮のため）。
+      const { data: existing } = await db
+        .from('games')
+        .select('summary_ja')
+        .eq('id', row.id)
+        .maybeSingle();
+      const summaryJa = existing?.summary_ja ??
+        (row.summary ? await translateToJapanese(row.summary) : null);
+
+      const fullRow = { ...row, summary_ja: summaryJa };
+      const { error: upsertError } = await db.from('games').upsert(fullRow);
       if (upsertError) {
         throw new Error(`games upsert failed: ${upsertError.message}`);
       }
-      return new Response(JSON.stringify(row), {
+      return new Response(JSON.stringify(fullRow), {
         headers: { 'Content-Type': 'application/json' },
       });
     }
