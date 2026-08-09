@@ -50,10 +50,11 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
             .showSnackBar(const SnackBar(content: Text('記録を保存しました')));
         context.go('/home', extra: 1);
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('game_logs upsert failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('保存に失敗しました')));
+            .showSnackBar(SnackBar(content: Text('保存に失敗しました: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);

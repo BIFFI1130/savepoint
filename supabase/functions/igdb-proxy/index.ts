@@ -76,11 +76,14 @@ function toGameRow(raw: RawIgdbGame): GameRow {
 async function getTwitchAccessToken(
   db: ReturnType<typeof serviceRoleClient>,
 ): Promise<string> {
-  const { data: cached } = await db
+  const { data: cached, error: selectError } = await db
     .from('igdb_tokens')
     .select('access_token, expires_at')
     .eq('id', 1)
     .maybeSingle();
+  if (selectError) {
+    throw new Error(`igdb_tokens select failed: ${selectError.message}`);
+  }
 
   const isValid =
     cached && new Date(cached.expires_at).getTime() > Date.now() + 60_000;
@@ -102,11 +105,14 @@ async function getTwitchAccessToken(
   const accessToken = tokenJson.access_token as string;
   const expiresAt = new Date(Date.now() + tokenJson.expires_in * 1000);
 
-  await db.from('igdb_tokens').upsert({
+  const { error: tokenUpsertError } = await db.from('igdb_tokens').upsert({
     id: 1,
     access_token: accessToken,
     expires_at: expiresAt.toISOString(),
   });
+  if (tokenUpsertError) {
+    throw new Error(`igdb_tokens upsert failed: ${tokenUpsertError.message}`);
+  }
 
   return accessToken;
 }
@@ -154,7 +160,10 @@ Deno.serve(async (req) => {
       );
       const rows = raws.map(toGameRow);
       if (rows.length > 0) {
-        await db.from('games').upsert(rows);
+        const { error: upsertError } = await db.from('games').upsert(rows);
+        if (upsertError) {
+          throw new Error(`games upsert failed: ${upsertError.message}`);
+        }
       }
       return new Response(JSON.stringify(rows), {
         headers: { 'Content-Type': 'application/json' },
@@ -178,7 +187,10 @@ Deno.serve(async (req) => {
         });
       }
       const row = toGameRow(raws[0]);
-      await db.from('games').upsert(row);
+      const { error: upsertError } = await db.from('games').upsert(row);
+      if (upsertError) {
+        throw new Error(`games upsert failed: ${upsertError.message}`);
+      }
       return new Response(JSON.stringify(row), {
         headers: { 'Content-Type': 'application/json' },
       });
