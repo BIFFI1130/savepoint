@@ -7,10 +7,10 @@ workflows:
       flutter: stable
       xcode: latest
       cocoapods: default
-      groups:
-        # Codemagicダッシュボード側で作成する環境変数グループ名。
-        # SUPABASE_URL / SUPABASE_ANON_KEY を含める。
-        - supabase_env
+      # SUPABASE_URL / SUPABASE_ANON_KEY はCodemagicのアプリ設定
+      # （Environment variables）にグループなしで個別登録済み。
+      # アプリレベルで登録した変数は、groups指定がなくても
+      # このアプリの全ワークフローに自動的に注入される。
     triggering:
       events:
         - push
