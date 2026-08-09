@@ -1,0 +1,37 @@
+workflows:
+  ios-unsigned-build:
+    name: iOS unsigned build (検証用)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      groups:
+        # Codemagicダッシュボード側で作成する環境変数グループ名。
+        # SUPABASE_URL / SUPABASE_ANON_KEY を含める。
+        - supabase_env
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Analyze
+        script: flutter analyze
+      - name: Build iOS (署名なし・toolchain検証用)
+        script: |
+          flutter build ios --release --no-codesign \
+            --dart-define=SUPABASE_URL=$SUPABASE_URL \
+            --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+    artifacts:
+      - build/ios/iphoneos/*.app
+
+  # Apple Developer Programの承認が下り、Sign in with Appleの設定
+  # （README参照）が完了したら、以下を追加してTestFlight配信ワークフローにする:
+  #   - ios_signing: (bundle_identifier, App Store Connect APIキー連携)
+  #   - distribution_type: app_store
+  #   - publishing: app_store_connect セクション
