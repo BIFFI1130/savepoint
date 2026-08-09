@@ -9,18 +9,62 @@ final igdbRepositoryProvider = Provider<IgdbRepository>((ref) {
   return IgdbRepository();
 });
 
-/// ゲーム検索の状態。[search]・[setPlatform]・[setDeveloper] を呼ぶと、
-/// 内部でデバウンスしてから（プラットフォーム選択のみ即時に）検索を実行する。
-class GameSearchNotifier extends AsyncNotifier<List<Game>> {
+/// カテゴリ探索時の並び替え。igdb-proxy側のSORT_CLAUSESキーと合わせている。
+/// タイトル検索中（クエリあり）は無視される（IGDBは検索と並び替えを併用できない）。
+enum GameSortType {
+  popularity('popularity'),
+  name('name'),
+  releaseDate('release_date');
+
+  const GameSortType(this.value);
+  final String value;
+}
+
+/// 検索結果のページング状態。[games] は読み込み済み全件（積み重ね）、
+/// [hasMore] はさらに次のページがありそうか、[isLoadingMore] は
+/// スクロールによる追加読み込み中かどうかを表す。
+class GameSearchResults {
+  const GameSearchResults({
+    this.games = const [],
+    this.hasMore = false,
+    this.isLoadingMore = false,
+  });
+
+  final List<Game> games;
+  final bool hasMore;
+  final bool isLoadingMore;
+
+  GameSearchResults copyWith({
+    List<Game>? games,
+    bool? hasMore,
+    bool? isLoadingMore,
+  }) {
+    return GameSearchResults(
+      games: games ?? this.games,
+      hasMore: hasMore ?? this.hasMore,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+    );
+  }
+}
+
+/// ゲーム検索の状態。[search]・[setPlatform]・[setDeveloper]・[setGenre] を呼ぶと、
+/// 内部でデバウンスしてから（プラットフォーム・ジャンル選択のみ即時に）検索をやり直す。
+/// [loadMore] で次のページを取得し、結果に積み重ねる（無限スクロール用）。
+///
+/// タイトル未入力でも [setGenre]・[setPlatform]・[setDeveloper] のいずれかが
+/// 選択されていれば「カテゴリ探索」として結果を返す。
+class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
   Timer? _debounce;
   String _query = '';
   String? _platform;
   String _developer = '';
+  String? _genre;
+  GameSortType _sort = GameSortType.popularity;
 
   @override
-  FutureOr<List<Game>> build() {
+  FutureOr<GameSearchResults> build() {
     ref.onDispose(() => _debounce?.cancel());
-    return [];
+    return const GameSearchResults();
   }
 
   void search(String query) {
@@ -39,10 +83,26 @@ class GameSearchNotifier extends AsyncNotifier<List<Game>> {
     _schedule();
   }
 
+  /// カテゴリ（ジャンル）チップも選ぶだけなので即時反映する。
+  void setGenre(String? genre) {
+    _genre = genre;
+    _schedule(immediate: true);
+  }
+
+  void setSort(GameSortType sort) {
+    _sort = sort;
+    _schedule(immediate: true);
+  }
+
+  GameSortType get sort => _sort;
+
   void _schedule({bool immediate = false}) {
     _debounce?.cancel();
-    if (_query.trim().isEmpty) {
-      state = const AsyncData([]);
+    final hasQuery = _query.trim().isNotEmpty;
+    final hasFilter =
+        _genre != null || _platform != null || _developer.isNotEmpty;
+    if (!hasQuery && !hasFilter) {
+      state = const AsyncData(GameSearchResults());
       return;
     }
     if (immediate) {
@@ -54,18 +114,51 @@ class GameSearchNotifier extends AsyncNotifier<List<Game>> {
 
   Future<void> _runSearch() async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(
-      () => ref.read(igdbRepositoryProvider).search(
-            _query,
+    state = await AsyncValue.guard(() async {
+      final games = await ref.read(igdbRepositoryProvider).search(
+            query: _query,
             platform: _platform,
             developer: _developer.isEmpty ? null : _developer,
-          ),
-    );
+            genre: _genre,
+            sort: _sort.value,
+          );
+      return GameSearchResults(
+        games: games,
+        hasMore: games.length >= IgdbRepository.pageSize,
+      );
+    });
+  }
+
+  /// 現在の検索条件のまま、次のページを取得して末尾に積み重ねる。
+  Future<void> loadMore() async {
+    final current = state.valueOrNull;
+    if (current == null || current.isLoadingMore || !current.hasMore) return;
+
+    state = AsyncData(current.copyWith(isLoadingMore: true));
+    try {
+      final more = await ref.read(igdbRepositoryProvider).search(
+            query: _query,
+            platform: _platform,
+            developer: _developer.isEmpty ? null : _developer,
+            genre: _genre,
+            sort: _sort.value,
+            offset: current.games.length,
+          );
+      state = AsyncData(
+        GameSearchResults(
+          games: [...current.games, ...more],
+          hasMore: more.length >= IgdbRepository.pageSize,
+        ),
+      );
+    } catch (_) {
+      // 追加読み込みの失敗は全画面エラーにせず、次のスクロールで再試行できるようにする。
+      state = AsyncData(current.copyWith(isLoadingMore: false));
+    }
   }
 }
 
 final gameSearchProvider =
-    AsyncNotifierProvider<GameSearchNotifier, List<Game>>(
+    AsyncNotifierProvider<GameSearchNotifier, GameSearchResults>(
   GameSearchNotifier.new,
 );
 

@@ -27,6 +27,14 @@ const MYMEMORY_URL = 'https://api.mymemory.translated.net/get';
 const TRANSLATE_CHUNK_MAX_LEN = 450;
 
 const SEARCH_FIELDS = 'id,name,cover.url,first_release_date,platforms.name,summary,url';
+const SEARCH_PAGE_SIZE = 24;
+
+/** カテゴリ探索（タイトル検索なし）時の並び替え。キーはFlutter側と合わせている。 */
+const SORT_CLAUSES: Record<string, string> = {
+  popularity: 'sort total_rating_count desc',
+  name: 'sort name asc',
+  release_date: 'sort first_release_date desc',
+};
 const DETAILS_FIELDS = `${SEARCH_FIELDS},` +
   'involved_companies.company.name,involved_companies.developer,involved_companies.publisher,' +
   'similar_games.name,similar_games.cover.url,similar_games.first_release_date';
@@ -268,23 +276,21 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { action, query, id, platform, developer } = await req.json();
+    const { action, query, id, platform, developer, genre, offset, sort } = await req.json();
     const db = serviceRoleClient();
     const accessToken = await getTwitchAccessToken(db);
 
     if (action === 'search') {
-      if (!query || typeof query !== 'string') {
-        return new Response(
-          JSON.stringify({ error: 'query is required' }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } },
-        );
-      }
-      const escaped = query.replace(/"/g, '\\"');
+      const hasQuery = typeof query === 'string' && query.trim().length > 0;
 
       const filters: string[] = [];
       if (typeof platform === 'string' && platform.trim()) {
         const p = platform.trim().replace(/"/g, '\\"');
         filters.push(`platforms.name ~ *"${p}"*`);
+      }
+      if (typeof genre === 'string' && genre.trim()) {
+        const g = genre.trim().replace(/"/g, '\\"');
+        filters.push(`genres.name = "${g}"`);
       }
       if (typeof developer === 'string' && developer.trim()) {
         const companyIds = await resolveCompanyIds(accessToken, developer.trim());
@@ -298,9 +304,30 @@ Deno.serve(async (req) => {
           `involved_companies.company = (${companyIds.join(',')}) & involved_companies.developer = true`,
         );
       }
-      const clauses = [`search "${escaped}"`, `fields ${SEARCH_FIELDS}`];
+
+      if (!hasQuery && filters.length === 0) {
+        return new Response(
+          JSON.stringify({ error: 'query, or at least one filter, is required' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+
+      const clauses = [`fields ${SEARCH_FIELDS}`];
+      if (hasQuery) {
+        const escaped = (query as string).replace(/"/g, '\\"');
+        clauses.unshift(`search "${escaped}"`);
+      }
       if (filters.length > 0) clauses.push(`where ${filters.join(' & ')}`);
-      clauses.push('limit 20');
+      // IGDBは search と sort を同時に使えない（sortは関連度順を上書きしてしまうため
+      // 406エラーになる）。タイトル検索が無い場合のみ、指定された並び順を適用する。
+      // 未指定時は人気順（評価数が多い順）をデフォルトにする。
+      if (!hasQuery) {
+        const sortClause = SORT_CLAUSES[sort as string] ?? SORT_CLAUSES.popularity;
+        clauses.push(sortClause);
+      }
+      const pageOffset = typeof offset === 'number' && offset > 0 ? offset : 0;
+      clauses.push(`limit ${SEARCH_PAGE_SIZE}`);
+      if (pageOffset > 0) clauses.push(`offset ${pageOffset}`);
 
       const raws = await queryIgdb(accessToken, `${clauses.join('; ')};`);
       const rows = raws.map(toSearchRow);
