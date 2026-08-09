@@ -171,6 +171,16 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
               ),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Text(
+              'ゲーム情報提供: IGDB',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+            ),
+          ),
         ],
       ),
     );

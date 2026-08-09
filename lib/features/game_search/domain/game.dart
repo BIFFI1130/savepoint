@@ -31,6 +31,7 @@ class Game {
     this.developers = const [],
     this.publishers = const [],
     this.similarGames = const [],
+    this.igdbUrl,
   });
 
   final int id;
@@ -43,6 +44,9 @@ class Game {
   final List<String> developers;
   final List<String> publishers;
   final List<SimilarGame> similarGames;
+
+  /// このゲームのIGDB上のページURL。データ提供元（IGDB）への導線として表示する。
+  final String? igdbUrl;
 
   int? get releaseYear => firstReleaseDate?.year;
 
@@ -67,6 +71,7 @@ class Game {
               .map(SimilarGame.fromJson)
               .toList() ??
           const [],
+      igdbUrl: json['igdb_url'] as String?,
     );
   }
 }

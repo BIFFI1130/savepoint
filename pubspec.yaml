@@ -58,6 +58,9 @@ dependencies:
   # Sign in with Apple の nonce ハッシュ生成用
   crypto: ^3.0.6
 
+  # IGDB帰属表示（データ提供元へのリンク）を開くために使用
+  url_launcher: ^6.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

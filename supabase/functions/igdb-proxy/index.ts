@@ -26,7 +26,7 @@ const TWITCH_TOKEN_URL = 'https://id.twitch.tv/oauth2/token';
 const MYMEMORY_URL = 'https://api.mymemory.translated.net/get';
 const TRANSLATE_CHUNK_MAX_LEN = 450;
 
-const SEARCH_FIELDS = 'id,name,cover.url,first_release_date,platforms.name,summary';
+const SEARCH_FIELDS = 'id,name,cover.url,first_release_date,platforms.name,summary,url';
 const DETAILS_FIELDS = `${SEARCH_FIELDS},` +
   'involved_companies.company.name,involved_companies.developer,involved_companies.publisher,' +
   'similar_games.name,similar_games.cover.url,similar_games.first_release_date';
@@ -50,6 +50,7 @@ interface RawIgdbGame {
   first_release_date?: number; // unix seconds
   platforms?: { name: string }[];
   summary?: string;
+  url?: string; // このゲームのIGDB上のページURL（帰属表示のリンク先として使う）
   involved_companies?: InvolvedCompany[];
   similar_games?: SimilarGameRaw[];
 }
@@ -87,6 +88,7 @@ function toSearchRow(raw: RawIgdbGame) {
     first_release_date: toIsoDate(raw.first_release_date),
     platforms: (raw.platforms ?? []).map((p) => p.name),
     summary: raw.summary ?? null,
+    igdb_url: raw.url ?? null,
     raw_igdb_json: raw,
     cached_at: new Date().toISOString(),
   };

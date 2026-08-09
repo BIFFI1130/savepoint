@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
@@ -154,6 +155,8 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                     ),
                   ),
                 ],
+                const SizedBox(height: 24),
+                _IgdbAttribution(igdbUrl: game.igdbUrl),
               ],
             ),
           );
@@ -172,6 +175,43 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
     if (game.developers.isNotEmpty) parts.add('開発: ${game.developers.join(', ')}');
     if (game.publishers.isNotEmpty) parts.add('発売: ${game.publishers.join(', ')}');
     return parts.join(' / ');
+  }
+}
+
+/// データ提供元（IGDB）の帰属表示と、当該ゲームのIGDBページへのリンク。
+class _IgdbAttribution extends StatelessWidget {
+  const _IgdbAttribution({required this.igdbUrl});
+
+  final String? igdbUrl;
+
+  Future<void> _open() async {
+    final url = igdbUrl;
+    if (url == null) return;
+    final uri = Uri.tryParse(url);
+    if (uri != null) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: Theme.of(context).colorScheme.outline,
+        );
+    if (igdbUrl == null) {
+      return Text('ゲーム情報提供: IGDB', style: style);
+    }
+    return InkWell(
+      onTap: _open,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('ゲーム情報提供: IGDBで見る', style: style),
+          const SizedBox(width: 2),
+          Icon(Icons.open_in_new, size: 14, color: style?.color),
+        ],
+      ),
+    );
   }
 }
 
