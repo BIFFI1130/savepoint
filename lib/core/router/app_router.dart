@@ -1,0 +1,73 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../features/auth/presentation/screens/sign_in_screen.dart';
+import '../../features/auth/presentation/screens/sign_up_screen.dart';
+import '../../features/game_log/presentation/screens/log_review_screen.dart';
+import '../supabase/supabase_client.dart';
+import 'home_shell.dart';
+import '../../features/game_search/presentation/screens/game_detail_screen.dart';
+
+final routerProvider = Provider<GoRouter>((ref) {
+  final refreshStream = GoRouterRefreshStream(supabase.auth.onAuthStateChange);
+  ref.onDispose(refreshStream.dispose);
+
+  return GoRouter(
+    initialLocation: '/home',
+    refreshListenable: refreshStream,
+    redirect: (context, state) {
+      final isLoggedIn = supabase.auth.currentSession != null;
+      final isAuthRoute = state.matchedLocation == '/sign-in' ||
+          state.matchedLocation == '/sign-up';
+
+      if (!isLoggedIn && !isAuthRoute) return '/sign-in';
+      if (isLoggedIn && isAuthRoute) return '/home';
+      return null;
+    },
+    routes: [
+      GoRoute(path: '/sign-in', builder: (context, state) => const SignInScreen()),
+      GoRoute(path: '/sign-up', builder: (context, state) => const SignUpScreen()),
+      GoRoute(
+        path: '/home',
+        builder: (context, state) {
+          final initialIndex = state.extra is int ? state.extra as int : 0;
+          return HomeShell(initialIndex: initialIndex);
+        },
+      ),
+      GoRoute(
+        path: '/games/:id',
+        builder: (context, state) {
+          final gameId = int.parse(state.pathParameters['id']!);
+          return GameDetailScreen(gameId: gameId);
+        },
+      ),
+      GoRoute(
+        path: '/games/:id/log',
+        builder: (context, state) {
+          final gameId = int.parse(state.pathParameters['id']!);
+          return LogReviewScreen(gameId: gameId);
+        },
+      ),
+    ],
+  );
+});
+
+/// SupabaseのonAuthStateChange StreamをListenableに変換し、
+/// go_routerのrefreshListenableに渡してログイン/ログアウト時にredirectを再評価させる。
+class GoRouterRefreshStream extends ChangeNotifier {
+  GoRouterRefreshStream(Stream<dynamic> stream) {
+    notifyListeners();
+    _subscription = stream.asBroadcastStream().listen((_) => notifyListeners());
+  }
+
+  late final StreamSubscription<dynamic> _subscription;
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
