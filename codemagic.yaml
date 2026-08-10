@@ -30,8 +30,39 @@ workflows:
     artifacts:
       - build/ios/iphoneos/*.app
 
-  # Apple Developer Programの承認が下り、Sign in with Appleの設定
-  # （README参照）が完了したら、以下を追加してTestFlight配信ワークフローにする:
-  #   - ios_signing: (bundle_identifier, App Store Connect APIキー連携)
-  #   - distribution_type: app_store
-  #   - publishing: app_store_connect セクション
+  ios-testflight:
+    name: iOS TestFlight配信
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      # Codemagicダッシュボードで登録したApp Store Connect APIキーの参照名。
+      app_store_connect: savepoint_appstore
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.biffi.savepoint
+      # SUPABASE_URL / SUPABASE_ANON_KEY はCodemagicのアプリ設定に個別登録済み（groups不要）。
+    # 手動トリガーのみ（pushの度にTestFlightへアップロードしないようにするため）。
+    # Codemagicダッシュボードの「Start new build」からこのワークフローを選んで実行する。
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Set up code signing settings on Xcode project
+        script: xcode-project use-profiles
+      - name: Build ipa for App Store
+        script: |
+          flutter build ipa --release \
+            --export-options-plist=/Users/builder/export_options.plist \
+            --build-number=$CM_BUILD_NUMBER \
+            --dart-define=SUPABASE_URL=$SUPABASE_URL \
+            --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
