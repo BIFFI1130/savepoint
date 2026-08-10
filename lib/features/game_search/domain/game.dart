@@ -17,7 +17,7 @@ class SimilarGame {
 
 /// ゲーム情報（IGDBから取得し、Supabaseの games テーブルにキャッシュされたもの）。
 ///
-/// [developers]・[publishers]・[similarGames]・[summaryJa] はゲーム詳細取得
+/// [developers]・[publishers]・[similarGames]・[summaryJa]・[officialUrl] はゲーム詳細取得
 /// （igdb-proxyのdetailsアクション）でのみ取得され、検索結果一覧では空/nullになる。
 class Game {
   const Game({
@@ -34,6 +34,7 @@ class Game {
     this.publishers = const [],
     this.similarGames = const [],
     this.igdbUrl,
+    this.officialUrl,
   });
 
   final int id;
@@ -53,6 +54,9 @@ class Game {
 
   /// このゲームのIGDB上のページURL。データ提供元（IGDB）への導線として表示する。
   final String? igdbUrl;
+
+  /// 公式サイトのURL（日本語ページらしいものがあれば優先）。
+  final String? officialUrl;
 
   int? get releaseYear => firstReleaseDate?.year;
 
@@ -83,6 +87,7 @@ class Game {
               .toList() ??
           const [],
       igdbUrl: json['igdb_url'] as String?,
+      officialUrl: json['official_url'] as String?,
     );
   }
 }

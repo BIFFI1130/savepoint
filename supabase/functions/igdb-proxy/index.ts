@@ -46,7 +46,17 @@ const SORT_CLAUSES: Record<string, string> = {
 };
 const DETAILS_FIELDS = `${SEARCH_FIELDS},` +
   'involved_companies.company.name,involved_companies.developer,involved_companies.publisher,' +
-  'similar_games.name,similar_games.cover.url,similar_games.first_release_date';
+  'similar_games.name,similar_games.cover.url,similar_games.first_release_date,' +
+  'websites.url,websites.type';
+
+/** IGDBのwebsites.typeの値（/website_typesエンドポイントで確認済み）。公式サイトのみ使う。 */
+const OFFICIAL_WEBSITE_TYPE = 1;
+
+/**
+ * 公式サイトのURLに日本語ページらしさが感じられるかどうかの簡易判定。
+ * IGDBのwebsitesには言語情報が無いため、ドメイン/パスに日本を示す文字列があるかで代用する。
+ */
+const JAPANESE_URL_HINT_REGEX = /(^|\.)jp(\.|\/|$)|\/ja([-/]|$)|japan/i;
 
 interface InvolvedCompany {
   company?: { name?: string };
@@ -60,6 +70,11 @@ interface SimilarGameRaw {
   cover?: { url?: string };
 }
 
+interface WebsiteRaw {
+  url: string;
+  type?: number;
+}
+
 interface RawIgdbGame {
   id: number;
   name?: string;
@@ -71,6 +86,15 @@ interface RawIgdbGame {
   themes?: { name: string }[];
   involved_companies?: InvolvedCompany[];
   similar_games?: SimilarGameRaw[];
+  websites?: WebsiteRaw[];
+}
+
+/** 公式サイトのURLを選ぶ。日本語ページらしいものがあればそれを優先する。 */
+function pickOfficialWebsiteUrl(websites: WebsiteRaw[] | undefined): string | null {
+  const officials = (websites ?? []).filter((w) => w.type === OFFICIAL_WEBSITE_TYPE);
+  if (officials.length === 0) return null;
+  const japanese = officials.find((w) => JAPANESE_URL_HINT_REGEX.test(w.url));
+  return (japanese ?? officials[0]).url;
 }
 
 interface SimilarGameSummary {
@@ -133,6 +157,7 @@ function toDetailRow(raw: RawIgdbGame) {
     developers,
     publishers,
     similar_games: similarGames,
+    official_url: pickOfficialWebsiteUrl(raw.websites),
   };
 }
 

@@ -123,7 +123,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                   Text('関連作品', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
                   SizedBox(
-                    height: 150,
+                    height: 164,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: game.similarGames.length,
@@ -158,6 +158,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                   ),
                 ],
                 const SizedBox(height: 24),
+                _OfficialSiteLink(url: game.officialUrl),
                 _IgdbAttribution(igdbUrl: game.igdbUrl),
               ],
             ),
@@ -212,6 +213,57 @@ class _StatsRow extends ConsumerWidget {
       },
       loading: () => const SizedBox.shrink(),
       error: (error, _) => const SizedBox.shrink(),
+    );
+  }
+}
+
+/// 公式サイトへのリンク（あれば表示）。複数の公式サイトがある場合は
+/// 日本語ページらしいものをigdb-proxy側で優先的に選んでいる。
+class _OfficialSiteLink extends StatelessWidget {
+  const _OfficialSiteLink({required this.url});
+
+  final String? url;
+
+  Future<void> _open() async {
+    final value = url;
+    if (value == null) return;
+    final uri = Uri.tryParse(value);
+    if (uri != null) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (url == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: InkWell(
+        onTap: _open,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.public,
+              size: 16,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '公式サイトを見る',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+            ),
+            const SizedBox(width: 2),
+            Icon(
+              Icons.open_in_new,
+              size: 14,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
