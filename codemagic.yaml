@@ -10,12 +10,8 @@ workflows:
       groups:
         # SUPABASE_URL / SUPABASE_ANON_KEY を含むCodemagic側の変数グループ。
         - SUPABASE_VARIABLES
-    triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: main
-          include: true
+    # 手動トリガーのみ（TestFlight配信が安定して動くようになったため、
+    # push毎の自動検証ビルドは停止。必要な時にダッシュボードから手動実行する）。
     scripts:
       - name: Get Flutter packages
         script: flutter pub get
