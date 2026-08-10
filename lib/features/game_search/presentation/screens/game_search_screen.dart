@@ -207,8 +207,8 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
               children: [
                 for (final option in _genreOptions)
                   SizedBox(
-                    width: 56,
-                    height: 56,
+                    width: 112,
+                    height: 112,
                     child: _GenreBadge(
                       label: option.$1,
                       icon: option.$3,
@@ -331,28 +331,28 @@ class _GenreBadge extends StatelessWidget {
           onTap: onTap,
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
               border: selected
                   ? Border.all(
                       color: Theme.of(context).colorScheme.primary,
-                      width: 2,
+                      width: 3,
                     )
                   : null,
             ),
             child: Stack(
               children: [
                 Align(
-                  alignment: const Alignment(0, -0.25),
-                  child: Icon(icon, size: 20, color: Colors.white70),
+                  alignment: const Alignment(0, -0.3),
+                  child: Icon(icon, size: 38, color: Colors.white70),
                 ),
                 if (selected)
                   const Positioned(
-                    top: 2,
-                    left: 2,
+                    top: 4,
+                    left: 4,
                     child: Icon(
                       Icons.check_circle,
                       color: Colors.white,
-                      size: 12,
+                      size: 20,
                     ),
                   ),
                 Positioned(
@@ -360,12 +360,12 @@ class _GenreBadge extends StatelessWidget {
                   right: 0,
                   bottom: 0,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.45),
                       borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(8),
-                        bottomRight: Radius.circular(8),
+                        bottomLeft: Radius.circular(10),
+                        bottomRight: Radius.circular(10),
                       ),
                     ),
                     child: Text(
@@ -375,7 +375,7 @@ class _GenreBadge extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 7.5,
+                        fontSize: 10.5,
                         height: 1.2,
                         fontWeight: FontWeight.w600,
                       ),
