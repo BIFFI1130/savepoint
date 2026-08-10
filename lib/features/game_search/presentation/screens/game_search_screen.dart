@@ -7,18 +7,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../domain/game.dart';
+import '../../domain/platform_options.dart';
 import '../providers/game_search_providers.dart';
-
-/// 対応ハードフィルタの選択肢（表示ラベル, IGDB検索に渡す値）。
-const _platformOptions = <(String label, String value)>[
-  ('Switch', 'Switch'),
-  ('PS5', 'PlayStation 5'),
-  ('PS4', 'PlayStation 4'),
-  ('Xbox', 'Xbox'),
-  ('PC', 'Windows'),
-  ('iOS', 'iOS'),
-  ('Android', 'Android'),
-];
 
 /// カテゴリ（ジャンル）フィルタの選択肢（表示ラベル, IGDBの正式なジャンル名）。
 /// IGDBのジャンル一覧から、日本のユーザーに馴染みのある分類のみを抜粋している。
@@ -193,7 +183,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
                           child: ListView(
                             scrollDirection: Axis.horizontal,
                             children: [
-                              for (final option in _platformOptions)
+                              for (final option in platformOptions)
                                 Padding(
                                   padding: const EdgeInsets.only(right: 8),
                                   child: FilterChip(

@@ -116,6 +116,8 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                   ),
                   error: (error, stackTrace) => const SizedBox.shrink(),
                 ),
+                const SizedBox(height: 12),
+                _StatsRow(gameId: widget.gameId),
                 if (game.similarGames.isNotEmpty) ...[
                   const SizedBox(height: 24),
                   Text('関連作品', style: Theme.of(context).textTheme.titleMedium),
@@ -175,6 +177,42 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
     if (game.developers.isNotEmpty) parts.add('開発: ${game.developers.join(', ')}');
     if (game.publishers.isNotEmpty) parts.add('発売: ${game.publishers.join(', ')}');
     return parts.join(' / ');
+  }
+}
+
+/// 「遊んだ／遊びたい」の人数（全ユーザー集計）を表示する。
+class _StatsRow extends ConsumerWidget {
+  const _StatsRow({required this.gameId});
+
+  final int gameId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statsAsync = ref.watch(gameStatsProvider(gameId));
+
+    return statsAsync.when(
+      data: (stats) {
+        if (stats == null || (stats.playedCount == 0 && stats.wantToPlayCount == 0)) {
+          return const SizedBox.shrink();
+        }
+        final style = Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
+            );
+        return Row(
+          children: [
+            Icon(Icons.videogame_asset_outlined, size: 16, color: style?.color),
+            const SizedBox(width: 4),
+            Text('遊んだ ${stats.playedCount}人', style: style),
+            const SizedBox(width: 16),
+            Icon(Icons.bookmark_outline, size: 16, color: style?.color),
+            const SizedBox(width: 4),
+            Text('遊びたい ${stats.wantToPlayCount}人', style: style),
+          ],
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (error, _) => const SizedBox.shrink(),
+    );
   }
 }
 

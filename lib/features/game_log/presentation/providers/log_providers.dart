@@ -1,10 +1,22 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/log_repository.dart';
+import '../../data/stats_repository.dart';
 import '../../domain/game_log.dart';
+import '../../domain/game_log_stats.dart';
 
 final logRepositoryProvider = Provider<LogRepository>((ref) {
   return LogRepository();
+});
+
+final statsRepositoryProvider = Provider<StatsRepository>((ref) {
+  return StatsRepository();
+});
+
+/// 指定ゲームの「遊んだ／遊びたい」人数（全ユーザー集計）。
+final gameStatsProvider =
+    FutureProvider.family<GameLogStats?, int>((ref, gameId) async {
+  return ref.read(statsRepositoryProvider).fetchStatsForGame(gameId);
 });
 
 /// 自分のマイログ一覧。記録の追加・編集後は `ref.invalidate(myLogsProvider)` で再取得する。

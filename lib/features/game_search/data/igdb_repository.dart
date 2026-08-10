@@ -62,4 +62,23 @@ class IgdbRepository {
     if (data is! Map) return null;
     return Game.fromJson(data.cast<String, dynamic>());
   }
+
+  /// 今週（月曜〜日曜）発売のゲーム一覧。人気順（評価数の多い順）。
+  /// [platform] を指定すると対応ハードで絞り込む。
+  Future<List<Game>> weeklyReleases({String? platform}) async {
+    final response = await supabase.functions.invoke(
+      'igdb-proxy',
+      body: {
+        'action': 'weekly_releases',
+        if (platform != null && platform.isNotEmpty) 'platform': platform,
+      },
+    );
+
+    final data = response.data;
+    if (data is! List) return [];
+    return data
+        .cast<Map<String, dynamic>>()
+        .map(Game.fromJson)
+        .toList(growable: false);
+  }
 }

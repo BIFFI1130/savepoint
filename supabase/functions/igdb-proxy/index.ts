@@ -186,6 +186,24 @@ async function translateQueryToEnglish(text: string): Promise<string> {
   }
 }
 
+/** 今週（月曜0:00〜翌週月曜0:00、UTC基準）のunixタイムスタンプ範囲を返す。 */
+function currentWeekRangeUnix(): { start: number; end: number } {
+  const now = new Date();
+  const day = now.getUTCDay(); // 0=日曜, 1=月曜, ...
+  const diffToMonday = day === 0 ? 6 : day - 1;
+  const monday = new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate() - diffToMonday,
+  ));
+  const nextMonday = new Date(monday);
+  nextMonday.setUTCDate(monday.getUTCDate() + 7);
+  return {
+    start: Math.floor(monday.getTime() / 1000),
+    end: Math.floor(nextMonday.getTime() / 1000),
+  };
+}
+
 /** igdb_tokens テーブルから有効なTwitchトークンを取得し、なければ新規取得して保存する。 */
 async function getTwitchAccessToken(
   db: ReturnType<typeof serviceRoleClient>,
@@ -404,6 +422,32 @@ Deno.serve(async (req) => {
         throw new Error(`games upsert failed: ${upsertError.message}`);
       }
       return new Response(JSON.stringify(fullRow), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (action === 'weekly_releases') {
+      const { start, end } = currentWeekRangeUnix();
+      const weeklyFilters = [
+        `first_release_date >= ${start}`,
+        `first_release_date < ${end}`,
+      ];
+      if (typeof platform === 'string' && platform.trim()) {
+        const p = platform.trim().replace(/"/g, '\\"');
+        weeklyFilters.push(`platforms.name ~ *"${p}"*`);
+      }
+      const raws = await queryIgdb(
+        accessToken,
+        `fields ${SEARCH_FIELDS}; where ${weeklyFilters.join(' & ')}; sort total_rating_count desc; limit 30;`,
+      );
+      const rows = raws.map(toSearchRow);
+      if (rows.length > 0) {
+        const { error: upsertError } = await db.from('games').upsert(rows);
+        if (upsertError) {
+          throw new Error(`games upsert failed: ${upsertError.message}`);
+        }
+      }
+      return new Response(JSON.stringify(rows), {
         headers: { 'Content-Type': 'application/json' },
       });
     }
