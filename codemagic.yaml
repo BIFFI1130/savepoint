@@ -7,10 +7,9 @@ workflows:
       flutter: stable
       xcode: latest
       cocoapods: default
-      # SUPABASE_URL / SUPABASE_ANON_KEY はCodemagicのアプリ設定
-      # （Environment variables）にグループなしで個別登録済み。
-      # アプリレベルで登録した変数は、groups指定がなくても
-      # このアプリの全ワークフローに自動的に注入される。
+      groups:
+        # SUPABASE_URL / SUPABASE_ANON_KEY を含むCodemagic側の変数グループ。
+        - SUPABASE_VARIABLES
     triggering:
       events:
         - push
@@ -44,7 +43,9 @@ workflows:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.biffi.savepoint
-      # SUPABASE_URL / SUPABASE_ANON_KEY はCodemagicのアプリ設定に個別登録済み（groups不要）。
+      groups:
+        # SUPABASE_URL / SUPABASE_ANON_KEY を含むCodemagic側の変数グループ。
+        - SUPABASE_VARIABLES
     # 手動トリガーのみ（pushの度にTestFlightへアップロードしないようにするため）。
     # Codemagicダッシュボードの「Start new build」からこのワークフローを選んで実行する。
     scripts:
