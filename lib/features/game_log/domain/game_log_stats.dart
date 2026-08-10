@@ -10,6 +10,8 @@ class GameLogStats {
     this.nameJa,
     this.isAdult = false,
     this.isJapaneseDeveloper = false,
+    this.avgRating,
+    this.ratingCount = 0,
   });
 
   final int gameId;
@@ -18,6 +20,12 @@ class GameLogStats {
   final int playedCount;
   final int wantToPlayCount;
   final String? nameJa;
+
+  /// 全ユーザーの評価平均（「遊んだ」かつ評価入力済みのログのみが対象）。
+  final double? avgRating;
+
+  /// 評価件数（[avgRating] の算出対象になった件数）。
+  final int ratingCount;
 
   /// 成人向け作品かどうか（IGDBのthemesに"Erotic"が含まれるかで判定）。
   final bool isAdult;
@@ -38,6 +46,8 @@ class GameLogStats {
       nameJa: json['name_ja'] as String?,
       isAdult: json['is_adult'] as bool? ?? false,
       isJapaneseDeveloper: json['is_japanese_developer'] as bool? ?? false,
+      avgRating: (json['avg_rating'] as num?)?.toDouble(),
+      ratingCount: json['rating_count'] as int? ?? 0,
     );
   }
 }

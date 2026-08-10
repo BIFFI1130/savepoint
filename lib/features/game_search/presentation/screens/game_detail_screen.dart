@@ -199,15 +199,39 @@ class _StatsRow extends ConsumerWidget {
         final style = Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Theme.of(context).colorScheme.outline,
             );
-        return Row(
+        return Wrap(
+          spacing: 16,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Icon(Icons.videogame_asset_outlined, size: 16, color: style?.color),
-            const SizedBox(width: 4),
-            Text('遊んだ ${stats.playedCount}人', style: style),
-            const SizedBox(width: 16),
-            Icon(Icons.bookmark_outline, size: 16, color: style?.color),
-            const SizedBox(width: 4),
-            Text('遊びたい ${stats.wantToPlayCount}人', style: style),
+            if (stats.ratingCount > 0)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.star, size: 16, color: Colors.amber),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${stats.avgRating!.toStringAsFixed(1)}（${stats.ratingCount}件）',
+                    style: style,
+                  ),
+                ],
+              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.videogame_asset_outlined, size: 16, color: style?.color),
+                const SizedBox(width: 4),
+                Text('遊んだ ${stats.playedCount}人', style: style),
+              ],
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.bookmark_outline, size: 16, color: style?.color),
+                const SizedBox(width: 4),
+                Text('遊びたい ${stats.wantToPlayCount}人', style: style),
+              ],
+            ),
           ],
         );
       },

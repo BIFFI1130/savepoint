@@ -274,28 +274,13 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Icon(
-                  Icons.view_list,
-                  size: 20,
-                  color: _isGridView
-                      ? Theme.of(context).colorScheme.outline
-                      : Theme.of(context).colorScheme.primary,
-                ),
-                Switch(
-                  value: _isGridView,
-                  onChanged: (value) => setState(() => _isGridView = value),
-                ),
-                Icon(
-                  Icons.grid_view,
-                  size: 20,
-                  color: _isGridView
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.outline,
-                ),
-              ],
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                onPressed: () => setState(() => _isGridView = !_isGridView),
+                icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
+                tooltip: _isGridView ? 'リスト表示に切り替え' : 'グリッド表示に切り替え',
+              ),
             ),
           ),
         ],
