@@ -9,6 +9,7 @@ class GameLogStats {
     required this.wantToPlayCount,
     this.nameJa,
     this.isAdult = false,
+    this.isJapaneseDeveloper = false,
   });
 
   final int gameId;
@@ -21,8 +22,11 @@ class GameLogStats {
   /// 成人向け作品かどうか（IGDBのthemesに"Erotic"が含まれるかで判定）。
   final bool isAdult;
 
-  /// 表示用のタイトル。日本語訳があればそれを、なければ原題を返す。
-  String get displayName => nameJa ?? name;
+  /// 開発元が日本の会社かどうか。タイトルを日本語表示するかどうかの判定に使う。
+  final bool isJapaneseDeveloper;
+
+  /// 表示用のタイトル。開発元が日本の会社で日本語訳があればそれを、それ以外は原題を返す。
+  String get displayName => isJapaneseDeveloper ? (nameJa ?? name) : name;
 
   factory GameLogStats.fromJson(Map<String, dynamic> json) {
     return GameLogStats(
@@ -33,6 +37,7 @@ class GameLogStats {
       wantToPlayCount: json['want_to_play_count'] as int? ?? 0,
       nameJa: json['name_ja'] as String?,
       isAdult: json['is_adult'] as bool? ?? false,
+      isJapaneseDeveloper: json['is_japanese_developer'] as bool? ?? false,
     );
   }
 }

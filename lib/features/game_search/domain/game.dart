@@ -5,6 +5,7 @@ class SimilarGame {
     required this.name,
     this.coverUrl,
     this.nameJa,
+    this.isJapaneseDeveloper = false,
   });
 
   final int id;
@@ -12,8 +13,11 @@ class SimilarGame {
   final String? coverUrl;
   final String? nameJa;
 
-  /// 表示用のタイトル。日本語訳があればそれを、なければ原題を返す。
-  String get displayName => nameJa ?? name;
+  /// 開発元が日本の会社かどうか。
+  final bool isJapaneseDeveloper;
+
+  /// 表示用のタイトル。開発元が日本の会社で日本語訳があればそれを、それ以外は原題を返す。
+  String get displayName => isJapaneseDeveloper ? (nameJa ?? name) : name;
 
   factory SimilarGame.fromJson(Map<String, dynamic> json) {
     return SimilarGame(
@@ -21,6 +25,7 @@ class SimilarGame {
       name: json['name'] as String? ?? '(タイトル不明)',
       coverUrl: json['cover_url'] as String?,
       nameJa: json['name_ja'] as String?,
+      isJapaneseDeveloper: json['is_japanese_developer'] as bool? ?? false,
     );
   }
 }
@@ -40,6 +45,7 @@ class Game {
     this.summaryJa,
     this.nameJa,
     this.isAdult = false,
+    this.isJapaneseDeveloper = false,
     this.developers = const [],
     this.publishers = const [],
     this.similarGames = const [],
@@ -58,6 +64,9 @@ class Game {
 
   /// 成人向け作品かどうか（IGDBのthemesに"Erotic"が含まれるかで判定）。
   final bool isAdult;
+
+  /// 開発元が日本の会社かどうか。タイトルを日本語表示するかどうかの判定に使う。
+  final bool isJapaneseDeveloper;
   final List<String> developers;
   final List<String> publishers;
   final List<SimilarGame> similarGames;
@@ -73,8 +82,8 @@ class Game {
   /// 表示用の概要。日本語訳があればそれを、なければ原文を返す。
   String? get displaySummary => summaryJa ?? summary;
 
-  /// 表示用のタイトル。日本語訳があればそれを、なければ原題を返す。
-  String get displayName => nameJa ?? name;
+  /// 表示用のタイトル。開発元が日本の会社で日本語訳があればそれを、それ以外は原題を返す。
+  String get displayName => isJapaneseDeveloper ? (nameJa ?? name) : name;
 
   factory Game.fromJson(Map<String, dynamic> json) {
     return Game(
@@ -89,6 +98,7 @@ class Game {
       summaryJa: json['summary_ja'] as String?,
       nameJa: json['name_ja'] as String?,
       isAdult: json['is_adult'] as bool? ?? false,
+      isJapaneseDeveloper: json['is_japanese_developer'] as bool? ?? false,
       developers: (json['developers'] as List?)?.cast<String>() ?? const [],
       publishers: (json['publishers'] as List?)?.cast<String>() ?? const [],
       similarGames: (json['similar_games'] as List?)

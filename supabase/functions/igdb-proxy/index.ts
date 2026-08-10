@@ -45,9 +45,13 @@ const SORT_CLAUSES: Record<string, string> = {
   release_date: 'sort first_release_date desc',
 };
 const DETAILS_FIELDS = `${SEARCH_FIELDS},` +
-  'involved_companies.company.name,involved_companies.developer,involved_companies.publisher,' +
+  'involved_companies.company.name,involved_companies.company.country,' +
+  'involved_companies.developer,involved_companies.publisher,' +
   'similar_games.name,similar_games.cover.url,similar_games.first_release_date,' +
   'websites.url,websites.type';
+
+/** ISO 3166-1数値コードの日本（IGDBのcompanies.countryはこの体系。実データで確認済み）。 */
+const JAPAN_COUNTRY_CODE = 392;
 
 /** IGDBのwebsites.typeの値（/website_typesエンドポイントで確認済み）。公式サイトのみ使う。 */
 const OFFICIAL_WEBSITE_TYPE = 1;
@@ -59,7 +63,7 @@ const OFFICIAL_WEBSITE_TYPE = 1;
 const JAPANESE_URL_HINT_REGEX = /(^|\.)jp(\.|\/|$)|\/ja([-/]|$)|japan/i;
 
 interface InvolvedCompany {
-  company?: { name?: string };
+  company?: { name?: string; country?: number };
   developer?: boolean;
   publisher?: boolean;
 }
@@ -146,6 +150,9 @@ function toDetailRow(raw: RawIgdbGame) {
   const publishers = involved
     .filter((c) => c.publisher && c.company?.name)
     .map((c) => c.company!.name!);
+  const isJapaneseDeveloper = involved.some(
+    (c) => c.developer && c.company?.country === JAPAN_COUNTRY_CODE,
+  );
   const similarGames: SimilarGameSummary[] = (raw.similar_games ?? []).map((g) => ({
     id: g.id,
     name: g.name ?? '(タイトル不明)',
@@ -156,6 +163,7 @@ function toDetailRow(raw: RawIgdbGame) {
     ...toSearchRow(raw),
     developers,
     publishers,
+    is_japanese_developer: isJapaneseDeveloper,
     similar_games: similarGames,
     official_url: pickOfficialWebsiteUrl(raw.websites),
   };
@@ -241,25 +249,28 @@ function currentWeekRangeUnix(): { start: number; end: number } {
 }
 
 /**
- * 既にキャッシュ済みの日本語タイトル（name_ja）があれば行にマージして返す。
- * search/weekly_releasesは軽量化のためタイトルの新規翻訳は行わず、既に
- * details取得で翻訳済みのものだけを再利用する。
+ * 既にキャッシュ済みの日本語タイトル（name_ja）・開発元が日本の会社かどうか
+ * （is_japanese_developer）を行にマージして返す。search/weekly_releasesは
+ * 軽量化のため新規翻訳・企業情報取得は行わず、既にdetails取得済みのものだけを再利用する。
  */
 async function mergeCachedNameJa<T extends { id: number; name: string }>(
   db: ReturnType<typeof serviceRoleClient>,
   rows: T[],
-): Promise<(T & { name_ja?: string | null })[]> {
+): Promise<(T & { name_ja?: string | null; is_japanese_developer?: boolean })[]> {
   if (rows.length === 0) return rows;
   const { data } = await db
     .from('games')
-    .select('id, name_ja')
-    .in('id', rows.map((r) => r.id))
-    .not('name_ja', 'is', null);
-  const nameJaById = new Map((data ?? []).map((r) => [r.id, r.name_ja as string]));
-  return rows.map((row) => ({
-    ...row,
-    name_ja: normalizeTranslatedName(row.name, nameJaById.get(row.id) ?? null),
-  }));
+    .select('id, name_ja, is_japanese_developer')
+    .in('id', rows.map((r) => r.id));
+  const cachedById = new Map((data ?? []).map((r) => [r.id, r]));
+  return rows.map((row) => {
+    const cached = cachedById.get(row.id);
+    return {
+      ...row,
+      name_ja: normalizeTranslatedName(row.name, cached?.name_ja ?? null),
+      is_japanese_developer: cached?.is_japanese_developer ?? false,
+    };
+  });
 }
 
 /**
