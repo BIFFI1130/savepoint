@@ -51,6 +51,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
   String? _selectedGenre;
   String _queryText = '';
   GameSortType _sort = GameSortType.popularity;
+  bool _includeUpcoming = false;
   Timer? _developerDebounce;
   bool _showAdvanced = false;
   bool _isGridView = false;
@@ -108,6 +109,11 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
   void _onSortChanged(GameSortType sort) {
     setState(() => _sort = sort);
     ref.read(gameSearchProvider.notifier).setSort(sort);
+  }
+
+  void _onIncludeUpcomingChanged(bool value) {
+    setState(() => _includeUpcoming = value);
+    ref.read(gameSearchProvider.notifier).setIncludeUpcoming(value);
   }
 
   @override
@@ -222,6 +228,8 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
             enabled: _queryText.trim().isEmpty,
             sort: _sort,
             onChanged: _onSortChanged,
+            includeUpcoming: _includeUpcoming,
+            onIncludeUpcomingChanged: _onIncludeUpcomingChanged,
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
@@ -293,6 +301,12 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
   }
 }
 
+const _sortLabels = <GameSortType, String>{
+  GameSortType.popularity: '人気順',
+  GameSortType.name: '辞書順',
+  GameSortType.releaseDate: '発売時期順',
+};
+
 /// カテゴリ探索時の並び替え選択。タイトル検索中（[enabled] が false）は
 /// 操作できない（IGDBは検索キーワードと並び替えを併用できないため）。
 class _SortSelector extends StatelessWidget {
@@ -300,11 +314,15 @@ class _SortSelector extends StatelessWidget {
     required this.enabled,
     required this.sort,
     required this.onChanged,
+    required this.includeUpcoming,
+    required this.onIncludeUpcomingChanged,
   });
 
   final bool enabled;
   final GameSortType sort;
   final ValueChanged<GameSortType> onChanged;
+  final bool includeUpcoming;
+  final ValueChanged<bool> onIncludeUpcomingChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -315,27 +333,39 @@ class _SortSelector extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('並び替え', style: Theme.of(context).textTheme.labelMedium),
-            const SizedBox(height: 4),
-            SegmentedButton<GameSortType>(
-              segments: const [
-                ButtonSegment(
-                  value: GameSortType.popularity,
-                  label: Text('人気順'),
-                ),
-                ButtonSegment(
-                  value: GameSortType.name,
-                  label: Text('辞書順'),
-                ),
-                ButtonSegment(
-                  value: GameSortType.releaseDate,
-                  label: Text('発売時期順'),
+            Row(
+              children: [
+                Text('並び替え：', style: Theme.of(context).textTheme.labelMedium),
+                const SizedBox(width: 8),
+                DropdownButton<GameSortType>(
+                  value: sort,
+                  isDense: true,
+                  items: [
+                    for (final entry in _sortLabels.entries)
+                      DropdownMenuItem(
+                        value: entry.key,
+                        child: Text(entry.value),
+                      ),
+                  ],
+                  onChanged: enabled
+                      ? (value) {
+                          if (value != null) onChanged(value);
+                        }
+                      : null,
                 ),
               ],
-              selected: {sort},
-              onSelectionChanged:
-                  enabled ? (selection) => onChanged(selection.first) : null,
             ),
+            if (sort == GameSortType.releaseDate)
+              CheckboxListTile(
+                value: includeUpcoming,
+                onChanged: enabled
+                    ? (value) => onIncludeUpcomingChanged(value ?? false)
+                    : null,
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                dense: true,
+                title: const Text('発売予定作品も含める'),
+              ),
             if (!enabled)
               Padding(
                 padding: const EdgeInsets.only(top: 2),

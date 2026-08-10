@@ -60,6 +60,7 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
   String _developer = '';
   String? _genre;
   GameSortType _sort = GameSortType.popularity;
+  bool _includeUpcoming = false;
 
   @override
   FutureOr<GameSearchResults> build() {
@@ -96,6 +97,12 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
 
   GameSortType get sort => _sort;
 
+  /// 発売時期順のときに、未発売（未来の発売日）作品も含めるかどうか。
+  void setIncludeUpcoming(bool value) {
+    _includeUpcoming = value;
+    _schedule(immediate: true);
+  }
+
   void _schedule({bool immediate = false}) {
     _debounce?.cancel();
     final hasQuery = _query.trim().isNotEmpty;
@@ -121,6 +128,7 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
             developer: _developer.isEmpty ? null : _developer,
             genre: _genre,
             sort: _sort.value,
+            includeUpcoming: _includeUpcoming,
           );
       return GameSearchResults(
         games: games,
@@ -142,6 +150,7 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
             developer: _developer.isEmpty ? null : _developer,
             genre: _genre,
             sort: _sort.value,
+            includeUpcoming: _includeUpcoming,
             offset: current.games.length,
           );
       state = AsyncData(

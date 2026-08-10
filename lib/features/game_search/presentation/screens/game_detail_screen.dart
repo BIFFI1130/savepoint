@@ -239,17 +239,17 @@ class _StatusAndLogSection extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: OutlinedButton.icon(
-                onPressed: isUpdatingStatus ? null : onMarkWantToPlay,
-                style: isWantToPlay
-                    ? OutlinedButton.styleFrom(
-                        backgroundColor:
-                            Theme.of(context).colorScheme.primaryContainer,
-                      )
-                    : null,
-                icon: const Icon(Icons.bookmark_outline),
-                label: const Text('遊びたい'),
-              ),
+              child: isWantToPlay
+                  ? FilledButton.icon(
+                      onPressed: isUpdatingStatus ? null : onMarkWantToPlay,
+                      icon: const Icon(Icons.bookmark),
+                      label: const Text('遊びたい登録済み'),
+                    )
+                  : OutlinedButton.icon(
+                      onPressed: isUpdatingStatus ? null : onMarkWantToPlay,
+                      icon: const Icon(Icons.bookmark_outline),
+                      label: const Text('遊びたい'),
+                    ),
             ),
             const SizedBox(width: 8),
             Expanded(

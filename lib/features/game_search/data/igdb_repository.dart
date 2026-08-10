@@ -13,12 +13,15 @@ class IgdbRepository {
   /// （呼び出し側で結果を積み重ねれば「もっと見る」を実現できる）。
   /// [sort] はタイトル検索（[query]あり）の場合は無視される。IGDBは検索キーワード
   /// 指定時、関連度順以外の並び替えを受け付けないため（併用すると400/406エラー）。
+  /// [includeUpcoming] は sort が発売時期順の場合のみ意味を持つ。falseなら
+  /// 未来の発売日（未発売作品）を除外する。
   Future<List<Game>> search({
     String? query,
     String? platform,
     String? developer,
     String? genre,
     String? sort,
+    bool includeUpcoming = false,
     int offset = 0,
   }) async {
     final trimmedQuery = query?.trim() ?? '';
@@ -36,6 +39,7 @@ class IgdbRepository {
         if (developer != null && developer.isNotEmpty) 'developer': developer,
         if (genre != null && genre.isNotEmpty) 'genre': genre,
         if (trimmedQuery.isEmpty && sort != null) 'sort': sort,
+        if (trimmedQuery.isEmpty && includeUpcoming) 'includeUpcoming': true,
         if (offset > 0) 'offset': offset,
       },
     );

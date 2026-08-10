@@ -166,6 +166,26 @@ async function translateToJapanese(text: string): Promise<string | null> {
   return translated.length > 0 ? translated.join('') : null;
 }
 
+const JAPANESE_CHARS_REGEX = /[぀-ヿ一-鿿]/;
+
+/**
+ * 検索語に日本語が含まれる場合、IGDB検索（英語タイトルが中心）でヒットするよう
+ * 英語に翻訳してから検索する。日本語を含まない場合はそのまま返す。
+ */
+async function translateQueryToEnglish(text: string): Promise<string> {
+  if (!JAPANESE_CHARS_REGEX.test(text)) return text;
+  try {
+    const url = `${MYMEMORY_URL}?q=${encodeURIComponent(text)}&langpair=ja|en`;
+    const res = await fetch(url);
+    if (!res.ok) return text;
+    const json = await res.json();
+    const translated = json?.responseData?.translatedText;
+    return typeof translated === 'string' && translated.trim() ? translated : text;
+  } catch {
+    return text;
+  }
+}
+
 /** igdb_tokens テーブルから有効なTwitchトークンを取得し、なければ新規取得して保存する。 */
 async function getTwitchAccessToken(
   db: ReturnType<typeof serviceRoleClient>,
@@ -276,7 +296,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { action, query, id, platform, developer, genre, offset, sort } = await req.json();
+    const { action, query, id, platform, developer, genre, offset, sort, includeUpcoming } =
+      await req.json();
     const db = serviceRoleClient();
     const accessToken = await getTwitchAccessToken(db);
 
@@ -312,18 +333,26 @@ Deno.serve(async (req) => {
         );
       }
 
+      const sortKey = typeof sort === 'string' && SORT_CLAUSES[sort] ? sort : 'popularity';
+
+      // 発売時期順は、デフォルトでは未発売（未来の発売日）の作品を除外する。
+      // includeUpcomingがtrueの場合のみ、発売予定作品も含めて一覧表示する。
+      if (!hasQuery && sortKey === 'release_date' && includeUpcoming !== true) {
+        const nowUnix = Math.floor(Date.now() / 1000);
+        filters.push(`first_release_date <= ${nowUnix}`);
+      }
+
       const clauses = [`fields ${SEARCH_FIELDS}`];
       if (hasQuery) {
-        const escaped = (query as string).replace(/"/g, '\\"');
+        const translatedQuery = await translateQueryToEnglish((query as string).trim());
+        const escaped = translatedQuery.replace(/"/g, '\\"');
         clauses.unshift(`search "${escaped}"`);
       }
       if (filters.length > 0) clauses.push(`where ${filters.join(' & ')}`);
       // IGDBは search と sort を同時に使えない（sortは関連度順を上書きしてしまうため
       // 406エラーになる）。タイトル検索が無い場合のみ、指定された並び順を適用する。
-      // 未指定時は人気順（評価数が多い順）をデフォルトにする。
       if (!hasQuery) {
-        const sortClause = SORT_CLAUSES[sort as string] ?? SORT_CLAUSES.popularity;
-        clauses.push(sortClause);
+        clauses.push(SORT_CLAUSES[sortKey]);
       }
       const pageOffset = typeof offset === 'number' && offset > 0 ? offset : 0;
       clauses.push(`limit ${SEARCH_PAGE_SIZE}`);
