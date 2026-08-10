@@ -1,16 +1,26 @@
 /// 関連作品（ゲーム詳細画面で表示する簡易情報のみ）。
 class SimilarGame {
-  const SimilarGame({required this.id, required this.name, this.coverUrl});
+  const SimilarGame({
+    required this.id,
+    required this.name,
+    this.coverUrl,
+    this.nameJa,
+  });
 
   final int id;
   final String name;
   final String? coverUrl;
+  final String? nameJa;
+
+  /// 表示用のタイトル。日本語訳があればそれを、なければ原題を返す。
+  String get displayName => nameJa ?? name;
 
   factory SimilarGame.fromJson(Map<String, dynamic> json) {
     return SimilarGame(
       id: json['id'] as int,
       name: json['name'] as String? ?? '(タイトル不明)',
       coverUrl: json['cover_url'] as String?,
+      nameJa: json['name_ja'] as String?,
     );
   }
 }

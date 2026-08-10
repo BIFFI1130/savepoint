@@ -143,7 +143,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  similar.name,
+                                  similar.displayName,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   textAlign: TextAlign.center,

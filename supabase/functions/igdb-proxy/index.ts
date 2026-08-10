@@ -245,7 +245,7 @@ function currentWeekRangeUnix(): { start: number; end: number } {
  * search/weekly_releasesは軽量化のためタイトルの新規翻訳は行わず、既に
  * details取得で翻訳済みのものだけを再利用する。
  */
-async function mergeCachedNameJa<T extends { id: number }>(
+async function mergeCachedNameJa<T extends { id: number; name: string }>(
   db: ReturnType<typeof serviceRoleClient>,
   rows: T[],
 ): Promise<(T & { name_ja?: string | null })[]> {
@@ -256,7 +256,24 @@ async function mergeCachedNameJa<T extends { id: number }>(
     .in('id', rows.map((r) => r.id))
     .not('name_ja', 'is', null);
   const nameJaById = new Map((data ?? []).map((r) => [r.id, r.name_ja as string]));
-  return rows.map((row) => ({ ...row, name_ja: nameJaById.get(row.id) ?? null }));
+  return rows.map((row) => ({
+    ...row,
+    name_ja: normalizeTranslatedName(row.name, nameJaById.get(row.id) ?? null),
+  }));
+}
+
+/**
+ * タイトル翻訳結果の後処理。MyMemoryは "Control（コントロール）" のように、
+ * 原題をそのままカタカナ読みで括弧書きしただけの実質的に無意味な「翻訳」を返すことがある。
+ * こうした場合は英語のままの方が自然なため、翻訳結果が原題から始まっている（＝原題に
+ * 何かを付け足しただけ）ときは原題をそのまま採用する。
+ */
+function normalizeTranslatedName(original: string, translated: string | null): string | null {
+  if (!translated) return translated;
+  const normalizedOriginal = original.trim().toLowerCase();
+  const normalizedTranslated = translated.trim().toLowerCase();
+  if (normalizedTranslated.startsWith(normalizedOriginal)) return original;
+  return translated;
 }
 
 /** igdb_tokens テーブルから有効なTwitchトークンを取得し、なければ新規取得して保存する。 */
@@ -494,9 +511,42 @@ Deno.serve(async (req) => {
         .maybeSingle();
       const summaryJa = existing?.summary_ja ??
         (row.summary ? await translateToJapanese(row.summary) : null);
-      const nameJa = existing?.name_ja ?? await translateToJapanese(row.name);
+      const nameJa = normalizeTranslatedName(
+        row.name,
+        existing?.name_ja ?? await translateToJapanese(row.name),
+      );
 
-      const fullRow = { ...row, summary_ja: summaryJa, name_ja: nameJa };
+      // 関連作品のタイトルも日本語優先で表示する。既にキャッシュ済みならそれを使い、
+      // 無ければ翻訳して軽量な行（id/name/name_ja）だけgamesにキャッシュしておく
+      // （次回以降その作品が関連作品や検索結果に出た際に再利用できるようにするため）。
+      const similarWithNameJa = await mergeCachedNameJa(db, row.similar_games);
+      const untranslatedSimilar = similarWithNameJa.filter((g) => !g.name_ja);
+      for (const similar of untranslatedSimilar) {
+        similar.name_ja = normalizeTranslatedName(
+          similar.name,
+          await translateToJapanese(similar.name),
+        );
+      }
+      if (untranslatedSimilar.length > 0) {
+        const { error: similarUpsertError } = await db.from('games').upsert(
+          untranslatedSimilar.map((g) => ({
+            id: g.id,
+            name: g.name,
+            cover_url: g.cover_url,
+            name_ja: g.name_ja,
+          })),
+        );
+        if (similarUpsertError) {
+          throw new Error(`games upsert failed (similar_games): ${similarUpsertError.message}`);
+        }
+      }
+
+      const fullRow = {
+        ...row,
+        summary_ja: summaryJa,
+        name_ja: nameJa,
+        similar_games: similarWithNameJa,
+      };
       const { error: upsertError } = await db.from('games').upsert(fullRow);
       if (upsertError) {
         throw new Error(`games upsert failed: ${upsertError.message}`);
