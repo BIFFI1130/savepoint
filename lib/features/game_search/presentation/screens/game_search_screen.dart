@@ -11,21 +11,21 @@ import '../../domain/game.dart';
 import '../../domain/platform_options.dart';
 import '../providers/game_search_providers.dart';
 
-/// カテゴリ（ジャンル）フィルタの選択肢（表示ラベル, IGDBの正式なジャンル名）。
+/// ジャンルフィルタの選択肢（表示ラベル, IGDBの正式なジャンル名, バッジのアイコンと色）。
 /// IGDBのジャンル一覧から、日本のユーザーに馴染みのある分類のみを抜粋している。
-const _genreOptions = <(String label, String value)>[
-  ('RPG', 'Role-playing (RPG)'),
-  ('アクション', "Hack and slash/Beat 'em up"),
-  ('シューティング', 'Shooter'),
-  ('アドベンチャー', 'Adventure'),
-  ('格闘', 'Fighting'),
-  ('レース', 'Racing'),
-  ('パズル', 'Puzzle'),
-  ('ストラテジー', 'Strategy'),
-  ('シミュレーション', 'Simulator'),
-  ('スポーツ', 'Sport'),
-  ('プラットフォーマー', 'Platform'),
-  ('インディー', 'Indie'),
+const _genreOptions = <(String label, String value, IconData icon, Color color)>[
+  ('RPG', 'Role-playing (RPG)', Icons.castle, Color(0xFF6750A4)),
+  ('アクション', "Hack and slash/Beat 'em up", Icons.bolt, Color(0xFFB3261E)),
+  ('シューティング', 'Shooter', Icons.gps_fixed, Color(0xFF006C51)),
+  ('アドベンチャー', 'Adventure', Icons.explore, Color(0xFF8B5000)),
+  ('格闘', 'Fighting', Icons.sports_mma, Color(0xFF9C4146)),
+  ('レース', 'Racing', Icons.directions_car_filled, Color(0xFF3A5B9B)),
+  ('パズル', 'Puzzle', Icons.extension, Color(0xFF6E5A00)),
+  ('ストラテジー', 'Strategy', Icons.psychology, Color(0xFF4A6148)),
+  ('シミュレーション', 'Simulator', Icons.precision_manufacturing, Color(0xFF5C5F77)),
+  ('スポーツ', 'Sport', Icons.sports_soccer, Color(0xFF1D6B5B)),
+  ('プラットフォーマー', 'Platform', Icons.terrain, Color(0xFF7A5230)),
+  ('インディー', 'Indie', Icons.auto_awesome, Color(0xFF884191)),
 ];
 
 class GameSearchScreen extends ConsumerStatefulWidget {
@@ -136,7 +136,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
                 return const SliverFillRemaining(
                   hasScrollBody: false,
                   child: EmptyView(
-                    message: 'ゲームタイトルを検索するか、\nカテゴリを選んで探してみましょう',
+                    message: 'ゲームタイトルを検索するか、\nジャンルを選んで探してみましょう',
                     icon: Icons.videogame_asset_outlined,
                   ),
                 );
@@ -195,21 +195,26 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
             child: Text(
-              'カテゴリから探す',
+              'ジャンルから探す',
               style: Theme.of(context).textTheme.labelMedium,
             ),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            child: GridView.count(
+              crossAxisCount: 3,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
               children: [
                 for (final option in _genreOptions)
-                  FilterChip(
-                    label: Text(option.$1),
+                  _GenreBadge(
+                    label: option.$1,
+                    icon: option.$3,
+                    color: option.$4,
                     selected: _selectedGenres.contains(option.$2),
-                    onSelected: (_) => _onGenreTap(option.$2),
+                    onTap: () => _onGenreTap(option.$2),
                   ),
               ],
             ),
@@ -294,6 +299,85 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
           ),
         ],
       );
+  }
+}
+
+/// ジャンルの選択肢を表す正方形のバッジ。アイコンを中央に、ラベルを右下に配置する。
+class _GenreBadge extends StatelessWidget {
+  const _GenreBadge({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: 1,
+      child: Material(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: selected
+                  ? Border.all(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 3,
+                    )
+                  : null,
+            ),
+            child: Stack(
+              children: [
+                Center(
+                  child: Icon(icon, size: 36, color: Colors.white70),
+                ),
+                if (selected)
+                  const Positioned(
+                    top: 6,
+                    left: 6,
+                    child: Icon(
+                      Icons.check_circle,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                  ),
+                Positioned(
+                  right: 6,
+                  bottom: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
