@@ -26,7 +26,16 @@ const TWITCH_TOKEN_URL = 'https://id.twitch.tv/oauth2/token';
 const MYMEMORY_URL = 'https://api.mymemory.translated.net/get';
 const TRANSLATE_CHUNK_MAX_LEN = 450;
 
-const SEARCH_FIELDS = 'id,name,cover.url,first_release_date,platforms.name,summary,url';
+const SEARCH_FIELDS = 'id,name,cover.url,first_release_date,platforms.name,summary,url,themes.name';
+/** IGDBのthemes名。この名前が付いている作品は成人向けとして扱う。 */
+const ADULT_THEME_NAME = 'Erotic';
+/**
+ * ↑のIGDB上でのtheme ID（IGDBの/themesエンドポイントで確認済み、固定値）。
+ * to-many関係の除外は `themes.name != "..."` のようなドット区切りの比較では機能しない
+ * （「配列内にErotic以外の要素が1つでもあれば真」という判定になり、事実上素通りしてしまう）。
+ * IGDBの仕様通り `themes != (id...)` というID直指定の除外構文を使う必要がある。
+ */
+const ADULT_THEME_ID = 42;
 const SEARCH_PAGE_SIZE = 24;
 
 /** カテゴリ探索（タイトル検索なし）時の並び替え。キーはFlutter側と合わせている。 */
@@ -59,6 +68,7 @@ interface RawIgdbGame {
   platforms?: { name: string }[];
   summary?: string;
   url?: string; // このゲームのIGDB上のページURL（帰属表示のリンク先として使う）
+  themes?: { name: string }[];
   involved_companies?: InvolvedCompany[];
   similar_games?: SimilarGameRaw[];
 }
@@ -97,6 +107,7 @@ function toSearchRow(raw: RawIgdbGame) {
     platforms: (raw.platforms ?? []).map((p) => p.name),
     summary: raw.summary ?? null,
     igdb_url: raw.url ?? null,
+    is_adult: (raw.themes ?? []).some((t) => t.name === ADULT_THEME_NAME),
     raw_igdb_json: raw,
     cached_at: new Date().toISOString(),
   };
@@ -202,6 +213,25 @@ function currentWeekRangeUnix(): { start: number; end: number } {
     start: Math.floor(monday.getTime() / 1000),
     end: Math.floor(nextMonday.getTime() / 1000),
   };
+}
+
+/**
+ * 既にキャッシュ済みの日本語タイトル（name_ja）があれば行にマージして返す。
+ * search/weekly_releasesは軽量化のためタイトルの新規翻訳は行わず、既に
+ * details取得で翻訳済みのものだけを再利用する。
+ */
+async function mergeCachedNameJa<T extends { id: number }>(
+  db: ReturnType<typeof serviceRoleClient>,
+  rows: T[],
+): Promise<(T & { name_ja?: string | null })[]> {
+  if (rows.length === 0) return rows;
+  const { data } = await db
+    .from('games')
+    .select('id, name_ja')
+    .in('id', rows.map((r) => r.id))
+    .not('name_ja', 'is', null);
+  const nameJaById = new Map((data ?? []).map((r) => [r.id, r.name_ja as string]));
+  return rows.map((row) => ({ ...row, name_ja: nameJaById.get(row.id) ?? null }));
 }
 
 /** igdb_tokens テーブルから有効なTwitchトークンを取得し、なければ新規取得して保存する。 */
@@ -314,22 +344,40 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { action, query, id, platform, developer, genre, offset, sort, includeUpcoming } =
-      await req.json();
+    const {
+      action, query, id, platform, platforms, developer, genre, genres,
+      offset, sort, includeUpcoming, includeAdult,
+    } = await req.json();
     const db = serviceRoleClient();
     const accessToken = await getTwitchAccessToken(db);
 
     if (action === 'search') {
       const hasQuery = typeof query === 'string' && query.trim().length > 0;
 
+      // 複数選択時はOR条件（選択されたうちどれか1つでも当てはまれば表示）。
+      const platformList: string[] = Array.isArray(platforms)
+        ? platforms.filter((p): p is string => typeof p === 'string' && p.trim().length > 0)
+        : typeof platform === 'string' && platform.trim()
+        ? [platform]
+        : [];
+      const genreList: string[] = Array.isArray(genres)
+        ? genres.filter((g): g is string => typeof g === 'string' && g.trim().length > 0)
+        : typeof genre === 'string' && genre.trim()
+        ? [genre]
+        : [];
+
       const filters: string[] = [];
-      if (typeof platform === 'string' && platform.trim()) {
-        const p = platform.trim().replace(/"/g, '\\"');
-        filters.push(`platforms.name ~ *"${p}"*`);
+      if (platformList.length > 0) {
+        const clause = platformList
+          .map((p) => `platforms.name ~ *"${p.trim().replace(/"/g, '\\"')}"*`)
+          .join(' | ');
+        filters.push(platformList.length > 1 ? `(${clause})` : clause);
       }
-      if (typeof genre === 'string' && genre.trim()) {
-        const g = genre.trim().replace(/"/g, '\\"');
-        filters.push(`genres.name = "${g}"`);
+      if (genreList.length > 0) {
+        const clause = genreList
+          .map((g) => `genres.name = "${g.trim().replace(/"/g, '\\"')}"`)
+          .join(' | ');
+        filters.push(genreList.length > 1 ? `(${clause})` : clause);
       }
       if (typeof developer === 'string' && developer.trim()) {
         const companyIds = await resolveCompanyIds(accessToken, developer.trim());
@@ -360,6 +408,11 @@ Deno.serve(async (req) => {
         filters.push(`first_release_date <= ${nowUnix}`);
       }
 
+      // デフォルトでは成人向け（Eroticテーマ）の作品を除外する。
+      if (includeAdult !== true) {
+        filters.push(`themes != (${ADULT_THEME_ID})`);
+      }
+
       const clauses = [`fields ${SEARCH_FIELDS}`];
       if (hasQuery) {
         const translatedQuery = await translateQueryToEnglish((query as string).trim());
@@ -384,7 +437,8 @@ Deno.serve(async (req) => {
           throw new Error(`games upsert failed: ${upsertError.message}`);
         }
       }
-      return new Response(JSON.stringify(rows), {
+      const rowsWithNameJa = await mergeCachedNameJa(db, rows);
+      return new Response(JSON.stringify(rowsWithNameJa), {
         headers: { 'Content-Type': 'application/json' },
       });
     }
@@ -410,13 +464,14 @@ Deno.serve(async (req) => {
       // 既に翻訳済みならAPIを呼ばずに使い回す（無料枠の節約とレスポンス短縮のため）。
       const { data: existing } = await db
         .from('games')
-        .select('summary_ja')
+        .select('summary_ja, name_ja')
         .eq('id', row.id)
         .maybeSingle();
       const summaryJa = existing?.summary_ja ??
         (row.summary ? await translateToJapanese(row.summary) : null);
+      const nameJa = existing?.name_ja ?? await translateToJapanese(row.name);
 
-      const fullRow = { ...row, summary_ja: summaryJa };
+      const fullRow = { ...row, summary_ja: summaryJa, name_ja: nameJa };
       const { error: upsertError } = await db.from('games').upsert(fullRow);
       if (upsertError) {
         throw new Error(`games upsert failed: ${upsertError.message}`);
@@ -436,6 +491,9 @@ Deno.serve(async (req) => {
         const p = platform.trim().replace(/"/g, '\\"');
         weeklyFilters.push(`platforms.name ~ *"${p}"*`);
       }
+      if (includeAdult !== true) {
+        weeklyFilters.push(`themes != (${ADULT_THEME_ID})`);
+      }
       const raws = await queryIgdb(
         accessToken,
         `fields ${SEARCH_FIELDS}; where ${weeklyFilters.join(' & ')}; sort total_rating_count desc; limit 30;`,
@@ -447,7 +505,8 @@ Deno.serve(async (req) => {
           throw new Error(`games upsert failed: ${upsertError.message}`);
         }
       }
-      return new Response(JSON.stringify(rows), {
+      const rowsWithNameJa = await mergeCachedNameJa(db, rows);
+      return new Response(JSON.stringify(rowsWithNameJa), {
         headers: { 'Content-Type': 'application/json' },
       });
     }

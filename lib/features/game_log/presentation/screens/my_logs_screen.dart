@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/star_rating.dart';
@@ -29,6 +30,7 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   MyLogSortType _sort = MyLogSortType.addedOrder;
+  bool _includeAdult = false;
 
   @override
   void initState() {
@@ -46,7 +48,10 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
     List<GameLogWithGame> logs,
     GameLogStatus status,
   ) {
-    final filtered = logs.where((e) => e.log.status == status).toList();
+    final filtered = logs
+        .where((e) =>
+            e.log.status == status && (_includeAdult || !e.game.isAdult))
+        .toList();
     filtered.sort((a, b) {
       switch (_sort) {
         case MyLogSortType.addedOrder:
@@ -54,7 +59,7 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
         case MyLogSortType.rating:
           return (b.log.rating ?? 0).compareTo(a.log.rating ?? 0);
         case MyLogSortType.name:
-          return a.game.name.compareTo(b.game.name);
+          return a.game.displayName.compareTo(b.game.displayName);
         case MyLogSortType.releaseDate:
           final aDate = a.game.firstReleaseDate;
           final bDate = b.game.firstReleaseDate;
@@ -102,6 +107,14 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
                   },
                 ),
               ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: AdvancedFiltersSection(
+              includeAdult: _includeAdult,
+              onIncludeAdultChanged: (value) =>
+                  setState(() => _includeAdult = value),
             ),
           ),
           Expanded(
@@ -170,7 +183,7 @@ class _LogList extends StatelessWidget {
                     width: 44,
                     height: 60,
                   ),
-                  title: Text(entry.game.name),
+                  title: Text(entry.game.displayName),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../game_search/domain/platform_options.dart';
@@ -16,6 +17,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   String? _selectedPlatform;
+  bool _includeAdult = false;
 
   void _onPlatformTap(String value) {
     setState(() {
@@ -23,9 +25,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
   }
 
+  void _onIncludeAdultChanged(bool value) {
+    setState(() => _includeAdult = value);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final releasesAsync = ref.watch(weeklyReleasesProvider(_selectedPlatform));
+    final filter =
+        (platform: _selectedPlatform, includeAdult: _includeAdult);
+    final releasesAsync = ref.watch(weeklyReleasesProvider(filter));
 
     return Scaffold(
       appBar: AppBar(title: const Text('ホーム')),
@@ -56,6 +64,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     ),
                 ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: AdvancedFiltersSection(
+                includeAdult: _includeAdult,
+                onIncludeAdultChanged: _onIncludeAdultChanged,
               ),
             ),
             const SizedBox(height: 8),
@@ -99,8 +114,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: ErrorView(
                   message: '今週発売のゲームの取得に失敗しました',
-                  onRetry: () =>
-                      ref.invalidate(weeklyReleasesProvider(_selectedPlatform)),
+                  onRetry: () => ref.invalidate(weeklyReleasesProvider(filter)),
                 ),
               ),
             ),

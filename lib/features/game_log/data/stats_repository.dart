@@ -13,26 +13,36 @@ class StatsRepository {
     return GameLogStats.fromJson(row);
   }
 
-  Future<List<GameLogStats>> fetchTopWantToPlay({int limit = 20}) async {
-    final rows = await supabase
+  Future<List<GameLogStats>> fetchTopWantToPlay({
+    int limit = 20,
+    bool includeAdult = false,
+  }) async {
+    var query = supabase
         .from('game_log_stats')
         .select()
-        .gt('want_to_play_count', 0)
-        .order('want_to_play_count', ascending: false)
-        .limit(limit);
+        .gt('want_to_play_count', 0);
+    if (!includeAdult) {
+      query = query.eq('is_adult', false);
+    }
+    final rows =
+        await query.order('want_to_play_count', ascending: false).limit(limit);
     return (rows as List)
         .cast<Map<String, dynamic>>()
         .map(GameLogStats.fromJson)
         .toList(growable: false);
   }
 
-  Future<List<GameLogStats>> fetchTopPlayed({int limit = 20}) async {
-    final rows = await supabase
-        .from('game_log_stats')
-        .select()
-        .gt('played_count', 0)
-        .order('played_count', ascending: false)
-        .limit(limit);
+  Future<List<GameLogStats>> fetchTopPlayed({
+    int limit = 20,
+    bool includeAdult = false,
+  }) async {
+    var query =
+        supabase.from('game_log_stats').select().gt('played_count', 0);
+    if (!includeAdult) {
+      query = query.eq('is_adult', false);
+    }
+    final rows =
+        await query.order('played_count', ascending: false).limit(limit);
     return (rows as List)
         .cast<Map<String, dynamic>>()
         .map(GameLogStats.fromJson)

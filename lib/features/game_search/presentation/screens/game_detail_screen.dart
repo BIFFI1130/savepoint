@@ -61,7 +61,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                   child: CoverImage(url: game.coverUrl, width: 140, height: 190),
                 ),
                 const SizedBox(height: 16),
-                Text(game.name, style: Theme.of(context).textTheme.headlineSmall),
+                Text(game.displayName, style: Theme.of(context).textTheme.headlineSmall),
                 const SizedBox(height: 4),
                 if (game.developers.isNotEmpty || game.publishers.isNotEmpty)
                   Text(

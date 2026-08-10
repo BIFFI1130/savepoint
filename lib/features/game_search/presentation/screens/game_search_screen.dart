@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../domain/game.dart';
@@ -37,13 +38,13 @@ class GameSearchScreen extends ConsumerStatefulWidget {
 class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
   final _developerController = TextEditingController();
   final _scrollController = ScrollController();
-  String? _selectedPlatform;
-  String? _selectedGenre;
+  final Set<String> _selectedPlatforms = {};
+  final Set<String> _selectedGenres = {};
   String _queryText = '';
   GameSortType _sort = GameSortType.popularity;
   bool _includeUpcoming = false;
+  bool _includeAdult = false;
   Timer? _developerDebounce;
-  bool _showAdvanced = false;
   bool _isGridView = false;
 
   @override
@@ -72,16 +73,24 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
 
   void _onPlatformTap(String value) {
     setState(() {
-      _selectedPlatform = _selectedPlatform == value ? null : value;
+      if (_selectedPlatforms.contains(value)) {
+        _selectedPlatforms.remove(value);
+      } else {
+        _selectedPlatforms.add(value);
+      }
     });
-    ref.read(gameSearchProvider.notifier).setPlatform(_selectedPlatform);
+    ref.read(gameSearchProvider.notifier).setPlatforms(_selectedPlatforms);
   }
 
   void _onGenreTap(String value) {
     setState(() {
-      _selectedGenre = _selectedGenre == value ? null : value;
+      if (_selectedGenres.contains(value)) {
+        _selectedGenres.remove(value);
+      } else {
+        _selectedGenres.add(value);
+      }
     });
-    ref.read(gameSearchProvider.notifier).setGenre(_selectedGenre);
+    ref.read(gameSearchProvider.notifier).setGenres(_selectedGenres);
   }
 
   void _onDeveloperChanged(String value) {
@@ -106,15 +115,73 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
     ref.read(gameSearchProvider.notifier).setIncludeUpcoming(value);
   }
 
+  void _onIncludeAdultChanged(bool value) {
+    setState(() => _includeAdult = value);
+    ref.read(gameSearchProvider.notifier).setIncludeAdult(value);
+  }
+
   @override
   Widget build(BuildContext context) {
     final resultsAsync = ref.watch(gameSearchProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('ゲームを探す')),
-      body: Column(
-        children: [
-          Padding(
+      body: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          SliverToBoxAdapter(child: _buildFilters(context)),
+          resultsAsync.when(
+            data: (results) {
+              if (results.games.isEmpty) {
+                return const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: EmptyView(
+                    message: 'ゲームタイトルを検索するか、\nカテゴリを選んで探してみましょう',
+                    icon: Icons.videogame_asset_outlined,
+                  ),
+                );
+              }
+              return _isGridView
+                  ? _GameSliverGrid(
+                      games: results.games,
+                      isLoadingMore: results.isLoadingMore,
+                    )
+                  : _GameSliverList(
+                      games: results.games,
+                      isLoadingMore: results.isLoadingMore,
+                    );
+            },
+            loading: () =>
+                const SliverFillRemaining(hasScrollBody: false, child: LoadingView()),
+            error: (error, _) => SliverFillRemaining(
+              hasScrollBody: false,
+              child: ErrorView(
+                message: 'ゲームの検索に失敗しました',
+                onRetry: () => ref.invalidate(gameSearchProvider),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Text(
+                'ゲーム情報提供: IGDB',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilters(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: TextField(
               decoration: const InputDecoration(
@@ -134,85 +201,63 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SizedBox(
-              height: 40,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: [
-                  for (final option in _genreOptions)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: FilterChip(
-                        label: Text(option.$1),
-                        selected: _selectedGenre == option.$2,
-                        onSelected: (_) => _onGenreTap(option.$2),
-                      ),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final option in _genreOptions)
+                  FilterChip(
+                    label: Text(option.$1),
+                    selected: _selectedGenres.contains(option.$2),
+                    onSelected: (_) => _onGenreTap(option.$2),
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Text(
+              '対応ハード',
+              style: Theme.of(context).textTheme.labelMedium,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final option in platformOptions)
+                  FilterChip(
+                    label: Text(option.$1),
+                    selected: _selectedPlatforms.contains(option.$2),
+                    onSelected: (_) => _onPlatformTap(option.$2),
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: AdvancedFiltersSection(
+              includeAdult: _includeAdult,
+              onIncludeAdultChanged: _onIncludeAdultChanged,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: TextField(
+                    controller: _developerController,
+                    decoration: const InputDecoration(
+                      labelText: '開発元で絞り込み（任意）',
+                      hintText: '例：Nintendo',
+                      prefixIcon: Icon(Icons.apartment_outlined),
+                      border: OutlineInputBorder(),
+                      isDense: true,
                     ),
-                ],
-              ),
+                    onChanged: _onDeveloperChanged,
+                  ),
+                ),
+              ],
             ),
-          ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: () => setState(() => _showAdvanced = !_showAdvanced),
-              icon: Icon(
-                _showAdvanced ? Icons.expand_less : Icons.expand_more,
-              ),
-              label: const Text('詳しく検索'),
-            ),
-          ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 200),
-            child: _showAdvanced
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          '対応ハード',
-                          style: Theme.of(context).textTheme.labelMedium,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: SizedBox(
-                          height: 40,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            children: [
-                              for (final option in platformOptions)
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: FilterChip(
-                                    label: Text(option.$1),
-                                    selected: _selectedPlatform == option.$2,
-                                    onSelected: (_) => _onPlatformTap(option.$2),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                        child: TextField(
-                          controller: _developerController,
-                          decoration: const InputDecoration(
-                            labelText: '開発元で絞り込み（任意）',
-                            hintText: '例：Nintendo',
-                            prefixIcon: Icon(Icons.apartment_outlined),
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                          onChanged: _onDeveloperChanged,
-                        ),
-                      ),
-                    ],
-                  )
-                : const SizedBox(width: double.infinity),
           ),
           _SortSelector(
             enabled: _queryText.trim().isEmpty,
@@ -247,47 +292,8 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
               ],
             ),
           ),
-          Expanded(
-            child: resultsAsync.when(
-              data: (results) {
-                if (results.games.isEmpty) {
-                  return const EmptyView(
-                    message: 'ゲームタイトルを検索するか、\nカテゴリを選んで探してみましょう',
-                    icon: Icons.videogame_asset_outlined,
-                  );
-                }
-                return _isGridView
-                    ? _GameGrid(
-                        games: results.games,
-                        isLoadingMore: results.isLoadingMore,
-                        scrollController: _scrollController,
-                      )
-                    : _GameList(
-                        games: results.games,
-                        isLoadingMore: results.isLoadingMore,
-                        scrollController: _scrollController,
-                      );
-              },
-              loading: () => const LoadingView(),
-              error: (error, _) => ErrorView(
-                message: 'ゲームの検索に失敗しました',
-                onRetry: () => ref.invalidate(gameSearchProvider),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Text(
-              'ゲーム情報提供: IGDB',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
-            ),
-          ),
         ],
-      ),
-    );
+      );
   }
 }
 
@@ -373,21 +379,15 @@ class _SortSelector extends StatelessWidget {
   }
 }
 
-class _GameList extends StatelessWidget {
-  const _GameList({
-    required this.games,
-    required this.isLoadingMore,
-    required this.scrollController,
-  });
+class _GameSliverList extends StatelessWidget {
+  const _GameSliverList({required this.games, required this.isLoadingMore});
 
   final List<Game> games;
   final bool isLoadingMore;
-  final ScrollController scrollController;
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
-      controller: scrollController,
+    return SliverList.separated(
       itemCount: games.length + (isLoadingMore ? 1 : 0),
       separatorBuilder: (context, index) => const Divider(height: 1),
       itemBuilder: (context, index) {
@@ -400,7 +400,7 @@ class _GameList extends StatelessWidget {
         final game = games[index];
         return ListTile(
           leading: CoverImage(url: game.coverUrl, width: 44, height: 60),
-          title: Text(game.name),
+          title: Text(game.displayName),
           subtitle: game.releaseYear != null ? Text('${game.releaseYear}年') : null,
           onTap: () => context.push('/games/${game.id}'),
         );
@@ -410,48 +410,46 @@ class _GameList extends StatelessWidget {
 }
 
 /// グリッド表示（1行3件・画像のみ）。
-class _GameGrid extends StatelessWidget {
-  const _GameGrid({
-    required this.games,
-    required this.isLoadingMore,
-    required this.scrollController,
-  });
+class _GameSliverGrid extends StatelessWidget {
+  const _GameSliverGrid({required this.games, required this.isLoadingMore});
 
   final List<Game> games;
   final bool isLoadingMore;
-  final ScrollController scrollController;
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      controller: scrollController,
+    return SliverPadding(
       padding: const EdgeInsets.all(8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        childAspectRatio: 0.7,
-        crossAxisSpacing: 6,
-        mainAxisSpacing: 6,
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          childAspectRatio: 0.7,
+          crossAxisSpacing: 6,
+          mainAxisSpacing: 6,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            if (index >= games.length) {
+              return const Center(
+                child: CircularProgressIndicator(strokeWidth: 2),
+              );
+            }
+            final game = games[index];
+            return GestureDetector(
+              onTap: () => context.push('/games/${game.id}'),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: CoverImage(
+                  url: game.coverUrl,
+                  width: double.infinity,
+                  height: double.infinity,
+                ),
+              ),
+            );
+          },
+          childCount: games.length + (isLoadingMore ? 3 : 0),
+        ),
       ),
-      itemCount: games.length + (isLoadingMore ? 3 : 0),
-      itemBuilder: (context, index) {
-        if (index >= games.length) {
-          return const Center(
-            child: CircularProgressIndicator(strokeWidth: 2),
-          );
-        }
-        final game = games[index];
-        return GestureDetector(
-          onTap: () => context.push('/games/${game.id}'),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: CoverImage(
-              url: game.coverUrl,
-              width: double.infinity,
-              height: double.infinity,
-            ),
-          ),
-        );
-      },
     );
   }
 }

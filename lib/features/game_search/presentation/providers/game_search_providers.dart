@@ -47,20 +47,23 @@ class GameSearchResults {
   }
 }
 
-/// ゲーム検索の状態。[search]・[setPlatform]・[setDeveloper]・[setGenre] を呼ぶと、
+/// ゲーム検索の状態。[search]・[setPlatforms]・[setDeveloper]・[setGenres] を呼ぶと、
 /// 内部でデバウンスしてから（プラットフォーム・ジャンル選択のみ即時に）検索をやり直す。
 /// [loadMore] で次のページを取得し、結果に積み重ねる（無限スクロール用）。
 ///
-/// タイトル未入力でも [setGenre]・[setPlatform]・[setDeveloper] のいずれかが
+/// タイトル未入力でも [setGenres]・[setPlatforms]・[setDeveloper] のいずれかが
 /// 選択されていれば「カテゴリ探索」として結果を返す。
+/// [setPlatforms]・[setGenres] は複数選択可能で、選択されたうちどれか1つでも
+/// 当てはまればOR条件で一覧に含める。
 class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
   Timer? _debounce;
   String _query = '';
-  String? _platform;
+  Set<String> _platforms = {};
   String _developer = '';
-  String? _genre;
+  Set<String> _genres = {};
   GameSortType _sort = GameSortType.popularity;
   bool _includeUpcoming = false;
+  bool _includeAdult = false;
 
   @override
   FutureOr<GameSearchResults> build() {
@@ -74,8 +77,8 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
   }
 
   /// プラットフォームフィルタは選択肢をタップして選ぶだけなので即時反映する。
-  void setPlatform(String? platform) {
-    _platform = platform;
+  void setPlatforms(Set<String> platforms) {
+    _platforms = platforms;
     _schedule(immediate: true);
   }
 
@@ -85,8 +88,8 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
   }
 
   /// カテゴリ（ジャンル）チップも選ぶだけなので即時反映する。
-  void setGenre(String? genre) {
-    _genre = genre;
+  void setGenres(Set<String> genres) {
+    _genres = genres;
     _schedule(immediate: true);
   }
 
@@ -103,11 +106,17 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
     _schedule(immediate: true);
   }
 
+  /// 成人向け作品も一覧に含めるかどうか（デフォルトfalse＝除外）。
+  void setIncludeAdult(bool value) {
+    _includeAdult = value;
+    _schedule(immediate: true);
+  }
+
   void _schedule({bool immediate = false}) {
     _debounce?.cancel();
     final hasQuery = _query.trim().isNotEmpty;
     final hasFilter =
-        _genre != null || _platform != null || _developer.isNotEmpty;
+        _genres.isNotEmpty || _platforms.isNotEmpty || _developer.isNotEmpty;
     if (!hasQuery && !hasFilter) {
       state = const AsyncData(GameSearchResults());
       return;
@@ -124,11 +133,12 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
     state = await AsyncValue.guard(() async {
       final games = await ref.read(igdbRepositoryProvider).search(
             query: _query,
-            platform: _platform,
+            platforms: _platforms,
             developer: _developer.isEmpty ? null : _developer,
-            genre: _genre,
+            genres: _genres,
             sort: _sort.value,
             includeUpcoming: _includeUpcoming,
+            includeAdult: _includeAdult,
           );
       return GameSearchResults(
         games: games,
@@ -146,11 +156,12 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
     try {
       final more = await ref.read(igdbRepositoryProvider).search(
             query: _query,
-            platform: _platform,
+            platforms: _platforms,
             developer: _developer.isEmpty ? null : _developer,
-            genre: _genre,
+            genres: _genres,
             sort: _sort.value,
             includeUpcoming: _includeUpcoming,
+            includeAdult: _includeAdult,
             offset: current.games.length,
           );
       state = AsyncData(

@@ -28,6 +28,8 @@ class Game {
     this.platforms = const [],
     this.summary,
     this.summaryJa,
+    this.nameJa,
+    this.isAdult = false,
     this.developers = const [],
     this.publishers = const [],
     this.similarGames = const [],
@@ -41,6 +43,10 @@ class Game {
   final List<String> platforms;
   final String? summary;
   final String? summaryJa;
+  final String? nameJa;
+
+  /// 成人向け作品かどうか（IGDBのthemesに"Erotic"が含まれるかで判定）。
+  final bool isAdult;
   final List<String> developers;
   final List<String> publishers;
   final List<SimilarGame> similarGames;
@@ -53,6 +59,9 @@ class Game {
   /// 表示用の概要。日本語訳があればそれを、なければ原文を返す。
   String? get displaySummary => summaryJa ?? summary;
 
+  /// 表示用のタイトル。日本語訳があればそれを、なければ原題を返す。
+  String get displayName => nameJa ?? name;
+
   factory Game.fromJson(Map<String, dynamic> json) {
     return Game(
       id: json['id'] as int,
@@ -64,6 +73,8 @@ class Game {
       platforms: (json['platforms'] as List?)?.cast<String>() ?? const [],
       summary: json['summary'] as String?,
       summaryJa: json['summary_ja'] as String?,
+      nameJa: json['name_ja'] as String?,
+      isAdult: json['is_adult'] as bool? ?? false,
       developers: (json['developers'] as List?)?.cast<String>() ?? const [],
       publishers: (json['publishers'] as List?)?.cast<String>() ?? const [],
       similarGames: (json['similar_games'] as List?)

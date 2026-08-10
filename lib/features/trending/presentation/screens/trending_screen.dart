@@ -2,13 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../game_log/domain/game_log_stats.dart';
 import '../providers/trending_providers.dart';
 
-class TrendingScreen extends StatelessWidget {
+class TrendingScreen extends StatefulWidget {
   const TrendingScreen({super.key});
+
+  @override
+  State<TrendingScreen> createState() => _TrendingScreenState();
+}
+
+class _TrendingScreenState extends State<TrendingScreen> {
+  bool _includeAdult = false;
+
+  void _onIncludeAdultChanged(bool value) {
+    setState(() => _includeAdult = value);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,19 +36,34 @@ class TrendingScreen extends StatelessWidget {
             ],
           ),
         ),
-        body: TabBarView(
+        body: Column(
           children: [
-            _RankingList(
-              provider: trendingWantToPlayProvider,
-              countSuffix: '人が遊びたい',
-              countSelector: _wantToPlayCount,
-              emptyMessage: 'まだ「遊びたい」の記録がありません',
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: AdvancedFiltersSection(
+                includeAdult: _includeAdult,
+                onIncludeAdultChanged: _onIncludeAdultChanged,
+              ),
             ),
-            _RankingList(
-              provider: trendingPlayedProvider,
-              countSuffix: '人が遊んだ',
-              countSelector: _playedCount,
-              emptyMessage: 'まだ「遊んだ」の記録がありません',
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _RankingList(
+                    provider: trendingWantToPlayProvider,
+                    includeAdult: _includeAdult,
+                    countSuffix: '人が遊びたい',
+                    countSelector: _wantToPlayCount,
+                    emptyMessage: 'まだ「遊びたい」の記録がありません',
+                  ),
+                  _RankingList(
+                    provider: trendingPlayedProvider,
+                    includeAdult: _includeAdult,
+                    countSuffix: '人が遊んだ',
+                    countSelector: _playedCount,
+                    emptyMessage: 'まだ「遊んだ」の記録がありません',
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -51,19 +78,21 @@ int _playedCount(GameLogStats stats) => stats.playedCount;
 class _RankingList extends ConsumerWidget {
   const _RankingList({
     required this.provider,
+    required this.includeAdult,
     required this.countSuffix,
     required this.countSelector,
     required this.emptyMessage,
   });
 
-  final FutureProvider<List<GameLogStats>> provider;
+  final FutureProviderFamily<List<GameLogStats>, bool> provider;
+  final bool includeAdult;
   final String countSuffix;
   final int Function(GameLogStats) countSelector;
   final String emptyMessage;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final statsAsync = ref.watch(provider);
+    final statsAsync = ref.watch(provider(includeAdult));
 
     return statsAsync.when(
       data: (stats) {
@@ -91,7 +120,7 @@ class _RankingList extends ConsumerWidget {
                   CoverImage(url: stat.coverUrl, width: 40, height: 54),
                 ],
               ),
-              title: Text(stat.name),
+              title: Text(stat.displayName),
               trailing: Text('${countSelector(stat)}$countSuffix'),
               onTap: () => context.push('/games/${stat.gameId}'),
             );
@@ -101,7 +130,7 @@ class _RankingList extends ConsumerWidget {
       loading: () => const LoadingView(),
       error: (error, _) => ErrorView(
         message: 'ランキングの取得に失敗しました',
-        onRetry: () => ref.invalidate(provider),
+        onRetry: () => ref.invalidate(provider(includeAdult)),
       ),
     );
   }
