@@ -48,7 +48,10 @@ workflows:
       - name: Get Flutter packages
         script: flutter pub get
       - name: Set up code signing settings on Xcode project
-        script: xcode-project use-profiles
+        script: |
+          # testFlightInternalTestingOnly を付けることで、外部向けベータ版レビューへの
+          # 自動提出を行わず、内部テストグループへの配布だけにする。
+          xcode-project use-profiles --custom-export-options='{"testFlightInternalTestingOnly": true}'
       - name: Build ipa for App Store
         script: |
           # TestFlightは同じビルド番号を再アップロードできないため、
