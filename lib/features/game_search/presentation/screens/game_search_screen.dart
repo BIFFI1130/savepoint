@@ -201,20 +201,21 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: GridView.count(
-              crossAxisCount: 3,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 for (final option in _genreOptions)
-                  _GenreBadge(
-                    label: option.$1,
-                    icon: option.$3,
-                    color: option.$4,
-                    selected: _selectedGenres.contains(option.$2),
-                    onTap: () => _onGenreTap(option.$2),
+                  SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: _GenreBadge(
+                      label: option.$1,
+                      icon: option.$3,
+                      color: option.$4,
+                      selected: _selectedGenres.contains(option.$2),
+                      onTap: () => _onGenreTap(option.$2),
+                    ),
                   ),
               ],
             ),
@@ -324,49 +325,58 @@ class _GenreBadge extends StatelessWidget {
       aspectRatio: 1,
       child: Material(
         color: color,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           onTap: onTap,
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
               border: selected
                   ? Border.all(
                       color: Theme.of(context).colorScheme.primary,
-                      width: 3,
+                      width: 2,
                     )
                   : null,
             ),
             child: Stack(
               children: [
-                Center(
-                  child: Icon(icon, size: 36, color: Colors.white70),
+                Align(
+                  alignment: const Alignment(0, -0.25),
+                  child: Icon(icon, size: 20, color: Colors.white70),
                 ),
                 if (selected)
                   const Positioned(
-                    top: 6,
-                    left: 6,
+                    top: 2,
+                    left: 2,
                     child: Icon(
                       Icons.check_circle,
                       color: Colors.white,
-                      size: 18,
+                      size: 12,
                     ),
                   ),
                 Positioned(
-                  right: 6,
-                  bottom: 6,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.45),
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(8),
+                        bottomRight: Radius.circular(8),
+                      ),
                     ),
                     child: Text(
                       label,
+                      textAlign: TextAlign.right,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 11,
+                        fontSize: 7.5,
+                        height: 1.2,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
