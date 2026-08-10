@@ -55,9 +55,13 @@ workflows:
         script: xcode-project use-profiles
       - name: Build ipa for App Store
         script: |
+          # TestFlightは同じビルド番号を再アップロードできないため、
+          # App Store Connect上の最新ビルド番号を取得して+1する。
+          # 6799825415 は App Store Connect → App情報 に表示されているSavePointのApple ID。
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number "6799825415")
           flutter build ipa --release \
             --export-options-plist=/Users/builder/export_options.plist \
-            --build-number=$CM_BUILD_NUMBER \
+            --build-number=$(($LATEST_BUILD_NUMBER + 1)) \
             --dart-define=SUPABASE_URL=$SUPABASE_URL \
             --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
     artifacts:
