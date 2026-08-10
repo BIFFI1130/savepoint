@@ -15,7 +15,7 @@
 // 含めていない（Postgrestのupsertはペイロードに含まれる列だけをUPDATEする）。
 //
 // 必要な環境変数（`supabase secrets set` で設定する）:
-//   TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET
+//   TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET, GOOGLE_TRANSLATE_API_KEY
 // 以下はSupabaseが自動的に注入する:
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
@@ -23,8 +23,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const IGDB_BASE_URL = 'https://api.igdb.com/v4';
 const TWITCH_TOKEN_URL = 'https://id.twitch.tv/oauth2/token';
-const MYMEMORY_URL = 'https://api.mymemory.translated.net/get';
-const TRANSLATE_CHUNK_MAX_LEN = 450;
+const GOOGLE_TRANSLATE_URL = 'https://translation.googleapis.com/language/translate/v2';
 
 const SEARCH_FIELDS = 'id,name,cover.url,first_release_date,platforms.name,summary,url,themes.name';
 /** IGDBのthemes名。この名前が付いている作品は成人向けとして扱う。 */
@@ -169,45 +168,40 @@ function toDetailRow(raw: RawIgdbGame) {
   };
 }
 
-/** 英語の長文を文単位でMyMemory APIの1リクエスト上限に収まるよう分割する。 */
-function chunkText(text: string, maxLen: number): string[] {
-  const sentences = text.split(/(?<=[.!?])\s+/);
-  const chunks: string[] = [];
-  let current = '';
-  for (const sentence of sentences) {
-    const candidate = current ? `${current} ${sentence}` : sentence;
-    if (candidate.length > maxLen && current) {
-      chunks.push(current.trim());
-      current = sentence;
-    } else {
-      current = candidate;
-    }
+/**
+ * Google Cloud Translation API（Basic/v2）で1件テキストを翻訳する共通処理。
+ * Google側の1リクエストあたりの上限（3万文字程度）はゲームの概要文なら十分収まるため、
+ * MyMemory時代のような文単位でのチャンク分割は不要。
+ */
+async function translateText(
+  text: string,
+  source: 'en' | 'ja',
+  target: 'en' | 'ja',
+): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `${GOOGLE_TRANSLATE_URL}?key=${Deno.env.get('GOOGLE_TRANSLATE_API_KEY')}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ q: text, source, target, format: 'text' }),
+      },
+    );
+    if (!res.ok) return null;
+    const json = await res.json();
+    const translated = json?.data?.translations?.[0]?.translatedText;
+    return typeof translated === 'string' && translated ? translated : null;
+  } catch {
+    return null;
   }
-  if (current) chunks.push(current.trim());
-  return chunks.length > 0 ? chunks : [text.slice(0, maxLen)];
 }
 
 /**
- * MyMemory Translation API（無料・登録不要）で英語→日本語に翻訳する。
+ * Google Cloud Translation APIで英語→日本語に翻訳する。
  * 失敗した場合はnullを返し、呼び出し側は英語の概要をそのまま表示する。
  */
 async function translateToJapanese(text: string): Promise<string | null> {
-  const chunks = chunkText(text, TRANSLATE_CHUNK_MAX_LEN);
-  const translated: string[] = [];
-  for (const chunk of chunks) {
-    try {
-      const url = `${MYMEMORY_URL}?q=${encodeURIComponent(chunk)}&langpair=en|ja`;
-      const res = await fetch(url);
-      if (!res.ok) break;
-      const json = await res.json();
-      const piece = json?.responseData?.translatedText;
-      if (!piece) break;
-      translated.push(piece);
-    } catch {
-      break;
-    }
-  }
-  return translated.length > 0 ? translated.join('') : null;
+  return await translateText(text, 'en', 'ja');
 }
 
 const JAPANESE_CHARS_REGEX = /[぀-ヿ一-鿿]/;
@@ -218,16 +212,8 @@ const JAPANESE_CHARS_REGEX = /[぀-ヿ一-鿿]/;
  */
 async function translateQueryToEnglish(text: string): Promise<string> {
   if (!JAPANESE_CHARS_REGEX.test(text)) return text;
-  try {
-    const url = `${MYMEMORY_URL}?q=${encodeURIComponent(text)}&langpair=ja|en`;
-    const res = await fetch(url);
-    if (!res.ok) return text;
-    const json = await res.json();
-    const translated = json?.responseData?.translatedText;
-    return typeof translated === 'string' && translated.trim() ? translated : text;
-  } catch {
-    return text;
-  }
+  const translated = await translateText(text, 'ja', 'en');
+  return translated?.trim() ? translated : text;
 }
 
 /** 今週（月曜0:00〜翌週月曜0:00、UTC基準）のunixタイムスタンプ範囲を返す。 */
@@ -466,6 +452,10 @@ Deno.serve(async (req) => {
         filters.push(`themes != (${ADULT_THEME_ID})`);
       }
 
+      // 「～Collector's Edition」「～Bundle」等、既存タイトルの別バージョンとして
+      // IGDBがversion_parentで紐付けている作品は一覧から除外し、本編のみを表示する。
+      filters.push('version_parent = null');
+
       const clauses = [`fields ${SEARCH_FIELDS}`];
       if (hasQuery) {
         const translatedQuery = await translateQueryToEnglish((query as string).trim());
@@ -514,7 +504,7 @@ Deno.serve(async (req) => {
       }
       const row = toDetailRow(raws[0]);
 
-      // 既に翻訳済みならAPIを呼ばずに使い回す（無料枠の節約とレスポンス短縮のため）。
+      // 既に翻訳済みならAPIを呼ばずに使い回す（翻訳コストの節約とレスポンス短縮のため）。
       const { data: existing } = await db
         .from('games')
         .select('summary_ja, name_ja')
@@ -580,6 +570,7 @@ Deno.serve(async (req) => {
       if (includeAdult !== true) {
         weeklyFilters.push(`themes != (${ADULT_THEME_ID})`);
       }
+      weeklyFilters.push('version_parent = null');
       const raws = await queryIgdb(
         accessToken,
         `fields ${SEARCH_FIELDS}; where ${weeklyFilters.join(' & ')}; sort total_rating_count desc; limit 30;`,
