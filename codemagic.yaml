@@ -72,4 +72,9 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        submit_to_testflight: true
+        # .ipaのApp Store Connectへのアップロード自体はこのセクションがあれば行われる。
+        # submit_to_testflightはビルドを「外部ベータ版レビュー」に提出する処理を追加で
+        # 走らせるものだが、内部テスト限定ビルド（testFlightInternalTestingOnly）とは
+        # 相性が悪くエラーになるため無効化する。内部テストへの追加はApp Store Connect側で
+        # 手動で行う（またはビルドは自動的にInternal Testingグループへ配布される）。
+        submit_to_testflight: false
