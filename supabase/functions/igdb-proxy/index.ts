@@ -461,6 +461,12 @@ Deno.serve(async (req) => {
       // IGDBがversion_parentで紐付けている作品は一覧から除外し、本編のみを表示する。
       filters.push('version_parent = null');
 
+      // DLC・アップデート・追加エピソード等、既存タイトルにparent_gameで
+      // 紐付けられている作品も除外する（例: 「Monster Hunter Rise: Title Update 3」は
+      // 「Monster Hunter Rise」に、「Honkai: Star Rail - ○○」も本編にまとめる）。
+      // 起動する本体（ROM）が変わらない追加コンテンツは本編の記録に一本化する方針。
+      filters.push('parent_game = null');
+
       // MOD・ROMハック・同人プラットフォーマー等の非公式作品を除外する。
       // IGDBのcategoryは 5=mod, 12=fork（既存タイトルを改変・派生させた非公式作品に
       // 使われる分類）で、ROMハックや同人フリーゲームの多くもこれに分類されている。
@@ -586,6 +592,8 @@ Deno.serve(async (req) => {
         weeklyFilters.push(`themes != (${ADULT_THEME_ID})`);
       }
       weeklyFilters.push('version_parent = null');
+      // DLC・アップデート等、既存タイトルの追加コンテンツは新作一覧に出さない。
+      weeklyFilters.push('parent_game = null');
       // categoryが未設定（null）の正規タイトルまで消えないよう、search側と同じく
       // nullは許可した上でmod/forkだけを除外する。
       weeklyFilters.push(
