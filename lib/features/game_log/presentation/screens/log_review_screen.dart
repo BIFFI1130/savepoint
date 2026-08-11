@@ -41,16 +41,11 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
   }
 
   Future<void> _save() async {
-    if (_rating == 0) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('評価を選択してください')));
-      return;
-    }
     setState(() => _isSaving = true);
     try {
       await ref.read(logRepositoryProvider).upsertPlayedLog(
             gameId: widget.gameId,
-            rating: _rating.round(),
+            rating: _rating == 0 ? null : _rating.round(),
             reviewText: _reviewController.text.trim().isEmpty
                 ? null
                 : _reviewController.text.trim(),
@@ -120,7 +115,14 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
                     onChanged: (value) => setState(() => _rating = value),
                   ),
                 ),
-                const SizedBox(height: 24),
+                if (_rating > 0)
+                  Center(
+                    child: TextButton(
+                      onPressed: () => setState(() => _rating = 0),
+                      child: const Text('評価なしにする'),
+                    ),
+                  ),
+                const SizedBox(height: 8),
                 TextField(
                   controller: _reviewController,
                   maxLines: 6,

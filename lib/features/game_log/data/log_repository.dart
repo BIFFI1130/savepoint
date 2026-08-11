@@ -27,10 +27,11 @@ class LogRepository {
     return GameLog.fromJson(row);
   }
 
-  /// 「遊んだ」記録を新規作成 or 更新する（1ユーザー1ゲームにつき1件）。評価は必須。
+  /// 「遊んだ」記録を新規作成 or 更新する（1ユーザー1ゲームにつき1件）。
+  /// 評価は任意（未評価はratingにnullを保存し、星の統計には含めない）。
   Future<void> upsertPlayedLog({
     required int gameId,
-    required int rating,
+    int? rating,
     String? reviewText,
     bool hasSpoiler = false,
     bool isCleared = false,
