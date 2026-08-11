@@ -24,6 +24,8 @@ class GameLog {
     this.rating,
     this.reviewText,
     this.hasSpoiler = false,
+    this.isCleared = false,
+    this.clearTimeMinutes,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -34,6 +36,8 @@ class GameLog {
   final int? rating;
   final String? reviewText;
   final bool hasSpoiler;
+  final bool isCleared;
+  final int? clearTimeMinutes;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -45,6 +49,8 @@ class GameLog {
       rating: json['rating'] as int?,
       reviewText: json['review_text'] as String?,
       hasSpoiler: json['has_spoiler'] as bool? ?? false,
+      isCleared: json['is_cleared'] as bool? ?? false,
+      clearTimeMinutes: json['clear_time_minutes'] as int?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );

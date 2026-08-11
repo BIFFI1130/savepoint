@@ -33,6 +33,8 @@ class LogRepository {
     required int rating,
     String? reviewText,
     bool hasSpoiler = false,
+    bool isCleared = false,
+    int? clearTimeMinutes,
   }) async {
     final userId = supabase.auth.currentUser!.id;
     await supabase.from('game_logs').upsert(
@@ -43,6 +45,9 @@ class LogRepository {
         'rating': rating,
         'review_text': reviewText,
         'has_spoiler': hasSpoiler,
+        'is_cleared': isCleared,
+        // 未クリアの場合はクリア時間を保持しない（チェックを外したら破棄する）。
+        'clear_time_minutes': isCleared ? clearTimeMinutes : null,
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       },
       onConflict: 'user_id,game_id',

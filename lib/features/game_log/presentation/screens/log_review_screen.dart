@@ -18,15 +18,27 @@ class LogReviewScreen extends ConsumerStatefulWidget {
 
 class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
   final _reviewController = TextEditingController();
+  final _clearHoursController = TextEditingController();
+  final _clearMinutesController = TextEditingController();
   double _rating = 0;
   bool _hasSpoiler = false;
+  bool _isCleared = false;
   bool _isSaving = false;
   bool _initialized = false;
 
   @override
   void dispose() {
     _reviewController.dispose();
+    _clearHoursController.dispose();
+    _clearMinutesController.dispose();
     super.dispose();
+  }
+
+  int? get _clearTimeMinutes {
+    final hours = int.tryParse(_clearHoursController.text.trim()) ?? 0;
+    final minutes = int.tryParse(_clearMinutesController.text.trim()) ?? 0;
+    final total = hours * 60 + minutes;
+    return total > 0 ? total : null;
   }
 
   Future<void> _save() async {
@@ -44,6 +56,8 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
                 ? null
                 : _reviewController.text.trim(),
             hasSpoiler: _hasSpoiler,
+            isCleared: _isCleared,
+            clearTimeMinutes: _clearTimeMinutes,
           );
       ref.invalidate(myLogsProvider);
       ref.invalidate(existingLogProvider(widget.gameId));
@@ -74,6 +88,12 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
         _rating = existingLog.rating?.toDouble() ?? 0;
         _reviewController.text = existingLog.reviewText ?? '';
         _hasSpoiler = existingLog.hasSpoiler;
+        _isCleared = existingLog.isCleared;
+        final minutes = existingLog.clearTimeMinutes;
+        if (minutes != null) {
+          _clearHoursController.text = (minutes ~/ 60).toString();
+          _clearMinutesController.text = (minutes % 60).toString();
+        }
       }
     });
 
@@ -118,6 +138,47 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
                   title: const Text('ネタバレを含む'),
                   subtitle: const Text('ストーリーの結末や重要な展開に触れている場合はオンにしてください'),
                 ),
+                CheckboxListTile(
+                  value: _isCleared,
+                  onChanged: (value) => setState(() => _isCleared = value ?? false),
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: const Text('クリアした'),
+                  subtitle: const Text('エンディングまで到達した場合はオンにしてください'),
+                ),
+                if (_isCleared) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'クリアまでにかかった時間（任意）',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _clearHoursController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: '時間',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _clearMinutesController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: '分',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 8),
                 FilledButton(
                   onPressed: _isSaving ? null : _save,
