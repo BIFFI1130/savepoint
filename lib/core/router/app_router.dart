@@ -11,6 +11,7 @@ import '../../features/collections/presentation/screens/collection_detail_screen
 import '../../features/collections/presentation/screens/collections_screen.dart';
 import '../../features/game_log/presentation/screens/log_review_screen.dart';
 import '../../features/summary/presentation/screens/summary_screen.dart';
+import '../../features/timeline/presentation/screens/timeline_screen.dart';
 import '../supabase/supabase_client.dart';
 import 'home_shell.dart';
 import '../../features/game_search/presentation/screens/game_detail_screen.dart';
@@ -73,6 +74,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/achievements',
         builder: (context, state) => const AchievementsScreen(),
+      ),
+      GoRoute(
+        path: '/timeline',
+        builder: (context, state) => const TimelineScreen(),
       ),
     ],
   );

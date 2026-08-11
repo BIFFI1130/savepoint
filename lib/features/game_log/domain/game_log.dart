@@ -12,6 +12,26 @@ enum GameLogStatus {
   String toDb() => this == GameLogStatus.wantToPlay ? 'want_to_play' : 'played';
 }
 
+/// 「遊びたい」リストの優先度。DB上はsmallint（1=高, 2=中, 3=低）、未設定はnull。
+enum BacklogPriority {
+  high(1, '高'),
+  medium(2, '中'),
+  low(3, '低');
+
+  const BacklogPriority(this.dbValue, this.label);
+  final int dbValue;
+  final String label;
+
+  static BacklogPriority? fromDb(int? value) {
+    return switch (value) {
+      1 => BacklogPriority.high,
+      2 => BacklogPriority.medium,
+      3 => BacklogPriority.low,
+      _ => null,
+    };
+  }
+}
+
 /// ユーザーが投稿した「記録」（ステータス・評価・レビュー）。
 ///
 /// [status] が [GameLogStatus.wantToPlay] の場合、[rating] は null になりうる
@@ -26,6 +46,7 @@ class GameLog {
     this.hasSpoiler = false,
     this.isCleared = false,
     this.clearTimeMinutes,
+    this.priority,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -38,6 +59,7 @@ class GameLog {
   final bool hasSpoiler;
   final bool isCleared;
   final int? clearTimeMinutes;
+  final BacklogPriority? priority;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -51,6 +73,7 @@ class GameLog {
       hasSpoiler: json['has_spoiler'] as bool? ?? false,
       isCleared: json['is_cleared'] as bool? ?? false,
       clearTimeMinutes: json['clear_time_minutes'] as int?,
+      priority: BacklogPriority.fromDb(json['priority'] as int?),
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );

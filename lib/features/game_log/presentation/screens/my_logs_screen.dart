@@ -13,10 +13,16 @@ enum MyLogSortType {
   addedOrder('追加した順'),
   rating('評価順'),
   name('名前順'),
-  releaseDate('発売時期順');
+  releaseDate('発売時期順'),
+  priority('優先度順');
 
   const MyLogSortType(this.label);
   final String label;
+}
+
+String _backlogDaysLabel(DateTime createdAt) {
+  final days = DateTime.now().difference(createdAt).inDays;
+  return days <= 0 ? '今日追加' : '$days日間 積んでいます';
 }
 
 class MyLogsScreen extends ConsumerStatefulWidget {
@@ -68,6 +74,11 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
           if (aDate == null) return 1;
           if (bDate == null) return -1;
           return bDate.compareTo(aDate);
+        case MyLogSortType.priority:
+          final aP = a.log.priority?.dbValue ?? 99;
+          final bP = b.log.priority?.dbValue ?? 99;
+          if (aP != bP) return aP.compareTo(bP);
+          return b.log.createdAt.compareTo(a.log.createdAt);
       }
     });
     return filtered;
@@ -193,6 +204,14 @@ class _HubRow extends StatelessWidget {
             icon: Icons.emoji_events_outlined,
             label: '実績',
             onTap: () => context.push('/achievements'),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _HubCard(
+            icon: Icons.timeline,
+            label: 'タイムライン',
+            onTap: () => context.push('/timeline'),
           ),
         ),
       ],
@@ -414,7 +433,16 @@ class _LogList extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (isWantToPlay)
-            const Text('遊びたい')
+            Row(
+              children: [
+                _PriorityChip(log: entry.log),
+                const SizedBox(width: 8),
+                Text(
+                  _backlogDaysLabel(entry.log.createdAt),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            )
           else if (entry.log.rating != null)
             Row(
               children: [
@@ -443,6 +471,77 @@ class _LogList extends StatelessWidget {
           entry.log.reviewText != null &&
           entry.log.reviewText!.isNotEmpty,
       onTap: () => context.push('/games/${entry.game.id}'),
+    );
+  }
+}
+
+/// 選択結果を表す。nullとの区別のため、シート自体を閉じただけの場合と
+/// 「未設定」を選んだ場合（priorityがnull）を区別できるようラップする。
+class _PriorityPick {
+  const _PriorityPick(this.priority);
+  final BacklogPriority? priority;
+}
+
+Color _priorityColor(BuildContext context, BacklogPriority priority) {
+  switch (priority) {
+    case BacklogPriority.high:
+      return Colors.red;
+    case BacklogPriority.medium:
+      return Colors.orange;
+    case BacklogPriority.low:
+      return Theme.of(context).colorScheme.outline;
+  }
+}
+
+/// 「遊びたい」リストの優先度チップ。タップで優先度を変更できる。
+class _PriorityChip extends ConsumerWidget {
+  const _PriorityChip({required this.log});
+
+  final GameLog log;
+
+  Future<void> _pickPriority(BuildContext context, WidgetRef ref) async {
+    final result = await showModalBottomSheet<_PriorityPick>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final priority in BacklogPriority.values)
+              ListTile(
+                leading: Icon(Icons.flag, color: _priorityColor(sheetContext, priority)),
+                title: Text(priority.label),
+                onTap: () => Navigator.pop(sheetContext, _PriorityPick(priority)),
+              ),
+            ListTile(
+              leading: const Icon(Icons.flag_outlined),
+              title: const Text('未設定'),
+              onTap: () => Navigator.pop(sheetContext, const _PriorityPick(null)),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (result == null) return;
+    await ref.read(logRepositoryProvider).setPriority(log.id, result.priority);
+    ref.invalidate(myLogsProvider);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final priority = log.priority;
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => _pickPriority(context, ref),
+      child: Chip(
+        avatar: Icon(
+          priority == null ? Icons.flag_outlined : Icons.flag,
+          size: 16,
+          color: priority == null ? null : _priorityColor(context, priority),
+        ),
+        label: Text(priority?.label ?? '優先度未設定'),
+        visualDensity: VisualDensity.compact,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
     );
   }
 }

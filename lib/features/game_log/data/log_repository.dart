@@ -72,4 +72,12 @@ class LogRepository {
   Future<void> deleteLog(String logId) async {
     await supabase.from('game_logs').delete().eq('id', logId);
   }
+
+  /// 「遊びたい」リストの優先度を設定する。nullで未設定に戻す。
+  Future<void> setPriority(String logId, BacklogPriority? priority) async {
+    await supabase
+        .from('game_logs')
+        .update({'priority': priority?.dbValue})
+        .eq('id', logId);
+  }
 }
