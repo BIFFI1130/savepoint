@@ -145,18 +145,6 @@ class SocialRepository {
     });
   }
 
-  /// フォロー中ユーザーの「遊んだ／遊びたい」ステータス一覧（新しい順）。
-  Future<List<FollowFeedEntry>> fetchFollowFeed() async {
-    final rows = await supabase
-        .from('follow_feed')
-        .select()
-        .order('updated_at', ascending: false);
-    return (rows as List)
-        .cast<Map<String, dynamic>>()
-        .map(FollowFeedEntry.fromJson)
-        .toList(growable: false);
-  }
-
   /// 特定のフォロー中ユーザーのステータス一覧（プロフィール画面用）。
   Future<List<FollowFeedEntry>> fetchFollowFeedForUser(String userId) async {
     final rows = await supabase

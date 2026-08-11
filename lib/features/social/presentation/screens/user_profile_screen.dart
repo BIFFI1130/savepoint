@@ -6,13 +6,23 @@ import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/avatar_image.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../game_log/domain/game_log.dart';
+import '../../domain/follow_feed_entry.dart';
 import '../../domain/report_reason.dart';
 import '../providers/social_providers.dart';
 
-class UserProfileScreen extends ConsumerWidget {
+class UserProfileScreen extends ConsumerStatefulWidget {
   const UserProfileScreen({super.key, required this.userId});
 
   final String userId;
+
+  @override
+  ConsumerState<UserProfileScreen> createState() => _UserProfileScreenState();
+}
+
+class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
+  bool _isGridView = false;
+
+  String get userId => widget.userId;
 
   Future<void> _toggleFollow(
     BuildContext context,
@@ -28,7 +38,6 @@ class UserProfileScreen extends ConsumerWidget {
       }
       ref.invalidate(isFollowingProvider(userId));
       ref.invalidate(userFeedProvider(userId));
-      ref.invalidate(followFeedProvider);
       ref.invalidate(followingListProvider);
     } catch (e) {
       if (context.mounted) {
@@ -62,7 +71,6 @@ class UserProfileScreen extends ConsumerWidget {
     ref.invalidate(isFollowingProvider(userId));
     ref.invalidate(followingListProvider);
     ref.invalidate(followersListProvider);
-    ref.invalidate(followFeedProvider);
     if (context.mounted) {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('ブロックしました')));
@@ -131,7 +139,7 @@ class UserProfileScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final profileAsync = ref.watch(userProfileProvider(userId));
     final isFollowing = ref.watch(isFollowingProvider(userId)).valueOrNull ?? false;
     final isBlocked = ref.watch(isBlockedProvider(userId)).valueOrNull ?? false;
@@ -140,6 +148,11 @@ class UserProfileScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('プロフィール'),
         actions: [
+          IconButton(
+            onPressed: () => setState(() => _isGridView = !_isGridView),
+            icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
+            tooltip: _isGridView ? 'リスト表示に切り替え' : 'グリッド表示に切り替え',
+          ),
           PopupMenuButton<String>(
             onSelected: (value) {
               if (value == 'block') _block(context, ref);
@@ -158,65 +171,69 @@ class UserProfileScreen extends ConsumerWidget {
           if (profile == null) {
             return const ErrorView(message: 'ユーザーが見つかりませんでした');
           }
-          return ListView(
-            padding: const EdgeInsets.all(16),
+          return Column(
             children: [
-              Center(
-                child: Column(
-                  children: [
-                    AvatarImage(url: profile.avatarUrl, radius: 40),
-                    const SizedBox(height: 8),
-                    Text(
-                      profile.displayLabel,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    if (profile.username != null)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Center(
+                  child: Column(
+                    children: [
+                      AvatarImage(url: profile.avatarUrl, radius: 40),
+                      const SizedBox(height: 8),
                       Text(
-                        '@${profile.username}',
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        profile.displayLabel,
+                        style: Theme.of(context).textTheme.titleLarge,
                       ),
-                  ],
+                      if (profile.username != null)
+                        Text(
+                          '@${profile.username}',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      const SizedBox(height: 16),
+                      if (isBlocked)
+                        OutlinedButton(
+                          onPressed: () async {
+                            await ref
+                                .read(socialRepositoryProvider)
+                                .unblockUser(userId);
+                            ref.invalidate(isBlockedProvider(userId));
+                          },
+                          child: const Text('ブロックを解除する'),
+                        )
+                      else
+                        FilledButton.icon(
+                          onPressed: () =>
+                              _toggleFollow(context, ref, isFollowing),
+                          icon: Icon(
+                            isFollowing ? Icons.check : Icons.person_add,
+                          ),
+                          label: Text(isFollowing ? 'フォロー中' : 'フォローする'),
+                        ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 16),
-              if (isBlocked)
-                Center(
-                  child: OutlinedButton(
-                    onPressed: () async {
-                      await ref
-                          .read(socialRepositoryProvider)
-                          .unblockUser(userId);
-                      ref.invalidate(isBlockedProvider(userId));
-                    },
-                    child: const Text('ブロックを解除する'),
-                  ),
-                )
-              else
-                Center(
-                  child: FilledButton.icon(
-                    onPressed: () => _toggleFollow(context, ref, isFollowing),
-                    icon: Icon(isFollowing ? Icons.check : Icons.person_add),
-                    label: Text(isFollowing ? 'フォロー中' : 'フォローする'),
-                  ),
-                ),
-              const SizedBox(height: 24),
-              if (isBlocked)
-                const EmptyView(
-                  message: 'このユーザーをブロックしています',
-                  icon: Icons.block,
-                )
-              else if (!isFollowing)
-                const EmptyView(
-                  message: 'フォローするとこのユーザーの「遊んだ／遊びたい」記録が見られます',
-                  icon: Icons.lock_outline,
-                )
-              else if (!profile.isPublic)
-                const EmptyView(
-                  message: 'このユーザーは非公開設定のため、記録は表示されません',
-                  icon: Icons.lock_outline,
-                )
-              else
-                _UserFeedList(userId: userId),
+              Expanded(
+                child: isBlocked
+                    ? const EmptyView(
+                        message: 'このユーザーをブロックしています',
+                        icon: Icons.block,
+                      )
+                    : !isFollowing
+                        ? const EmptyView(
+                            message: 'フォローするとこのユーザーの「遊んだ／遊びたい」記録が見られます',
+                            icon: Icons.lock_outline,
+                          )
+                        : !profile.isPublic
+                            ? const EmptyView(
+                                message: 'このユーザーは非公開設定のため、記録は表示されません',
+                                icon: Icons.lock_outline,
+                              )
+                            : _UserFeedTabs(
+                                userId: userId,
+                                isGridView: _isGridView,
+                              ),
+              ),
             ],
           );
         },
@@ -230,35 +247,47 @@ class UserProfileScreen extends ConsumerWidget {
   }
 }
 
-class _UserFeedList extends ConsumerWidget {
-  const _UserFeedList({required this.userId});
+/// フォロー中かつ公開プロフィールの相手の「遊んだ／遊びたい」を
+/// タブ+リスト（またはグリッド）で表示する。
+class _UserFeedTabs extends ConsumerWidget {
+  const _UserFeedTabs({required this.userId, required this.isGridView});
 
   final String userId;
+  final bool isGridView;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final feedAsync = ref.watch(userFeedProvider(userId));
     return feedAsync.when(
       data: (entries) {
-        if (entries.isEmpty) {
-          return const EmptyView(
-            message: 'まだ記録がありません',
-            icon: Icons.videogame_asset_outlined,
-          );
-        }
-        return Column(
-          children: [
-            for (final entry in entries)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: CoverImage(url: entry.gameCoverUrl, width: 44, height: 60),
-                title: Text(entry.displayGameName),
-                subtitle: Text(
-                  entry.status == GameLogStatus.played ? '遊んだ' : '遊びたい',
-                ),
-                onTap: () => context.push('/games/${entry.gameId}'),
+        final played =
+            entries.where((e) => e.status == GameLogStatus.played).toList();
+        final wantToPlay = entries
+            .where((e) => e.status == GameLogStatus.wantToPlay)
+            .toList();
+        return DefaultTabController(
+          length: 2,
+          child: Column(
+            children: [
+              TabBar(
+                tabs: [
+                  Tab(text: '遊んだ（${played.length}）'),
+                  Tab(text: '遊びたい（${wantToPlay.length}）'),
+                ],
               ),
-          ],
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    _UserGameList(entries: played, isGridView: isGridView),
+                    _UserGameList(
+                      entries: wantToPlay,
+                      isGridView: isGridView,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         );
       },
       loading: () => const LoadingView(),
@@ -266,6 +295,61 @@ class _UserFeedList extends ConsumerWidget {
         message: '記録の取得に失敗しました',
         onRetry: () => ref.invalidate(userFeedProvider(userId)),
       ),
+    );
+  }
+}
+
+class _UserGameList extends StatelessWidget {
+  const _UserGameList({required this.entries, required this.isGridView});
+
+  final List<FollowFeedEntry> entries;
+  final bool isGridView;
+
+  @override
+  Widget build(BuildContext context) {
+    if (entries.isEmpty) {
+      return const EmptyView(
+        message: 'まだ記録がありません',
+        icon: Icons.videogame_asset_outlined,
+      );
+    }
+    if (isGridView) {
+      return GridView.builder(
+        padding: const EdgeInsets.all(8),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          childAspectRatio: 0.7,
+          crossAxisSpacing: 6,
+          mainAxisSpacing: 6,
+        ),
+        itemCount: entries.length,
+        itemBuilder: (context, index) {
+          final entry = entries[index];
+          return GestureDetector(
+            onTap: () => context.push('/games/${entry.gameId}'),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: CoverImage(
+                url: entry.gameCoverUrl,
+                width: double.infinity,
+                height: double.infinity,
+              ),
+            ),
+          );
+        },
+      );
+    }
+    return ListView.separated(
+      itemCount: entries.length,
+      separatorBuilder: (context, index) => const Divider(height: 1),
+      itemBuilder: (context, index) {
+        final entry = entries[index];
+        return ListTile(
+          leading: CoverImage(url: entry.gameCoverUrl, width: 44, height: 60),
+          title: Text(entry.displayGameName),
+          onTap: () => context.push('/games/${entry.gameId}'),
+        );
+      },
     );
   }
 }

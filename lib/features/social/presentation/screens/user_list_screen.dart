@@ -7,22 +7,20 @@ import '../../../../core/widgets/avatar_image.dart';
 import '../../domain/social_profile.dart';
 import '../providers/social_providers.dart';
 
-enum UserListMode { following, followers, blocked }
+enum UserListMode { followers, blocked }
 
-/// フォロー中／フォロワー／ブロック中ユーザーの一覧。用途はmodeで切り替える。
+/// フォロワー／ブロック中ユーザーの一覧。用途はmodeで切り替える。
 class UserListScreen extends ConsumerWidget {
   const UserListScreen({super.key, required this.mode});
 
   final UserListMode mode;
 
   String get _title => switch (mode) {
-        UserListMode.following => 'フォロー中',
         UserListMode.followers => 'フォロワー',
         UserListMode.blocked => 'ブロック中のユーザー',
       };
 
   String get _emptyMessage => switch (mode) {
-        UserListMode.following => 'まだ誰もフォローしていません',
         UserListMode.followers => 'まだフォロワーがいません',
         UserListMode.blocked => 'ブロック中のユーザーはいません',
       };
@@ -30,7 +28,6 @@ class UserListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final provider = switch (mode) {
-      UserListMode.following => followingListProvider,
       UserListMode.followers => followersListProvider,
       UserListMode.blocked => blockedUsersListProvider,
     };

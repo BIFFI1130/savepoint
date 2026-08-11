@@ -13,11 +13,6 @@ final myProfileProvider = FutureProvider<SocialProfile?>((ref) async {
   return ref.read(socialRepositoryProvider).fetchMyProfile();
 });
 
-/// フォロー中ユーザーの活動フィード（ステータスのみ）。
-final followFeedProvider = FutureProvider<List<FollowFeedEntry>>((ref) async {
-  return ref.read(socialRepositoryProvider).fetchFollowFeed();
-});
-
 /// 指定ユーザーのプロフィール。
 final userProfileProvider =
     FutureProvider.family<SocialProfile?, String>((ref, userId) async {

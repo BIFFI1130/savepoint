@@ -97,11 +97,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ProfileSettingsScreen(),
       ),
       GoRoute(
-        path: '/social/following',
-        builder: (context, state) =>
-            const UserListScreen(mode: UserListMode.following),
-      ),
-      GoRoute(
         path: '/social/followers',
         builder: (context, state) =>
             const UserListScreen(mode: UserListMode.followers),
