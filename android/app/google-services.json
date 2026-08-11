@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "763009686501",
+    "project_id": "savepoint-505117",
+    "storage_bucket": "savepoint-505117.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:763009686501:android:22db046778e22c10c1ed0c",
+        "android_client_info": {
+          "package_name": "com.biffi.savepoint"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC6KbzMqVzr2356T9OgSQRkabgWNhZr95I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
