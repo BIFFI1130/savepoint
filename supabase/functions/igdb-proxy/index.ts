@@ -36,6 +36,11 @@ const ADULT_THEME_NAME = 'Erotic';
  */
 const ADULT_THEME_ID = 42;
 const SEARCH_PAGE_SIZE = 24;
+/**
+ * IGDBのcategory値のうち、MOD・ROMハック等の非公式派生作品を示すもの
+ * （5=mod, 12=fork）。一覧・週間新作の両方でこれらを除外する。
+ */
+const UNOFFICIAL_CATEGORY_IDS = [5, 12];
 
 /** カテゴリ探索（タイトル検索なし）時の並び替え。キーはFlutter側と合わせている。 */
 const SORT_CLAUSES: Record<string, string> = {
@@ -456,6 +461,16 @@ Deno.serve(async (req) => {
       // IGDBがversion_parentで紐付けている作品は一覧から除外し、本編のみを表示する。
       filters.push('version_parent = null');
 
+      // MOD・ROMハック・同人プラットフォーマー等の非公式作品を除外する。
+      // IGDBのcategoryは 5=mod, 12=fork（既存タイトルを改変・派生させた非公式作品に
+      // 使われる分類）で、ROMハックや同人フリーゲームの多くもこれに分類されている。
+      // categoryが未設定（null）の作品も多いため、「category != (...)」単体だと
+      // IGDB側でnullとの比較がfalse扱いになりcategory未設定の正規タイトルまで
+      // 一覧から消えてしまう。nullは許可した上でmod/forkだけを除外する。
+      filters.push(
+        `(category = null | category != (${UNOFFICIAL_CATEGORY_IDS.join(',')}))`,
+      );
+
       const clauses = [`fields ${SEARCH_FIELDS}`];
       if (hasQuery) {
         const translatedQuery = await translateQueryToEnglish((query as string).trim());
@@ -571,6 +586,7 @@ Deno.serve(async (req) => {
         weeklyFilters.push(`themes != (${ADULT_THEME_ID})`);
       }
       weeklyFilters.push('version_parent = null');
+      weeklyFilters.push(`category != (${UNOFFICIAL_CATEGORY_IDS.join(',')})`);
       const raws = await queryIgdb(
         accessToken,
         `fields ${SEARCH_FIELDS}; where ${weeklyFilters.join(' & ')}; sort total_rating_count desc; limit 30;`,
