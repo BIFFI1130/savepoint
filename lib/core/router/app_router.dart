@@ -4,9 +4,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/achievements/presentation/screens/achievements_screen.dart';
 import '../../features/auth/presentation/screens/sign_in_screen.dart';
 import '../../features/auth/presentation/screens/sign_up_screen.dart';
+import '../../features/collections/presentation/screens/collection_detail_screen.dart';
+import '../../features/collections/presentation/screens/collections_screen.dart';
 import '../../features/game_log/presentation/screens/log_review_screen.dart';
+import '../../features/summary/presentation/screens/summary_screen.dart';
 import '../supabase/supabase_client.dart';
 import 'home_shell.dart';
 import '../../features/game_search/presentation/screens/game_detail_screen.dart';
@@ -50,6 +54,25 @@ final routerProvider = Provider<GoRouter>((ref) {
           final gameId = int.parse(state.pathParameters['id']!);
           return LogReviewScreen(gameId: gameId);
         },
+      ),
+      GoRoute(
+        path: '/collections',
+        builder: (context, state) => const CollectionsScreen(),
+      ),
+      GoRoute(
+        path: '/collections/:id',
+        builder: (context, state) {
+          final collectionId = state.pathParameters['id']!;
+          return CollectionDetailScreen(collectionId: collectionId);
+        },
+      ),
+      GoRoute(
+        path: '/summary',
+        builder: (context, state) => const SummaryScreen(),
+      ),
+      GoRoute(
+        path: '/achievements',
+        builder: (context, state) => const AchievementsScreen(),
       ),
     ],
   );

@@ -90,6 +90,10 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
       ),
       body: Column(
         children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: _HubRow(),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
             child: Row(
@@ -155,6 +159,71 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// マイログ画面の入り口として、コレクション・まとめ・実績への導線をまとめた横並びカード。
+class _HubRow extends StatelessWidget {
+  const _HubRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _HubCard(
+            icon: Icons.collections_bookmark_outlined,
+            label: 'コレクション',
+            onTap: () => context.push('/collections'),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _HubCard(
+            icon: Icons.bar_chart_outlined,
+            label: 'まとめ',
+            onTap: () => context.push('/summary'),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _HubCard(
+            icon: Icons.emoji_events_outlined,
+            label: '実績',
+            onTap: () => context.push('/achievements'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HubCard extends StatelessWidget {
+  const _HubCard({required this.icon, required this.label, required this.onTap});
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            children: [
+              Icon(icon, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(height: 4),
+              Text(label, style: Theme.of(context).textTheme.labelMedium),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/star_rating.dart';
+import '../../../collections/presentation/widgets/collection_picker_sheet.dart';
 import '../../../game_log/domain/game_log.dart';
 import '../../../game_log/presentation/providers/log_providers.dart';
 import '../../domain/game.dart';
@@ -374,6 +375,12 @@ class _StatusAndLogSection extends StatelessWidget {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => CollectionPickerSheet.show(context, gameId),
+          icon: const Icon(Icons.playlist_add),
+          label: const Text('コレクションに追加'),
         ),
         if (isPlayed && log?.rating != null) ...[
           const SizedBox(height: 16),
