@@ -89,6 +89,13 @@ class _TrendingScreenState extends State<TrendingScreen> {
 int _wantToPlayCount(GameLogStats stats) => stats.wantToPlayCount;
 int _playedCount(GameLogStats stats) => stats.playedCount;
 
+/// 1〜3位のメダルカラー（金・銀・銅）。4位以降は null（通常表示）。
+const _medalColors = <int, Color>{
+  1: Color(0xFFFFD700),
+  2: Color(0xFFC0C0C0),
+  3: Color(0xFFCD7F32),
+};
+
 class _RankingList extends ConsumerWidget {
   const _RankingList({
     required this.provider,
@@ -133,6 +140,8 @@ class _RankingList extends ConsumerWidget {
                 separatorBuilder: (context, index) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final stat = stats[index];
+                  final rank = index + 1;
+                  final medalColor = _medalColors[rank];
                   return ListTile(
                     leading: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -140,9 +149,12 @@ class _RankingList extends ConsumerWidget {
                         SizedBox(
                           width: 28,
                           child: Text(
-                            '${index + 1}',
+                            '$rank',
                             textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.titleMedium,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: medalColor,
+                                  fontWeight: medalColor != null ? FontWeight.bold : null,
+                                ),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -174,6 +186,7 @@ class _RankingGridItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final medalColor = _medalColors[rank];
     return GestureDetector(
       onTap: () => context.push('/games/${stat.gameId}'),
       child: ClipRRect(
@@ -188,13 +201,13 @@ class _RankingGridItem extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.6),
+                  color: medalColor ?? Colors.black.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   '$rank',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: medalColor != null ? Colors.black : Colors.white,
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
