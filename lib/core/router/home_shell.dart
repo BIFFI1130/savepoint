@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import '../../features/game_log/presentation/screens/my_logs_screen.dart';
 import '../../features/game_search/presentation/screens/game_search_screen.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
+import '../../features/social/presentation/screens/social_feed_screen.dart';
 import '../../features/trending/presentation/screens/trending_screen.dart';
 
-/// 「ホーム」「検索」「トレンド」「マイログ」の4タブを切り替えるホーム画面。
+/// 「ホーム」「検索」「トレンド」「マイログ」「つながり」の5タブを切り替えるホーム画面。
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key, this.initialIndex = 0});
 
@@ -23,6 +24,7 @@ class _HomeShellState extends State<HomeShell> {
     GameSearchScreen(),
     TrendingScreen(),
     MyLogsScreen(),
+    SocialFeedScreen(),
   ];
 
   @override
@@ -37,6 +39,7 @@ class _HomeShellState extends State<HomeShell> {
           NavigationDestination(icon: Icon(Icons.search), label: '検索'),
           NavigationDestination(icon: Icon(Icons.trending_up), label: 'トレンド'),
           NavigationDestination(icon: Icon(Icons.bookmark), label: 'マイログ'),
+          NavigationDestination(icon: Icon(Icons.people_outline), label: 'つながり'),
         ],
       ),
     );

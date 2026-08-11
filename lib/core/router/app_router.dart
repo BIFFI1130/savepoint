@@ -10,6 +10,11 @@ import '../../features/auth/presentation/screens/sign_up_screen.dart';
 import '../../features/collections/presentation/screens/collection_detail_screen.dart';
 import '../../features/collections/presentation/screens/collections_screen.dart';
 import '../../features/game_log/presentation/screens/log_review_screen.dart';
+import '../../features/social/presentation/screens/profile_settings_screen.dart';
+import '../../features/social/presentation/screens/social_feed_screen.dart';
+import '../../features/social/presentation/screens/user_list_screen.dart';
+import '../../features/social/presentation/screens/user_profile_screen.dart';
+import '../../features/social/presentation/screens/user_search_screen.dart';
 import '../../features/summary/presentation/screens/summary_screen.dart';
 import '../../features/timeline/presentation/screens/timeline_screen.dart';
 import '../supabase/supabase_client.dart';
@@ -78,6 +83,40 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/timeline',
         builder: (context, state) => const TimelineScreen(),
+      ),
+      GoRoute(
+        path: '/social',
+        builder: (context, state) => const SocialFeedScreen(),
+      ),
+      GoRoute(
+        path: '/social/search',
+        builder: (context, state) => const UserSearchScreen(),
+      ),
+      GoRoute(
+        path: '/social/profile-settings',
+        builder: (context, state) => const ProfileSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/social/following',
+        builder: (context, state) =>
+            const UserListScreen(mode: UserListMode.following),
+      ),
+      GoRoute(
+        path: '/social/followers',
+        builder: (context, state) =>
+            const UserListScreen(mode: UserListMode.followers),
+      ),
+      GoRoute(
+        path: '/social/blocked',
+        builder: (context, state) =>
+            const UserListScreen(mode: UserListMode.blocked),
+      ),
+      GoRoute(
+        path: '/users/:id',
+        builder: (context, state) {
+          final userId = state.pathParameters['id']!;
+          return UserProfileScreen(userId: userId);
+        },
       ),
     ],
   );
