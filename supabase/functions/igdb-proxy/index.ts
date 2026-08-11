@@ -586,7 +586,11 @@ Deno.serve(async (req) => {
         weeklyFilters.push(`themes != (${ADULT_THEME_ID})`);
       }
       weeklyFilters.push('version_parent = null');
-      weeklyFilters.push(`category != (${UNOFFICIAL_CATEGORY_IDS.join(',')})`);
+      // categoryが未設定（null）の正規タイトルまで消えないよう、search側と同じく
+      // nullは許可した上でmod/forkだけを除外する。
+      weeklyFilters.push(
+        `(category = null | category != (${UNOFFICIAL_CATEGORY_IDS.join(',')}))`,
+      );
       const raws = await queryIgdb(
         accessToken,
         `fields ${SEARCH_FIELDS}; where ${weeklyFilters.join(' & ')}; sort total_rating_count desc; limit 30;`,
