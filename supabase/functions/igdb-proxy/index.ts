@@ -42,6 +42,17 @@ const SEARCH_PAGE_SIZE = 24;
  */
 const UNOFFICIAL_CATEGORY_IDS = [5, 12];
 
+/**
+ * 「MonsterHunter」のようにスペースなしで詰めて入力された検索語に、
+ * 単語境界と思われる位置（小文字/数字→大文字の切り替わり）でスペースを挿入する。
+ * 挿入の必要がない（既にスペースを含む、境界が見つからない）場合はnullを返す。
+ */
+function insertWordBoundarySpaces(text: string): string | null {
+  if (/\s/.test(text)) return null;
+  const spaced = text.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+  return spaced !== text ? spaced : null;
+}
+
 /** カテゴリ探索（タイトル検索なし）時の並び替え。キーはFlutter側と合わせている。 */
 const SORT_CLAUSES: Record<string, string> = {
   popularity: 'sort total_rating_count desc',
@@ -478,8 +489,9 @@ Deno.serve(async (req) => {
       );
 
       const clauses = [`fields ${SEARCH_FIELDS}`];
+      let translatedQuery = '';
       if (hasQuery) {
-        const translatedQuery = await translateQueryToEnglish((query as string).trim());
+        translatedQuery = await translateQueryToEnglish((query as string).trim());
         const escaped = translatedQuery.replace(/"/g, '\\"');
         clauses.unshift(`search "${escaped}"`);
       }
@@ -493,7 +505,19 @@ Deno.serve(async (req) => {
       clauses.push(`limit ${SEARCH_PAGE_SIZE}`);
       if (pageOffset > 0) clauses.push(`offset ${pageOffset}`);
 
-      const raws = await queryIgdb(accessToken, `${clauses.join('; ')};`);
+      let raws = await queryIgdb(accessToken, `${clauses.join('; ')};`);
+
+      // 「MonsterHunter」のようにスペースなしで詰めて検索して0件だった場合、
+      // 単語境界にスペースを挿入した表記（「Monster Hunter」）で再検索する。
+      if (raws.length === 0 && hasQuery) {
+        const spaced = insertWordBoundarySpaces(translatedQuery);
+        if (spaced) {
+          const retryClauses = [...clauses];
+          retryClauses[0] = `search "${spaced.replace(/"/g, '\\"')}"`;
+          raws = await queryIgdb(accessToken, `${retryClauses.join('; ')};`);
+        }
+      }
+
       const rows = raws.map(toSearchRow);
       if (rows.length > 0) {
         const { error: upsertError } = await db.from('games').upsert(rows);
