@@ -9,7 +9,10 @@ import '../../features/auth/presentation/screens/sign_in_screen.dart';
 import '../../features/auth/presentation/screens/sign_up_screen.dart';
 import '../../features/collections/presentation/screens/collection_detail_screen.dart';
 import '../../features/collections/presentation/screens/collections_screen.dart';
+import '../../features/favorites/presentation/screens/favorite_games_edit_screen.dart';
 import '../../features/game_log/presentation/screens/log_review_screen.dart';
+import '../../features/home/presentation/providers/home_providers.dart';
+import '../../features/home/presentation/screens/release_list_screen.dart';
 import '../../features/social/presentation/screens/profile_settings_screen.dart';
 import '../../features/social/presentation/screens/social_feed_screen.dart';
 import '../../features/social/presentation/screens/user_list_screen.dart';
@@ -30,7 +33,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: refreshStream,
     redirect: (context, state) {
       final isLoggedIn = supabase.auth.currentSession != null;
-      final isAuthRoute = state.matchedLocation == '/sign-in' ||
+      final isAuthRoute =
+          state.matchedLocation == '/sign-in' ||
           state.matchedLocation == '/sign-up';
 
       if (!isLoggedIn && !isAuthRoute) return '/sign-in';
@@ -38,14 +42,47 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(path: '/sign-in', builder: (context, state) => const SignInScreen()),
-      GoRoute(path: '/sign-up', builder: (context, state) => const SignUpScreen()),
+      GoRoute(
+        path: '/sign-in',
+        builder: (context, state) => const SignInScreen(),
+      ),
+      GoRoute(
+        path: '/sign-up',
+        builder: (context, state) => const SignUpScreen(),
+      ),
       GoRoute(
         path: '/home',
         builder: (context, state) {
           final initialIndex = state.extra is int ? state.extra as int : 0;
           return HomeShell(initialIndex: initialIndex);
         },
+      ),
+      GoRoute(
+        path: '/home/weekly',
+        builder: (context, state) => ReleaseListScreen(
+          type: ReleaseListType.weekly,
+          initialFilter: state.extra is HomeReleasesFilter
+              ? state.extra as HomeReleasesFilter
+              : null,
+        ),
+      ),
+      GoRoute(
+        path: '/home/monthly',
+        builder: (context, state) => ReleaseListScreen(
+          type: ReleaseListType.monthly,
+          initialFilter: state.extra is HomeReleasesFilter
+              ? state.extra as HomeReleasesFilter
+              : null,
+        ),
+      ),
+      GoRoute(
+        path: '/home/top100',
+        builder: (context, state) => ReleaseListScreen(
+          type: ReleaseListType.top100,
+          initialFilter: state.extra is HomeReleasesFilter
+              ? state.extra as HomeReleasesFilter
+              : null,
+        ),
       ),
       GoRoute(
         path: '/games/:id',
@@ -75,6 +112,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/summary',
         builder: (context, state) => const SummaryScreen(),
+      ),
+      GoRoute(
+        path: '/favorites/edit',
+        builder: (context, state) => const FavoriteGamesEditScreen(),
       ),
       GoRoute(
         path: '/achievements',

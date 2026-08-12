@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/avatar_image.dart';
 import '../../../../core/widgets/cover_image.dart';
+import '../../../favorites/presentation/providers/favorite_providers.dart';
+import '../../../favorites/presentation/widgets/favorite_games_list.dart';
 import '../../../game_log/domain/game_log.dart';
 import '../../domain/follow_feed_entry.dart';
 import '../../domain/report_reason.dart';
@@ -41,8 +43,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       ref.invalidate(followingListProvider);
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('操作に失敗しました: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('操作に失敗しました: $e')));
       }
     }
   }
@@ -72,8 +75,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     ref.invalidate(followingListProvider);
     ref.invalidate(followersListProvider);
     if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('ブロックしました')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('ブロックしました')));
     }
   }
 
@@ -127,21 +131,25 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       ),
     );
     if (confirmed != true) return;
-    await ref.read(socialRepositoryProvider).reportUser(
+    await ref
+        .read(socialRepositoryProvider)
+        .reportUser(
           reportedUserId: userId,
           reason: selectedReason,
           detail: detailController.text.trim(),
         );
     if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('通報を受け付けました')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('通報を受け付けました')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(userProfileProvider(userId));
-    final isFollowing = ref.watch(isFollowingProvider(userId)).valueOrNull ?? false;
+    final isFollowing =
+        ref.watch(isFollowingProvider(userId)).valueOrNull ?? false;
     final isBlocked = ref.watch(isBlockedProvider(userId)).valueOrNull ?? false;
 
     return Scaffold(
@@ -220,19 +228,16 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                         icon: Icons.block,
                       )
                     : !isFollowing
-                        ? const EmptyView(
-                            message: 'フォローするとこのユーザーの「遊んだ／遊びたい」記録が見られます',
-                            icon: Icons.lock_outline,
-                          )
-                        : !profile.isPublic
-                            ? const EmptyView(
-                                message: 'このユーザーは非公開設定のため、記録は表示されません',
-                                icon: Icons.lock_outline,
-                              )
-                            : _UserFeedTabs(
-                                userId: userId,
-                                isGridView: _isGridView,
-                              ),
+                    ? const EmptyView(
+                        message: 'フォローするとこのユーザーの「遊んだ／遊びたい」記録が見られます',
+                        icon: Icons.lock_outline,
+                      )
+                    : !profile.isPublic
+                    ? const EmptyView(
+                        message: 'このユーザーは非公開設定のため、記録は表示されません',
+                        icon: Icons.lock_outline,
+                      )
+                    : _UserFeedTabs(userId: userId, isGridView: _isGridView),
               ),
             ],
           );
@@ -260,29 +265,29 @@ class _UserFeedTabs extends ConsumerWidget {
     final feedAsync = ref.watch(userFeedProvider(userId));
     return feedAsync.when(
       data: (entries) {
-        final played =
-            entries.where((e) => e.status == GameLogStatus.played).toList();
+        final played = entries
+            .where((e) => e.status == GameLogStatus.played)
+            .toList();
         final wantToPlay = entries
             .where((e) => e.status == GameLogStatus.wantToPlay)
             .toList();
         return DefaultTabController(
-          length: 2,
+          length: 3,
           child: Column(
             children: [
               TabBar(
                 tabs: [
                   Tab(text: '遊んだ（${played.length}）'),
                   Tab(text: '遊びたい（${wantToPlay.length}）'),
+                  const Tab(text: 'オレの推しゲー'),
                 ],
               ),
               Expanded(
                 child: TabBarView(
                   children: [
                     _UserGameList(entries: played, isGridView: isGridView),
-                    _UserGameList(
-                      entries: wantToPlay,
-                      isGridView: isGridView,
-                    ),
+                    _UserGameList(entries: wantToPlay, isGridView: isGridView),
+                    _UserFavoritesTab(userId: userId, isGridView: isGridView),
                   ],
                 ),
               ),
@@ -294,6 +299,40 @@ class _UserFeedTabs extends ConsumerWidget {
       error: (error, _) => ErrorView(
         message: '記録の取得に失敗しました',
         onRetry: () => ref.invalidate(userFeedProvider(userId)),
+      ),
+    );
+  }
+}
+
+/// フォロー中ユーザーの「オレの推しゲー」一覧。
+class _UserFavoritesTab extends ConsumerWidget {
+  const _UserFavoritesTab({required this.userId, required this.isGridView});
+
+  final String userId;
+  final bool isGridView;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final favoritesAsync = ref.watch(favoritesForUserProvider(userId));
+    return favoritesAsync.when(
+      data: (favorites) {
+        if (favorites.isEmpty) {
+          return const EmptyView(
+            message: 'まだ推しゲーが登録されていません',
+            icon: Icons.favorite_border,
+          );
+        }
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            FavoriteGamesList(favorites: favorites, isGridView: isGridView),
+          ],
+        );
+      },
+      loading: () => const LoadingView(),
+      error: (error, _) => ErrorView(
+        message: '推しゲーの取得に失敗しました',
+        onRetry: () => ref.invalidate(favoritesForUserProvider(userId)),
       ),
     );
   }

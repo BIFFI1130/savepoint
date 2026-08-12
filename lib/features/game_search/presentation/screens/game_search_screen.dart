@@ -2,31 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
-import '../../../../core/widgets/cover_image.dart';
-import '../../domain/game.dart';
+import '../../../../core/widgets/game_sliver_grid.dart';
+import '../../../../core/widgets/game_sliver_list.dart';
+import '../../../../core/widgets/genre_badge_selector.dart';
 import '../../domain/platform_options.dart';
 import '../providers/game_search_providers.dart';
-
-/// ジャンルフィルタの選択肢（表示ラベル, IGDBの正式なジャンル名, バッジのアイコンと色）。
-/// IGDBのジャンル一覧から、日本のユーザーに馴染みのある分類のみを抜粋している。
-const _genreOptions = <(String label, String value, IconData icon, Color color)>[
-  ('RPG', 'Role-playing (RPG)', Icons.castle, Color(0xFF6750A4)),
-  ('アクション', "Hack and slash/Beat 'em up", Icons.bolt, Color(0xFFB3261E)),
-  ('シューティング', 'Shooter', Icons.gps_fixed, Color(0xFF006C51)),
-  ('アドベンチャー', 'Adventure', Icons.explore, Color(0xFF8B5000)),
-  ('格闘', 'Fighting', Icons.sports_mma, Color(0xFF9C4146)),
-  ('レース', 'Racing', Icons.directions_car_filled, Color(0xFF3A5B9B)),
-  ('パズル', 'Puzzle', Icons.extension, Color(0xFF6E5A00)),
-  ('ストラテジー', 'Strategy', Icons.psychology, Color(0xFF4A6148)),
-  ('シミュレーション', 'Simulator', Icons.precision_manufacturing, Color(0xFF5C5F77)),
-  ('スポーツ', 'Sport', Icons.sports_soccer, Color(0xFF1D6B5B)),
-  ('プラットフォーマー', 'Platform', Icons.terrain, Color(0xFF7A5230)),
-  ('インディー', 'Indie', Icons.auto_awesome, Color(0xFF884191)),
-];
 
 class GameSearchScreen extends ConsumerStatefulWidget {
   const GameSearchScreen({super.key});
@@ -45,6 +28,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
   GameSortType _sort = GameSortType.popularity;
   bool _includeUpcoming = false;
   bool _includeAdult = false;
+  bool _includeIndie = false;
   Timer? _developerDebounce;
   bool _isGridView = false;
 
@@ -66,7 +50,8 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
 
   void _onScroll() {
     if (!_scrollController.hasClients) return;
-    final nearBottom = _scrollController.position.pixels >=
+    final nearBottom =
+        _scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 300;
     if (nearBottom) {
       ref.read(gameSearchProvider.notifier).loadMore();
@@ -127,6 +112,11 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
     ref.read(gameSearchProvider.notifier).setIncludeAdult(value);
   }
 
+  void _onIncludeIndieChanged(bool value) {
+    setState(() => _includeIndie = value);
+    ref.read(gameSearchProvider.notifier).setIncludeIndie(value);
+  }
+
   @override
   Widget build(BuildContext context) {
     final resultsAsync = ref.watch(gameSearchProvider);
@@ -149,17 +139,19 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
                 );
               }
               return _isGridView
-                  ? _GameSliverGrid(
+                  ? GameSliverGrid(
                       games: results.games,
                       isLoadingMore: results.isLoadingMore,
                     )
-                  : _GameSliverList(
+                  : GameSliverList(
                       games: results.games,
                       isLoadingMore: results.isLoadingMore,
                     );
             },
-            loading: () =>
-                const SliverFillRemaining(hasScrollBody: false, child: LoadingView()),
+            loading: () => const SliverFillRemaining(
+              hasScrollBody: false,
+              child: LoadingView(),
+            ),
             error: (error, _) => SliverFillRemaining(
               hasScrollBody: false,
               child: ErrorView(
@@ -175,8 +167,8 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
                 'ゲーム情報提供: IGDB',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
+                  color: Theme.of(context).colorScheme.outline,
+                ),
               ),
             ),
           ),
@@ -189,204 +181,101 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
     return Column(
       children: [
         Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: TextField(
-              controller: _queryController,
-              decoration: InputDecoration(
-                hintText: 'タイトルで検索',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _queryText.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.clear),
-                        tooltip: '検索文字列をクリア',
-                        onPressed: _clearQuery,
-                      ),
-                border: const OutlineInputBorder(),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: TextField(
+            controller: _queryController,
+            decoration: InputDecoration(
+              hintText: 'タイトルで検索',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _queryText.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.clear),
+                      tooltip: '検索文字列をクリア',
+                      onPressed: _clearQuery,
+                    ),
+              border: const OutlineInputBorder(),
+            ),
+            onChanged: _onQueryChanged,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+          child: Text(
+            'ジャンルから探す',
+            style: Theme.of(context).textTheme.labelMedium,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: GenreBadgeSelector(
+            selectedGenres: _selectedGenres,
+            onToggle: _onGenreTap,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Text('対応ハード', style: Theme.of(context).textTheme.labelMedium),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final option in platformOptions)
+                FilterChip(
+                  label: Text(option.$1),
+                  selected: _selectedPlatforms.contains(option.$2),
+                  onSelected: (_) => _onPlatformTap(option.$2),
+                ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: AdvancedFiltersSection(
+            includeAdult: _includeAdult,
+            onIncludeAdultChanged: _onIncludeAdultChanged,
+            includeIndie: _includeIndie,
+            onIncludeIndieChanged: _onIncludeIndieChanged,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: TextField(
+                  controller: _developerController,
+                  decoration: const InputDecoration(
+                    labelText: '開発元で絞り込み（任意）',
+                    hintText: '例：Nintendo',
+                    prefixIcon: Icon(Icons.apartment_outlined),
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  onChanged: _onDeveloperChanged,
+                ),
               ),
-              onChanged: _onQueryChanged,
-            ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-            child: Text(
-              'ジャンルから探す',
-              style: Theme.of(context).textTheme.labelMedium,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final option in _genreOptions)
-                  SizedBox(
-                    width: 112,
-                    height: 112,
-                    child: _GenreBadge(
-                      label: option.$1,
-                      icon: option.$3,
-                      color: option.$4,
-                      selected: _selectedGenres.contains(option.$2),
-                      onTap: () => _onGenreTap(option.$2),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: Text(
-              '対応ハード',
-              style: Theme.of(context).textTheme.labelMedium,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final option in platformOptions)
-                  FilterChip(
-                    label: Text(option.$1),
-                    selected: _selectedPlatforms.contains(option.$2),
-                    onSelected: (_) => _onPlatformTap(option.$2),
-                  ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: AdvancedFiltersSection(
-              includeAdult: _includeAdult,
-              onIncludeAdultChanged: _onIncludeAdultChanged,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: TextField(
-                    controller: _developerController,
-                    decoration: const InputDecoration(
-                      labelText: '開発元で絞り込み（任意）',
-                      hintText: '例：Nintendo',
-                      prefixIcon: Icon(Icons.apartment_outlined),
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    onChanged: _onDeveloperChanged,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _SortSelector(
-            enabled: _queryText.trim().isEmpty,
-            sort: _sort,
-            onChanged: _onSortChanged,
-            includeUpcoming: _includeUpcoming,
-            onIncludeUpcomingChanged: _onIncludeUpcomingChanged,
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: IconButton(
-                onPressed: () => setState(() => _isGridView = !_isGridView),
-                icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
-                tooltip: _isGridView ? 'リスト表示に切り替え' : 'グリッド表示に切り替え',
-              ),
-            ),
-          ),
-        ],
-      );
-  }
-}
-
-/// ジャンルの選択肢を表す正方形のバッジ。アイコンを中央に、ラベルを右下に配置する。
-class _GenreBadge extends StatelessWidget {
-  const _GenreBadge({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final Color color;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1,
-      child: Material(
-        color: color,
-        borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: onTap,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              border: selected
-                  ? Border.all(
-                      color: Theme.of(context).colorScheme.primary,
-                      width: 3,
-                    )
-                  : null,
-            ),
-            child: Stack(
-              children: [
-                Align(
-                  alignment: const Alignment(0, -0.3),
-                  child: Icon(icon, size: 38, color: Colors.white70),
-                ),
-                if (selected)
-                  const Positioned(
-                    top: 4,
-                    left: 4,
-                    child: Icon(
-                      Icons.check_circle,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.45),
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(10),
-                        bottomRight: Radius.circular(10),
-                      ),
-                    ),
-                    child: Text(
-                      label,
-                      textAlign: TextAlign.right,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10.5,
-                        height: 1.2,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+        ),
+        _SortSelector(
+          enabled: _queryText.trim().isEmpty,
+          sort: _sort,
+          onChanged: _onSortChanged,
+          includeUpcoming: _includeUpcoming,
+          onIncludeUpcomingChanged: _onIncludeUpcomingChanged,
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: IconButton(
+              onPressed: () => setState(() => _isGridView = !_isGridView),
+              icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
+              tooltip: _isGridView ? 'リスト表示に切り替え' : 'グリッド表示に切り替え',
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -462,8 +351,8 @@ class _SortSelector extends StatelessWidget {
                 child: Text(
                   'タイトル検索中は関連度順で表示されます',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
                 ),
               ),
           ],
@@ -473,77 +362,3 @@ class _SortSelector extends StatelessWidget {
   }
 }
 
-class _GameSliverList extends StatelessWidget {
-  const _GameSliverList({required this.games, required this.isLoadingMore});
-
-  final List<Game> games;
-  final bool isLoadingMore;
-
-  @override
-  Widget build(BuildContext context) {
-    return SliverList.separated(
-      itemCount: games.length + (isLoadingMore ? 1 : 0),
-      separatorBuilder: (context, index) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        if (index >= games.length) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-          );
-        }
-        final game = games[index];
-        return ListTile(
-          leading: CoverImage(url: game.coverUrl, width: 44, height: 60),
-          title: Text(game.displayName),
-          subtitle: game.releaseYear != null ? Text('${game.releaseYear}年') : null,
-          onTap: () => context.push('/games/${game.id}'),
-        );
-      },
-    );
-  }
-}
-
-/// グリッド表示（1行3件・画像のみ）。
-class _GameSliverGrid extends StatelessWidget {
-  const _GameSliverGrid({required this.games, required this.isLoadingMore});
-
-  final List<Game> games;
-  final bool isLoadingMore;
-
-  @override
-  Widget build(BuildContext context) {
-    return SliverPadding(
-      padding: const EdgeInsets.all(8),
-      sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          childAspectRatio: 0.7,
-          crossAxisSpacing: 6,
-          mainAxisSpacing: 6,
-        ),
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            if (index >= games.length) {
-              return const Center(
-                child: CircularProgressIndicator(strokeWidth: 2),
-              );
-            }
-            final game = games[index];
-            return GestureDetector(
-              onTap: () => context.push('/games/${game.id}'),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: CoverImage(
-                  url: game.coverUrl,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-              ),
-            );
-          },
-          childCount: games.length + (isLoadingMore ? 3 : 0),
-        ),
-      ),
-    );
-  }
-}

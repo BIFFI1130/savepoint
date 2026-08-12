@@ -151,13 +151,9 @@ class _SummaryBody extends StatelessWidget {
           ],
         ),
         if (summary.playedCount > 0) ...[
-          const SizedBox(height: 24),
-          Text('評価の内訳', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          _RatingBreakdown(ratingCounts: summary.ratingCounts),
           if (summary.genreCounts.isNotEmpty) ...[
             const SizedBox(height: 24),
-            Text('好きなジャンル', style: Theme.of(context).textTheme.titleMedium),
+            Text('ジャンル分布', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             _GenreBreakdown(genreCounts: summary.genreCounts),
           ],
@@ -218,48 +214,6 @@ class _StatCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _RatingBreakdown extends StatelessWidget {
-  const _RatingBreakdown({required this.ratingCounts});
-
-  final Map<int, int> ratingCounts;
-
-  @override
-  Widget build(BuildContext context) {
-    final maxCount = ratingCounts.values.fold<int>(0, (a, b) => a > b ? a : b);
-    return Column(
-      children: [
-        for (var star = 5; star >= 1; star--)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Row(
-              children: [
-                SizedBox(width: 36, child: Text('★$star')),
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: maxCount == 0 ? 0 : (ratingCounts[star] ?? 0) / maxCount,
-                      minHeight: 10,
-                      backgroundColor:
-                          Theme.of(context).colorScheme.surfaceContainerHighest,
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: 28,
-                  child: Text(
-                    '${ratingCounts[star] ?? 0}',
-                    textAlign: TextAlign.end,
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
     );
   }
 }

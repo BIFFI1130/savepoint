@@ -54,6 +54,13 @@ const UNOFFICIAL_GAME_TYPE_IDS = [5, 12];
 const UNOFFICIAL_KEYWORD_IDS = [2004, 16696, 24124];
 
 /**
+ * IGDBのgenres上での「Indie」ジャンルのID（IGDBの/genresエンドポイントで確認済み、固定値）。
+ * to-many関係の除外はthemesと同様、`genres.name != "..."`のようなドット区切りの比較では
+ * 機能しないため、IDを直接指定する除外構文 `genres != (id...)` を使う。
+ */
+const INDIE_GENRE_ID = 32;
+
+/**
  * 「MonsterHunter」のようにスペースなしで詰めて入力された検索語に、
  * 単語境界と思われる位置（小文字/数字→大文字の切り替わり）でスペースを挿入する。
  * 挿入の必要がない（既にスペースを含む、境界が見つからない）場合はnullを返す。
@@ -127,6 +134,8 @@ interface RawIgdbGame {
   involved_companies?: InvolvedCompany[];
   similar_games?: SimilarGameRaw[];
   websites?: WebsiteRaw[];
+  rating?: number; // ユーザー評価の平均（0〜100）。top100の加重評価計算にのみ使う。
+  rating_count?: number; // ユーザー評価の件数。同上。
 }
 
 /** 公式サイトのURLを選ぶ。日本語ページらしいものがあればそれを優先する。 */
@@ -283,6 +292,17 @@ function currentWeekRangeUnix(): { start: number; end: number } {
   };
 }
 
+/** 今月（1日0:00〜翌月1日0:00、UTC基準）のunixタイムスタンプ範囲を返す。 */
+function currentMonthRangeUnix(): { start: number; end: number } {
+  const now = new Date();
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  return {
+    start: Math.floor(start.getTime() / 1000),
+    end: Math.floor(end.getTime() / 1000),
+  };
+}
+
 /**
  * 既にキャッシュ済みの「開発元が日本の会社かどうか」（is_japanese_developer）を
  * 行にマージして返す。search/weekly_releasesは軽量化のため企業情報の再取得は行わず、
@@ -425,6 +445,70 @@ async function queryIgdbEndpoint<T>(
 }
 
 /**
+ * プラットフォーム名の配列からIGDBのwhere句断片を作る（OR条件）。複数選択時は
+ * 選択されたうちどれか1つでも当てはまれば一覧に含める。空配列ならnullを返す。
+ */
+function buildPlatformFilter(platformList: string[]): string | null {
+  if (platformList.length === 0) return null;
+  const clause = platformList
+    .map((p) => `platforms.name ~ *"${p.trim().replace(/"/g, '\\"')}"*`)
+    .join(' | ');
+  return platformList.length > 1 ? `(${clause})` : clause;
+}
+
+/**
+ * ジャンル名の配列からIGDBのwhere句断片を作る（OR条件）。複数選択時は
+ * 選択されたうちどれか1つでも当てはまれば一覧に含める。空配列ならnullを返す。
+ */
+function buildGenreFilter(genreList: string[]): string | null {
+  if (genreList.length === 0) return null;
+  const clause = genreList
+    .map((g) => `genres.name = "${g.trim().replace(/"/g, '\\"')}"`)
+    .join(' | ');
+  return genreList.length > 1 ? `(${clause})` : clause;
+}
+
+/**
+ * プラットフォーム・ジャンルのリクエストパラメータを文字列配列に正規化する。
+ * 複数選択用の配列（[arrValue]）を優先し、無ければ単数値（[singularValue]、
+ * 後方互換のため）を1件だけの配列として扱う。
+ */
+function parseStringListParam(arrValue: unknown, singularValue: unknown): string[] {
+  if (Array.isArray(arrValue)) {
+    return arrValue.filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
+  }
+  if (typeof singularValue === 'string' && singularValue.trim()) return [singularValue];
+  return [];
+}
+
+/**
+ * 一覧系アクション（search/weekly_releases/monthly_releases/top100）で共通して
+ * 適用する除外フィルタ（成人向け・インディー・別バージョン・DLC・非公式作品）。
+ * [excludeIndie] はジャンルフィルタで明示的に「インディー」が選ばれている場合など、
+ * 呼び出し側でインディー除外を無効化したい場合にfalseを渡す。
+ */
+function commonExclusionFilters(
+  includeAdult: boolean,
+  includeIndie: boolean,
+  excludeIndie = true,
+): string[] {
+  const filters: string[] = [];
+  if (includeAdult !== true) {
+    filters.push(`themes != (${ADULT_THEME_ID})`);
+  }
+  if (includeIndie !== true && excludeIndie) {
+    filters.push(`genres != (${INDIE_GENRE_ID})`);
+  }
+  filters.push('version_parent = null');
+  filters.push('parent_game = null');
+  filters.push(
+    `(game_type = null | game_type != (${UNOFFICIAL_GAME_TYPE_IDS.join(',')}))`,
+  );
+  filters.push(`keywords != (${UNOFFICIAL_KEYWORD_IDS.join(',')})`);
+  return filters;
+}
+
+/**
  * 開発元名から会社IDを解決する。
  *
  * games側で `involved_companies.company.name` のような2階層のネストしたフィールドを
@@ -464,7 +548,7 @@ Deno.serve(async (req) => {
   try {
     const {
       action, query, id, platform, platforms, developer, genre, genres,
-      offset, sort, includeUpcoming, includeAdult,
+      offset, sort, includeUpcoming, includeAdult, includeIndie,
     } = await req.json();
     const db = serviceRoleClient();
     const accessToken = await getTwitchAccessToken(db);
@@ -473,30 +557,14 @@ Deno.serve(async (req) => {
       const hasQuery = typeof query === 'string' && query.trim().length > 0;
 
       // 複数選択時はOR条件（選択されたうちどれか1つでも当てはまれば表示）。
-      const platformList: string[] = Array.isArray(platforms)
-        ? platforms.filter((p): p is string => typeof p === 'string' && p.trim().length > 0)
-        : typeof platform === 'string' && platform.trim()
-        ? [platform]
-        : [];
-      const genreList: string[] = Array.isArray(genres)
-        ? genres.filter((g): g is string => typeof g === 'string' && g.trim().length > 0)
-        : typeof genre === 'string' && genre.trim()
-        ? [genre]
-        : [];
+      const platformList = parseStringListParam(platforms, platform);
+      const genreList = parseStringListParam(genres, genre);
 
       const filters: string[] = [];
-      if (platformList.length > 0) {
-        const clause = platformList
-          .map((p) => `platforms.name ~ *"${p.trim().replace(/"/g, '\\"')}"*`)
-          .join(' | ');
-        filters.push(platformList.length > 1 ? `(${clause})` : clause);
-      }
-      if (genreList.length > 0) {
-        const clause = genreList
-          .map((g) => `genres.name = "${g.trim().replace(/"/g, '\\"')}"`)
-          .join(' | ');
-        filters.push(genreList.length > 1 ? `(${clause})` : clause);
-      }
+      const searchPlatformFilter = buildPlatformFilter(platformList);
+      if (searchPlatformFilter) filters.push(searchPlatformFilter);
+      const searchGenreFilter = buildGenreFilter(genreList);
+      if (searchGenreFilter) filters.push(searchGenreFilter);
       if (typeof developer === 'string' && developer.trim()) {
         const companyIds = await resolveCompanyIds(accessToken, developer.trim());
         if (companyIds.length === 0) {
@@ -529,6 +597,12 @@ Deno.serve(async (req) => {
       // デフォルトでは成人向け（Eroticテーマ）の作品を除外する。
       if (includeAdult !== true) {
         filters.push(`themes != (${ADULT_THEME_ID})`);
+      }
+
+      // デフォルトではインディー作品を除外する。ただし、ジャンルフィルタで
+      // 明示的に「インディー」が選択されている場合は除外しない。
+      if (includeIndie !== true && !genreList.includes('Indie')) {
+        filters.push(`genres != (${INDIE_GENRE_ID})`);
       }
 
       // 「～Collector's Edition」「～Bundle」等、既存タイトルの別バージョンとして
@@ -659,34 +733,121 @@ Deno.serve(async (req) => {
       });
     }
 
+    // weekly_releases/monthly_releases/top100は共通して複数プラットフォーム選択・
+    // 複数ジャンル選択（いずれもOR条件）とインディー作品フィルタに対応する。
+    const releasePlatformList = parseStringListParam(platforms, platform);
+    const releaseGenreList = parseStringListParam(genres, genre);
+    const releaseExcludeIndie = !releaseGenreList.includes('Indie');
+
     if (action === 'weekly_releases') {
       const { start, end } = currentWeekRangeUnix();
       const weeklyFilters = [
         `first_release_date >= ${start}`,
         `first_release_date < ${end}`,
       ];
-      if (typeof platform === 'string' && platform.trim()) {
-        const p = platform.trim().replace(/"/g, '\\"');
-        weeklyFilters.push(`platforms.name ~ *"${p}"*`);
-      }
-      if (includeAdult !== true) {
-        weeklyFilters.push(`themes != (${ADULT_THEME_ID})`);
-      }
-      weeklyFilters.push('version_parent = null');
-      // DLC・アップデート等、既存タイトルの追加コンテンツは新作一覧に出さない。
-      weeklyFilters.push('parent_game = null');
-      // game_typeが未設定（null）の正規タイトルまで消えないよう、search側と同じく
-      // nullは許可した上でmod/forkだけを除外する。keywordsタグでも二重に除外する。
+      const platformFilter = buildPlatformFilter(releasePlatformList);
+      if (platformFilter) weeklyFilters.push(platformFilter);
+      const genreFilter = buildGenreFilter(releaseGenreList);
+      if (genreFilter) weeklyFilters.push(genreFilter);
       weeklyFilters.push(
-        `(game_type = null | game_type != (${UNOFFICIAL_GAME_TYPE_IDS.join(',')}))`,
+        ...commonExclusionFilters(includeAdult, includeIndie, releaseExcludeIndie),
       );
-      weeklyFilters.push(`keywords != (${UNOFFICIAL_KEYWORD_IDS.join(',')})`);
       const raws = await queryIgdb(
         accessToken,
         `fields ${SEARCH_FIELDS}; where ${weeklyFilters.join(' & ')}; sort total_rating_count desc; limit 30;`,
       );
       const jaNames = await fetchJapaneseLocalizedNames(accessToken, raws.map((r) => r.id));
       const rows = raws.map((raw) => toSearchRow(raw, jaNames.get(raw.id) ?? null));
+      if (rows.length > 0) {
+        const { error: upsertError } = await db.from('games').upsert(rows);
+        if (upsertError) {
+          throw new Error(`games upsert failed: ${upsertError.message}`);
+        }
+      }
+      const rowsWithDevFlag = await mergeCachedIsJapaneseDeveloper(db, rows);
+      return new Response(JSON.stringify(rowsWithDevFlag), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (action === 'monthly_releases') {
+      const { start, end } = currentMonthRangeUnix();
+      const monthlyFilters = [
+        `first_release_date >= ${start}`,
+        `first_release_date < ${end}`,
+      ];
+      const platformFilter = buildPlatformFilter(releasePlatformList);
+      if (platformFilter) monthlyFilters.push(platformFilter);
+      const genreFilter = buildGenreFilter(releaseGenreList);
+      if (genreFilter) monthlyFilters.push(genreFilter);
+      monthlyFilters.push(
+        ...commonExclusionFilters(includeAdult, includeIndie, releaseExcludeIndie),
+      );
+      const raws = await queryIgdb(
+        accessToken,
+        `fields ${SEARCH_FIELDS}; where ${monthlyFilters.join(' & ')}; sort total_rating_count desc; limit 60;`,
+      );
+      const jaNames = await fetchJapaneseLocalizedNames(accessToken, raws.map((r) => r.id));
+      const rows = raws.map((raw) => toSearchRow(raw, jaNames.get(raw.id) ?? null));
+      if (rows.length > 0) {
+        const { error: upsertError } = await db.from('games').upsert(rows);
+        if (upsertError) {
+          throw new Error(`games upsert failed: ${upsertError.message}`);
+        }
+      }
+      const rowsWithDevFlag = await mergeCachedIsJapaneseDeveloper(db, rows);
+      return new Response(JSON.stringify(rowsWithDevFlag), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // IGDB公式のTop 100（https://www.igdb.com/top-100/games）と同じ考え方の加重評価順トップ100。
+    // 単純にtotal_rating_count（評価数）順にすると「評価数は多いが評価の質は普通」な作品
+    // （例: 大型オープンワールド作品など）が上位に来てしまい、公式の並びと大きくずれる。
+    // 公式サイトも「average ratingだけでなく件数も加味した加重評価（weighted rating）を使う」
+    // と明言しているため、IMDb方式のベイズ平均で近似する:
+    //   WR = (v / (v+m)) * R + (m / (v+m)) * C
+    //   R = そのゲームのユーザー評価平均, v = 評価件数,
+    //   m = 候補入りに必要な最低評価件数（円滑化定数）, C = 候補プール全体の平均評価
+    if (action === 'top100') {
+      const TOP100_MIN_RATING_COUNT = 200;
+      const top100Filters: string[] = [
+        'rating != null',
+        `rating_count >= ${TOP100_MIN_RATING_COUNT}`,
+      ];
+      const platformFilter = buildPlatformFilter(releasePlatformList);
+      if (platformFilter) top100Filters.push(platformFilter);
+      const genreFilter = buildGenreFilter(releaseGenreList);
+      if (genreFilter) top100Filters.push(genreFilter);
+      top100Filters.push(
+        ...commonExclusionFilters(includeAdult, includeIndie, releaseExcludeIndie),
+      );
+
+      // IGDBは1クエリ最大500件までしか返さないため、評価件数が多い順に候補プールを取得する
+      // （加重評価の性質上、上位に来る作品はほぼ評価件数も多いため、この絞り込みで実用上十分）。
+      const raws = await queryIgdbEndpoint<RawIgdbGame>(
+        accessToken,
+        'games',
+        `fields ${SEARCH_FIELDS},rating,rating_count; where ${top100Filters.join(' & ')}; sort rating_count desc; limit 500;`,
+      );
+
+      const meanRating = raws.length > 0
+        ? raws.reduce((sum, r) => sum + (r.rating ?? 0), 0) / raws.length
+        : 0;
+      const ranked = raws
+        .map((raw) => {
+          const v = raw.rating_count ?? 0;
+          const weighted =
+            (v / (v + TOP100_MIN_RATING_COUNT)) * (raw.rating ?? 0) +
+            (TOP100_MIN_RATING_COUNT / (v + TOP100_MIN_RATING_COUNT)) * meanRating;
+          return { raw, weighted };
+        })
+        .sort((a, b) => b.weighted - a.weighted)
+        .slice(0, 100)
+        .map((entry) => entry.raw);
+
+      const jaNames = await fetchJapaneseLocalizedNames(accessToken, ranked.map((r) => r.id));
+      const rows = ranked.map((raw) => toSearchRow(raw, jaNames.get(raw.id) ?? null));
       if (rows.length > 0) {
         const { error: upsertError } = await db.from('games').upsert(rows);
         if (upsertError) {

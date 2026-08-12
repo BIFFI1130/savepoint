@@ -25,6 +25,7 @@ class IgdbRepository {
     String? sort,
     bool includeUpcoming = false,
     bool includeAdult = false,
+    bool includeIndie = false,
     int offset = 0,
   }) async {
     final trimmedQuery = query?.trim() ?? '';
@@ -44,6 +45,7 @@ class IgdbRepository {
         if (trimmedQuery.isEmpty && sort != null) 'sort': sort,
         if (trimmedQuery.isEmpty && includeUpcoming) 'includeUpcoming': true,
         if (includeAdult) 'includeAdult': true,
+        if (includeIndie) 'includeIndie': true,
         if (offset > 0) 'offset': offset,
       },
     );
@@ -68,17 +70,79 @@ class IgdbRepository {
   }
 
   /// 今週（月曜〜日曜）発売のゲーム一覧。人気順（評価数の多い順）。
-  /// [platform] を指定すると対応ハードで絞り込む。
+  /// [platforms]・[genres] は複数選択可能で、選択されたうちどれか1つでも
+  /// 当てはまればOR条件で含める。
   Future<List<Game>> weeklyReleases({
-    String? platform,
+    Set<String> platforms = const {},
+    Set<String> genres = const {},
     bool includeAdult = false,
+    bool includeIndie = false,
   }) async {
     final response = await supabase.functions.invoke(
       'igdb-proxy',
       body: {
         'action': 'weekly_releases',
-        if (platform != null && platform.isNotEmpty) 'platform': platform,
+        if (platforms.isNotEmpty) 'platforms': platforms.toList(),
+        if (genres.isNotEmpty) 'genres': genres.toList(),
         if (includeAdult) 'includeAdult': true,
+        if (includeIndie) 'includeIndie': true,
+      },
+    );
+
+    final data = response.data;
+    if (data is! List) return [];
+    return data
+        .cast<Map<String, dynamic>>()
+        .map(Game.fromJson)
+        .toList(growable: false);
+  }
+
+  /// 今月（1日〜月末）発売のゲーム一覧。人気順（評価数の多い順）。
+  /// [platforms]・[genres] は複数選択可能で、選択されたうちどれか1つでも
+  /// 当てはまればOR条件で含める。
+  Future<List<Game>> monthlyReleases({
+    Set<String> platforms = const {},
+    Set<String> genres = const {},
+    bool includeAdult = false,
+    bool includeIndie = false,
+  }) async {
+    final response = await supabase.functions.invoke(
+      'igdb-proxy',
+      body: {
+        'action': 'monthly_releases',
+        if (platforms.isNotEmpty) 'platforms': platforms.toList(),
+        if (genres.isNotEmpty) 'genres': genres.toList(),
+        if (includeAdult) 'includeAdult': true,
+        if (includeIndie) 'includeIndie': true,
+      },
+    );
+
+    final data = response.data;
+    if (data is! List) return [];
+    return data
+        .cast<Map<String, dynamic>>()
+        .map(Game.fromJson)
+        .toList(growable: false);
+  }
+
+  /// IGDB公式のTop 100（https://www.igdb.com/top-100/games）と同じ考え方の
+  /// 加重評価（weighted rating）順トップ100。発売日による絞り込みは行わない。
+  /// [platforms]・[genres] は複数選択可能で、選択されたうちどれか1つでも
+  /// 当てはまればOR条件で含める。
+  Future<List<Game>> top100({
+    Set<String> platforms = const {},
+    Set<String> genres = const {},
+    bool includeAdult = false,
+    bool includeIndie = false,
+  }) async {
+    final response = await supabase.functions.invoke(
+      'igdb-proxy',
+      body: {
+        'action': 'top100',
+        if (platforms.isNotEmpty) 'platforms': platforms.toList(),
+        if (genres.isNotEmpty) 'genres': genres.toList(),
+        if (includeAdult) 'includeAdult': true,
+        if (includeIndie) 'includeIndie': true,
       },
     );
 

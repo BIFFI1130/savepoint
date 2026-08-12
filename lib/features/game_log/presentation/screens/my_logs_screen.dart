@@ -6,6 +6,8 @@ import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/star_rating.dart';
+import '../../../favorites/presentation/providers/favorite_providers.dart';
+import '../../../favorites/presentation/widgets/favorite_games_list.dart';
 import '../../domain/game_log.dart';
 import '../providers/log_providers.dart';
 
@@ -42,7 +44,7 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -56,8 +58,9 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
     GameLogStatus status,
   ) {
     final filtered = logs
-        .where((e) =>
-            e.log.status == status && (_includeAdult || !e.game.isAdult))
+        .where(
+          (e) => e.log.status == status && (_includeAdult || !e.game.isAdult),
+        )
         .toList();
     filtered.sort((a, b) {
       switch (_sort) {
@@ -103,6 +106,7 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
           tabs: const [
             Tab(text: '遊んだ'),
             Tab(text: '遊びたい'),
+            Tab(text: 'オレの推しゲー'),
           ],
         ),
       ),
@@ -112,71 +116,145 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
             padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: _HubRow(),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
-            child: Row(
+          AnimatedBuilder(
+            animation: _tabController.animation ?? _tabController,
+            builder: (context, child) {
+              final isFavoritesTab = _tabController.index == 2;
+              return Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+                    child: Row(
+                      children: [
+                        if (!isFavoritesTab) ...[
+                          Text(
+                            '並び替え：',
+                            style: Theme.of(context).textTheme.labelMedium,
+                          ),
+                          const SizedBox(width: 8),
+                          DropdownButton<MyLogSortType>(
+                            value: _sort,
+                            isDense: true,
+                            items: [
+                              for (final type in MyLogSortType.values)
+                                DropdownMenuItem(
+                                  value: type,
+                                  child: Text(type.label),
+                                ),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) setState(() => _sort = value);
+                            },
+                          ),
+                        ],
+                        const Spacer(),
+                        IconButton(
+                          onPressed: () =>
+                              setState(() => _isGridView = !_isGridView),
+                          icon: Icon(
+                            _isGridView ? Icons.view_list : Icons.grid_view,
+                          ),
+                          tooltip: _isGridView ? 'リスト表示に切り替え' : 'グリッド表示に切り替え',
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (!isFavoritesTab)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: AdvancedFiltersSection(
+                        includeAdult: _includeAdult,
+                        onIncludeAdultChanged: (value) =>
+                            setState(() => _includeAdult = value),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
               children: [
-                Text('並び替え：', style: Theme.of(context).textTheme.labelMedium),
-                const SizedBox(width: 8),
-                DropdownButton<MyLogSortType>(
-                  value: _sort,
-                  isDense: true,
-                  items: [
-                    for (final type in MyLogSortType.values)
-                      DropdownMenuItem(value: type, child: Text(type.label)),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) setState(() => _sort = value);
-                  },
+                logsAsync.when(
+                  data: (logs) => _LogList(
+                    logs: _filterAndSort(logs, GameLogStatus.played),
+                    emptyMessage: 'まだ「遊んだ」記録がありません',
+                    onRefresh: () => ref.refresh(myLogsProvider.future),
+                    sortType: _sort,
+                    isGridView: _isGridView,
+                  ),
+                  loading: () => const LoadingView(),
+                  error: (error, _) => ErrorView(
+                    message: 'ログの取得に失敗しました',
+                    onRetry: () => ref.invalidate(myLogsProvider),
+                  ),
                 ),
-                const Spacer(),
-                IconButton(
-                  onPressed: () => setState(() => _isGridView = !_isGridView),
-                  icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
-                  tooltip: _isGridView ? 'リスト表示に切り替え' : 'グリッド表示に切り替え',
+                logsAsync.when(
+                  data: (logs) => _LogList(
+                    logs: _filterAndSort(logs, GameLogStatus.wantToPlay),
+                    emptyMessage: 'まだ「遊びたい」に登録した作品がありません',
+                    onRefresh: () => ref.refresh(myLogsProvider.future),
+                    sortType: _sort,
+                    isGridView: _isGridView,
+                  ),
+                  loading: () => const LoadingView(),
+                  error: (error, _) => ErrorView(
+                    message: 'ログの取得に失敗しました',
+                    onRetry: () => ref.invalidate(myLogsProvider),
+                  ),
                 ),
+                _MyFavoritesTab(isGridView: _isGridView),
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: AdvancedFiltersSection(
-              includeAdult: _includeAdult,
-              onIncludeAdultChanged: (value) =>
-                  setState(() => _includeAdult = value),
-            ),
-          ),
-          Expanded(
-            child: logsAsync.when(
-              data: (logs) {
-                return TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _LogList(
-                      logs: _filterAndSort(logs, GameLogStatus.played),
-                      emptyMessage: 'まだ「遊んだ」記録がありません',
-                      onRefresh: () => ref.refresh(myLogsProvider.future),
-                      sortType: _sort,
-                      isGridView: _isGridView,
-                    ),
-                    _LogList(
-                      logs: _filterAndSort(logs, GameLogStatus.wantToPlay),
-                      emptyMessage: 'まだ「遊びたい」に登録した作品がありません',
-                      onRefresh: () => ref.refresh(myLogsProvider.future),
-                      sortType: _sort,
-                      isGridView: _isGridView,
-                    ),
-                  ],
-                );
-              },
-              loading: () => const LoadingView(),
-              error: (error, _) => ErrorView(
-                message: 'ログの取得に失敗しました',
-                onRetry: () => ref.invalidate(myLogsProvider),
-              ),
-            ),
-          ),
         ],
+      ),
+    );
+  }
+}
+
+/// 「オレの推しゲー」タブ。最大5件のお気に入り作品を、順位あり／順不同で表示する。
+class _MyFavoritesTab extends ConsumerWidget {
+  const _MyFavoritesTab({required this.isGridView});
+
+  final bool isGridView;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final favoritesAsync = ref.watch(myFavoritesProvider);
+
+    return RefreshIndicator(
+      onRefresh: () => ref.refresh(myFavoritesProvider.future),
+      child: favoritesAsync.when(
+        data: (favorites) {
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              if (favorites.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(top: 80),
+                  child: EmptyView(
+                    message: 'まだ推しゲーが登録されていません',
+                    icon: Icons.favorite_border,
+                  ),
+                )
+              else
+                FavoriteGamesList(favorites: favorites, isGridView: isGridView),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () => context.push('/favorites/edit'),
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('推しゲーを編集する'),
+              ),
+            ],
+          );
+        },
+        loading: () => const LoadingView(),
+        error: (error, _) => ErrorView(
+          message: '推しゲーの取得に失敗しました',
+          onRetry: () => ref.invalidate(myFavoritesProvider),
+        ),
       ),
     );
   }
@@ -227,7 +305,11 @@ class _HubRow extends StatelessWidget {
 }
 
 class _HubCard extends StatelessWidget {
-  const _HubCard({required this.icon, required this.label, required this.onTap});
+  const _HubCard({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;
@@ -298,8 +380,8 @@ class _LogList extends StatelessWidget {
       );
     }
 
-    final useHeaders = sortType == MyLogSortType.name ||
-        sortType == MyLogSortType.releaseDate;
+    final useHeaders =
+        sortType == MyLogSortType.name || sortType == MyLogSortType.releaseDate;
 
     if (isGridView) {
       return RefreshIndicator(
@@ -312,9 +394,7 @@ class _LogList extends StatelessWidget {
 
     return RefreshIndicator(
       onRefresh: onRefresh,
-      child: useHeaders
-          ? _buildGroupedList(context)
-          : _buildFlatList(context),
+      child: useHeaders ? _buildGroupedList(context) : _buildFlatList(context),
     );
   }
 
@@ -334,9 +414,9 @@ class _LogList extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Text(
         title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -430,11 +510,7 @@ class _LogList extends StatelessWidget {
   Widget _buildListTile(BuildContext context, GameLogWithGame entry) {
     final isWantToPlay = entry.log.status == GameLogStatus.wantToPlay;
     return ListTile(
-      leading: CoverImage(
-        url: entry.game.coverUrl,
-        width: 44,
-        height: 60,
-      ),
+      leading: CoverImage(url: entry.game.coverUrl, width: 44, height: 60),
       title: Text(entry.game.displayName),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -474,7 +550,8 @@ class _LogList extends StatelessWidget {
             ),
         ],
       ),
-      isThreeLine: !isWantToPlay &&
+      isThreeLine:
+          !isWantToPlay &&
           entry.log.reviewText != null &&
           entry.log.reviewText!.isNotEmpty,
       onTap: () => context.push('/games/${entry.game.id}'),
@@ -515,14 +592,19 @@ class _PriorityChip extends ConsumerWidget {
           children: [
             for (final priority in BacklogPriority.values)
               ListTile(
-                leading: Icon(Icons.flag, color: _priorityColor(sheetContext, priority)),
+                leading: Icon(
+                  Icons.flag,
+                  color: _priorityColor(sheetContext, priority),
+                ),
                 title: Text(priority.label),
-                onTap: () => Navigator.pop(sheetContext, _PriorityPick(priority)),
+                onTap: () =>
+                    Navigator.pop(sheetContext, _PriorityPick(priority)),
               ),
             ListTile(
               leading: const Icon(Icons.flag_outlined),
               title: const Text('未設定'),
-              onTap: () => Navigator.pop(sheetContext, const _PriorityPick(null)),
+              onTap: () =>
+                  Navigator.pop(sheetContext, const _PriorityPick(null)),
             ),
           ],
         ),

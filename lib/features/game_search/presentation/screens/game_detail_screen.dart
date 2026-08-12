@@ -10,6 +10,7 @@ import '../../../collections/presentation/widgets/collection_picker_sheet.dart';
 import '../../../game_log/domain/game_log.dart';
 import '../../../game_log/presentation/providers/log_providers.dart';
 import '../../domain/game.dart';
+import '../../domain/genre_options.dart';
 import '../providers/game_search_providers.dart';
 
 class GameDetailScreen extends ConsumerStatefulWidget {
@@ -25,6 +26,10 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
   bool _showOriginalSummary = false;
   bool _isUpdatingStatus = false;
 
+  /// タップ中のジャンルバッジ（ラベル表示中のもの）。IGDBの正式なジャンル名で保持する。
+  /// nullなら何も表示していない状態。
+  String? _expandedGenre;
+
   Future<void> _markWantToPlay() async {
     setState(() => _isUpdatingStatus = true);
     try {
@@ -33,8 +38,9 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
       ref.invalidate(myLogsProvider);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('更新に失敗しました')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('更新に失敗しました')));
       }
     } finally {
       if (mounted) setState(() => _isUpdatingStatus = false);
@@ -66,13 +72,15 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
       ref.invalidate(existingLogProvider(widget.gameId));
       ref.invalidate(myLogsProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('記録を削除しました')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('記録を削除しました')));
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('削除に失敗しました')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('削除に失敗しました')));
       }
     } finally {
       if (mounted) setState(() => _isUpdatingStatus = false);
@@ -86,128 +94,173 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('ゲーム詳細')),
-      body: gameAsync.when(
-        data: (game) {
-          if (game == null) {
-            return const ErrorView(message: 'ゲーム情報が見つかりませんでした');
-          }
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: CoverImage(url: game.coverUrl, width: 140, height: 190),
-                ),
-                const SizedBox(height: 16),
-                Text(game.displayName, style: Theme.of(context).textTheme.headlineSmall),
-                const SizedBox(height: 4),
-                if (game.developers.isNotEmpty || game.publishers.isNotEmpty)
-                  Text(
-                    _companyLine(game),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
-                  ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    if (game.releaseYear != null)
-                      Chip(label: Text('${game.releaseYear}年')),
-                    for (final platform in game.platforms)
-                      Chip(label: Text(platform)),
-                  ],
-                ),
-                if (game.displaySummary != null && game.displaySummary!.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('概要', style: Theme.of(context).textTheme.titleMedium),
-                      if (game.summaryJa != null && game.summary != null)
-                        TextButton(
-                          onPressed: () => setState(
-                            () => _showOriginalSummary = !_showOriginalSummary,
-                          ),
-                          child: Text(_showOriginalSummary ? '日本語訳を表示' : '原文を表示'),
-                        ),
-                    ],
-                  ),
-                  Text(
-                    _showOriginalSummary
-                        ? (game.summary ?? '')
-                        : (game.displaySummary ?? ''),
-                  ),
-                ],
-                const SizedBox(height: 24),
-                logAsync.when(
-                  data: (log) => _StatusAndLogSection(
-                    gameId: widget.gameId,
-                    log: log,
-                    isUpdatingStatus: _isUpdatingStatus,
-                    onMarkWantToPlay: _markWantToPlay,
-                    onDelete: log == null ? null : () => _deleteLog(log),
-                  ),
-                  loading: () => const SizedBox(
-                    height: 48,
-                    child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                  ),
-                  error: (error, stackTrace) => const SizedBox.shrink(),
-                ),
-                const SizedBox(height: 12),
-                _StatsRow(gameId: widget.gameId),
-                if (game.similarGames.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  Text('関連作品', style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 164,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: game.similarGames.length,
-                      separatorBuilder: (context, index) => const SizedBox(width: 12),
-                      itemBuilder: (context, index) {
-                        final similar = game.similarGames[index];
-                        return GestureDetector(
-                          onTap: () => context.push('/games/${similar.id}'),
-                          child: SizedBox(
-                            width: 90,
-                            child: Column(
-                              children: [
-                                CoverImage(
-                                  url: similar.coverUrl,
-                                  width: 90,
-                                  height: 120,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  similar.displayName,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
+      body: Listener(
+        // ジャンルバッジのラベル表示中に、画面上のどこか（別のバッジ含む）を
+        // 操作したら閉じる。Listenerはジェスチャーアリーナに参加しないため、
+        // 子のGestureDetector/InkWellのタップ判定を邪魔せずポインター押下だけ検知できる。
+        onPointerDown: (_) {
+          if (_expandedGenre != null) setState(() => _expandedGenre = null);
+        },
+        child: gameAsync.when(
+          data: (game) {
+            if (game == null) {
+              return const ErrorView(message: 'ゲーム情報が見つかりませんでした');
+            }
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: CoverImage(
+                      url: game.coverUrl,
+                      width: 140,
+                      height: 190,
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  Text(
+                    game.displayName,
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  if (game.developers.isNotEmpty || game.publishers.isNotEmpty)
+                    Text(
+                      _companyLine(game),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      if (game.releaseYear != null)
+                        Chip(label: Text('${game.releaseYear}年')),
+                      for (final platform in game.platforms)
+                        Chip(label: Text(platform)),
+                    ],
+                  ),
+                  if (game.genres.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final genre in game.genres)
+                          _GenreBadge(
+                            genre: genre,
+                            selected: _expandedGenre == genre,
+                            onTap: () => setState(() => _expandedGenre = genre),
+                          ),
+                      ],
+                    ),
+                  ],
+                  if (game.displaySummary != null &&
+                      game.displaySummary!.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '概要',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        if (game.summaryJa != null && game.summary != null)
+                          TextButton(
+                            onPressed: () => setState(
+                              () =>
+                                  _showOriginalSummary = !_showOriginalSummary,
+                            ),
+                            child: Text(
+                              _showOriginalSummary ? '日本語訳を表示' : '原文を表示',
+                            ),
+                          ),
+                      ],
+                    ),
+                    Text(
+                      _showOriginalSummary
+                          ? (game.summary ?? '')
+                          : (game.displaySummary ?? ''),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  logAsync.when(
+                    data: (log) => _StatusAndLogSection(
+                      gameId: widget.gameId,
+                      log: log,
+                      isUpdatingStatus: _isUpdatingStatus,
+                      onMarkWantToPlay: _markWantToPlay,
+                      onDelete: log == null ? null : () => _deleteLog(log),
+                    ),
+                    loading: () => const SizedBox(
+                      height: 48,
+                      child: Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                    error: (error, stackTrace) => const SizedBox.shrink(),
+                  ),
+                  const SizedBox(height: 12),
+                  _StatsRow(gameId: widget.gameId),
+                  if (game.similarGames.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    Text(
+                      '関連作品',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 164,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: game.similarGames.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(width: 12),
+                        itemBuilder: (context, index) {
+                          final similar = game.similarGames[index];
+                          return GestureDetector(
+                            onTap: () => context.push('/games/${similar.id}'),
+                            child: SizedBox(
+                              width: 90,
+                              child: Column(
+                                children: [
+                                  CoverImage(
+                                    url: similar.coverUrl,
+                                    width: 90,
+                                    height: 120,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    similar.displayName,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  _OfficialSiteLink(url: game.officialUrl),
+                  _IgdbAttribution(igdbUrl: game.igdbUrl),
                 ],
-                const SizedBox(height: 24),
-                _OfficialSiteLink(url: game.officialUrl),
-                _IgdbAttribution(igdbUrl: game.igdbUrl),
-              ],
-            ),
-          );
-        },
-        loading: () => const LoadingView(),
-        error: (error, _) => ErrorView(
-          message: 'ゲーム情報の取得に失敗しました',
-          onRetry: () => ref.invalidate(gameDetailsProvider(widget.gameId)),
+              ),
+            );
+          },
+          loading: () => const LoadingView(),
+          error: (error, _) => ErrorView(
+            message: 'ゲーム情報の取得に失敗しました',
+            onRetry: () => ref.invalidate(gameDetailsProvider(widget.gameId)),
+          ),
         ),
       ),
     );
@@ -215,9 +268,70 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
 
   String _companyLine(Game game) {
     final parts = <String>[];
-    if (game.developers.isNotEmpty) parts.add('開発: ${game.developers.join(', ')}');
-    if (game.publishers.isNotEmpty) parts.add('発売: ${game.publishers.join(', ')}');
+    if (game.developers.isNotEmpty) {
+      parts.add('開発: ${game.developers.join(', ')}');
+    }
+    if (game.publishers.isNotEmpty) {
+      parts.add('発売: ${game.publishers.join(', ')}');
+    }
     return parts.join(' / ');
+  }
+}
+
+/// ジャンルを表す小さな正方形バッジ。発売年チップと高さを揃えている。
+/// タップするとラベルが横に展開表示され、他の操作（別バッジのタップや画面上の
+/// どこかへのタップなど）を行うと閉じる（親のGameDetailScreenがLIstenerで管理）。
+class _GenreBadge extends StatelessWidget {
+  const _GenreBadge({
+    required this.genre,
+    required this.selected,
+    required this.onTap,
+  });
+
+  /// IGDBの正式なジャンル名（英語）。
+  final String genre;
+
+  /// ラベルを展開表示中かどうか。
+  final bool selected;
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final option = genreOptions
+        .cast<(String, String, IconData, Color)?>()
+        .firstWhere((o) => o!.$2 == genre, orElse: () => null);
+    final label = option?.$1 ?? genre;
+    final icon = option?.$3 ?? Icons.sports_esports;
+    final color = option?.$4 ?? Theme.of(context).colorScheme.outline;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 150),
+        child: Container(
+          height: 32,
+          padding: EdgeInsets.symmetric(horizontal: selected ? 8 : 7),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: Colors.white),
+              if (selected) ...[
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -233,12 +347,13 @@ class _StatsRow extends ConsumerWidget {
 
     return statsAsync.when(
       data: (stats) {
-        if (stats == null || (stats.playedCount == 0 && stats.wantToPlayCount == 0)) {
+        if (stats == null ||
+            (stats.playedCount == 0 && stats.wantToPlayCount == 0)) {
           return const SizedBox.shrink();
         }
         final style = Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.outline,
-            );
+          color: Theme.of(context).colorScheme.outline,
+        );
         return Wrap(
           spacing: 16,
           runSpacing: 4,
@@ -259,7 +374,11 @@ class _StatsRow extends ConsumerWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.videogame_asset_outlined, size: 16, color: style?.color),
+                Icon(
+                  Icons.videogame_asset_outlined,
+                  size: 16,
+                  color: style?.color,
+                ),
                 const SizedBox(width: 4),
                 Text('遊んだ ${stats.playedCount}人', style: style),
               ],
@@ -316,8 +435,8 @@ class _OfficialSiteLink extends StatelessWidget {
             Text(
               '公式サイトを見る',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
             const SizedBox(width: 2),
             Icon(
@@ -350,8 +469,8 @@ class _IgdbAttribution extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Theme.of(context).colorScheme.outline,
-        );
+      color: Theme.of(context).colorScheme.outline,
+    );
     if (igdbUrl == null) {
       return Text('ゲーム情報提供: IGDB', style: style);
     }
@@ -411,7 +530,9 @@ class _StatusAndLogSection extends StatelessWidget {
             Expanded(
               child: FilledButton.icon(
                 onPressed: () => context.push('/games/$gameId/log'),
-                icon: Icon(isPlayed ? Icons.edit_outlined : Icons.videogame_asset),
+                icon: Icon(
+                  isPlayed ? Icons.edit_outlined : Icons.videogame_asset,
+                ),
                 label: Text(isPlayed ? '記録を編集する' : '遊んだ'),
               ),
             ),
@@ -427,7 +548,10 @@ class _StatusAndLogSection extends StatelessWidget {
           const SizedBox(height: 8),
           TextButton.icon(
             onPressed: isUpdatingStatus ? null : onDelete,
-            icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+            icon: Icon(
+              Icons.delete_outline,
+              color: Theme.of(context).colorScheme.error,
+            ),
             label: Text(
               '記録を削除する',
               style: TextStyle(color: Theme.of(context).colorScheme.error),
@@ -454,7 +578,8 @@ class _StatusAndLogSection extends StatelessWidget {
                       ],
                     ],
                   ),
-                  if (log!.reviewText != null && log!.reviewText!.isNotEmpty) ...[
+                  if (log!.reviewText != null &&
+                      log!.reviewText!.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Text(log!.reviewText!),
                   ],
