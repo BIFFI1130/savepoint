@@ -52,6 +52,10 @@ workflows:
           touch /tmp/build_success
       - name: Build APK for Android
         script: |
+          # pubspec.yaml のバージョン番号（+以降のビルド番号）をAndroidのversionCodeとして使う
+          ANDROID_BUILD_NUMBER=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d '+' -f 2 | tr -d '[:space:]')
+          echo "ANDROID_BUILD_NUMBER=$ANDROID_BUILD_NUMBER" >> $CM_ENV
+
           flutter build apk --release --dart-define-from-file=env/dev.json
 
           # ビルド成功フラグを作成（Android版のpublishingステップの実行判定に使う）
@@ -80,27 +84,38 @@ workflows:
             fi
         - name: Notify Discord
           script: |
-            # ビルド成功フラグが存在する場合のみDiscord通知を送信
-            if [ -f /tmp/build_success ]; then
+            # iOS・Androidのどちらか一方でもビルド成功フラグがあれば通知を送信
+            if [ -f /tmp/build_success ] || [ -f /tmp/android_build_success ]; then
               # コミットハッシュの先頭7文字を取得
               COMMIT_HASH=$(echo "${CM_COMMIT}" | cut -c 1-7)
 
+              # iOS・Androidそれぞれの結果行を、実際にビルドが成功した場合のみ組み立てる
+              IOS_LINE="iOS TestFlight：スキップ（ビルド失敗）"
+              if [ -f /tmp/build_success ]; then
+                IOS_LINE="iOS TestFlight：成功＆パブリッシュ済み（Version：${APP_VERSION} / Build：${APP_BUILD_NUMBER}）"
+              fi
+
+              ANDROID_LINE="Android Firebase App Distribution：スキップ（ビルド失敗）"
+              if [ -f /tmp/android_build_success ]; then
+                ANDROID_LINE="Android Firebase App Distribution：成功＆パブリッシュ済み（Version：${APP_VERSION} / Build：${ANDROID_BUILD_NUMBER}）"
+              fi
+
               # 送信メッセージの作成
               MESSAGE=$(cat <<EOF
-            iOS版TestFlightビルドが成功＆パブリッシュされました。
-            Version：${APP_VERSION}
-            Version Code：${APP_BUILD_NUMBER}
+            SavePointのビルドが完了しました。
+            ${IOS_LINE}
+            ${ANDROID_LINE}
             Commit：${COMMIT_HASH}
             EOF
               )
 
               # jq を使用して安全にJSONを組み立て、Discord WebhookへPOST
               JSON_PAYLOAD=$(jq -n --arg content "$MESSAGE" '{content: $content}')
-              
+
               curl -H "Content-Type: application/json" \
                 -X POST \
                 -d "$JSON_PAYLOAD" \
                 "$DISCORD_WEBHOOK_URL"
             else
-              echo "ビルドが失敗したかスキップされたため、Discord通知を送信しませんでした。"
+              echo "iOS・Androidともにビルドが失敗したかスキップされたため、Discord通知を送信しませんでした。"
             fi
