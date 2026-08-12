@@ -41,6 +41,44 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
     }
   }
 
+  Future<void> _deleteLog(GameLog log) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('記録を削除しますか？'),
+        content: const Text('評価・レビューを含む記録が削除されます。この操作は取り消せません。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('キャンセル'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('削除する'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _isUpdatingStatus = true);
+    try {
+      await ref.read(logRepositoryProvider).deleteLog(log.id);
+      ref.invalidate(existingLogProvider(widget.gameId));
+      ref.invalidate(myLogsProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('記録を削除しました')));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('削除に失敗しました')));
+      }
+    } finally {
+      if (mounted) setState(() => _isUpdatingStatus = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final gameAsync = ref.watch(gameDetailsProvider(widget.gameId));
@@ -110,6 +148,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                     log: log,
                     isUpdatingStatus: _isUpdatingStatus,
                     onMarkWantToPlay: _markWantToPlay,
+                    onDelete: log == null ? null : () => _deleteLog(log),
                   ),
                   loading: () => const SizedBox(
                     height: 48,
@@ -336,12 +375,14 @@ class _StatusAndLogSection extends StatelessWidget {
     required this.log,
     required this.isUpdatingStatus,
     required this.onMarkWantToPlay,
+    required this.onDelete,
   });
 
   final int gameId;
   final GameLog? log;
   final bool isUpdatingStatus;
   final VoidCallback onMarkWantToPlay;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -382,6 +423,17 @@ class _StatusAndLogSection extends StatelessWidget {
           icon: const Icon(Icons.playlist_add),
           label: const Text('コレクションに追加'),
         ),
+        if (onDelete != null) ...[
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: isUpdatingStatus ? null : onDelete,
+            icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+            label: Text(
+              '記録を削除する',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+        ],
         if (isPlayed && log?.rating != null) ...[
           const SizedBox(height: 16),
           Card(
