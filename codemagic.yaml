@@ -52,6 +52,10 @@ workflows:
           touch /tmp/build_success
       - name: Build APK for Android
         script: |
+          # 途中のコマンドが失敗した場合に、それに気づかず後続処理（成功フラグ作成など）が
+          # 実行されてしまわないよう、エラー発生時点でスクリプトを即座に停止させる。
+          set -euo pipefail
+
           # pubspec.yaml のバージョン番号（+以降のビルド番号）をAndroidのversionCodeとして使う
           ANDROID_BUILD_NUMBER=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d '+' -f 2 | tr -d '[:space:]')
           echo "ANDROID_BUILD_NUMBER=$ANDROID_BUILD_NUMBER" >> $CM_ENV
@@ -71,9 +75,15 @@ workflows:
       scripts:
         - name: Publish Android to Firebase App Distribution
           script: |
+            set -euo pipefail
+
             # Androidビルドが成功した場合のみFirebase App Distributionへ配信する
             if [ -f /tmp/android_build_success ]; then
-              npm install -g firebase-tools
+              # Codemagicのmacイメージにはfirebase-toolsがプリインストール済みのため、
+              # 既にある場合はグローバルインストールをスキップする（EEXISTで失敗するのを防ぐ）。
+              if ! command -v firebase >/dev/null 2>&1; then
+                npm install -g firebase-tools
+              fi
 
               firebase appdistribution:distribute build/app/outputs/flutter-apk/app-release.apk \
                 --app 1:763009686501:android:22db046778e22c10c1ed0c \
