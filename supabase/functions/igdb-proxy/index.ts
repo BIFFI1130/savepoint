@@ -37,10 +37,21 @@ const ADULT_THEME_NAME = 'Erotic';
 const ADULT_THEME_ID = 42;
 const SEARCH_PAGE_SIZE = 24;
 /**
- * IGDBのcategory値のうち、MOD・ROMハック等の非公式派生作品を示すもの
- * （5=mod, 12=fork）。一覧・週間新作の両方でこれらを除外する。
+ * IGDBのgame_type値のうち、MOD・ROMハック等の非公式派生作品を示すもの
+ * （5=mod, 12=fork）。category（旧フィールド）は未設定の作品が多く実用に
+ * ならなかったため、より網羅的に値が入っているgame_typeを使う。
+ * 一覧・週間新作の両方でこれらを除外する。
  */
-const UNOFFICIAL_CATEGORY_IDS = [5, 12];
+const UNOFFICIAL_GAME_TYPE_IDS = [5, 12];
+
+/**
+ * IGDBのkeywords（タグ）IDのうち、ROMハック・ファンゲーム等の非公式作品に
+ * 付与されているもの。game_type未設定でもこちらのタグが付いていることが多い
+ * （例: 「Kaizo Mario World」はgame_type=mod、「NSMB: Mario vs. Luigi Online」は
+ * game_type未設定だがkeywords=unofficial,fangame）。
+ *   2004 = unofficial, 16696 = rom hack, 24124 = fangame
+ */
+const UNOFFICIAL_KEYWORD_IDS = [2004, 16696, 24124];
 
 /**
  * 「MonsterHunter」のようにスペースなしで詰めて入力された検索語に、
@@ -478,15 +489,17 @@ Deno.serve(async (req) => {
       // 起動する本体（ROM）が変わらない追加コンテンツは本編の記録に一本化する方針。
       filters.push('parent_game = null');
 
-      // MOD・ROMハック・同人プラットフォーマー等の非公式作品を除外する。
-      // IGDBのcategoryは 5=mod, 12=fork（既存タイトルを改変・派生させた非公式作品に
-      // 使われる分類）で、ROMハックや同人フリーゲームの多くもこれに分類されている。
-      // categoryが未設定（null）の作品も多いため、「category != (...)」単体だと
-      // IGDB側でnullとの比較がfalse扱いになりcategory未設定の正規タイトルまで
+      // MOD・ROMハック・ファンゲーム等の非公式作品を除外する。
+      // game_typeが未設定の作品も一部あるため、「game_type != (...)」単体だと
+      // IGDB側でnullとの比較がfalse扱いになりgame_type未設定の正規タイトルまで
       // 一覧から消えてしまう。nullは許可した上でmod/forkだけを除外する。
       filters.push(
-        `(category = null | category != (${UNOFFICIAL_CATEGORY_IDS.join(',')}))`,
+        `(game_type = null | game_type != (${UNOFFICIAL_GAME_TYPE_IDS.join(',')}))`,
       );
+      // game_typeが未設定のままROMハック・ファンゲームとして扱われている作品も
+      // あるため、keywordsタグでも二重に除外する（to-many型フィールドへの
+      // 「!= (idリスト)」は要素が1件もその値と一致しなければtrueになる仕様）。
+      filters.push(`keywords != (${UNOFFICIAL_KEYWORD_IDS.join(',')})`);
 
       const clauses = [`fields ${SEARCH_FIELDS}`];
       let translatedQuery = '';
@@ -618,11 +631,12 @@ Deno.serve(async (req) => {
       weeklyFilters.push('version_parent = null');
       // DLC・アップデート等、既存タイトルの追加コンテンツは新作一覧に出さない。
       weeklyFilters.push('parent_game = null');
-      // categoryが未設定（null）の正規タイトルまで消えないよう、search側と同じく
-      // nullは許可した上でmod/forkだけを除外する。
+      // game_typeが未設定（null）の正規タイトルまで消えないよう、search側と同じく
+      // nullは許可した上でmod/forkだけを除外する。keywordsタグでも二重に除外する。
       weeklyFilters.push(
-        `(category = null | category != (${UNOFFICIAL_CATEGORY_IDS.join(',')}))`,
+        `(game_type = null | game_type != (${UNOFFICIAL_GAME_TYPE_IDS.join(',')}))`,
       );
+      weeklyFilters.push(`keywords != (${UNOFFICIAL_KEYWORD_IDS.join(',')})`);
       const raws = await queryIgdb(
         accessToken,
         `fields ${SEARCH_FIELDS}; where ${weeklyFilters.join(' & ')}; sort total_rating_count desc; limit 30;`,
