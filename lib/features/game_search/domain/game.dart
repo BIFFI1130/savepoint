@@ -16,8 +16,8 @@ class SimilarGame {
   /// 開発元が日本の会社かどうか。
   final bool isJapaneseDeveloper;
 
-  /// 表示用のタイトル。開発元が日本の会社で日本語訳があればそれを、それ以外は原題を返す。
-  String get displayName => isJapaneseDeveloper ? (nameJa ?? name) : name;
+  /// 表示用のタイトル。IGDBのLocalized Title（日本）があればそれを、無ければ原題を返す。
+  String get displayName => nameJa ?? name;
 
   factory SimilarGame.fromJson(Map<String, dynamic> json) {
     return SimilarGame(
@@ -44,6 +44,7 @@ class Game {
     this.summary,
     this.summaryJa,
     this.nameJa,
+    this.genres = const [],
     this.isAdult = false,
     this.isJapaneseDeveloper = false,
     this.developers = const [],
@@ -61,6 +62,9 @@ class Game {
   final String? summary;
   final String? summaryJa;
   final String? nameJa;
+
+  /// IGDBのジャンル名一覧（英語表記）。
+  final List<String> genres;
 
   /// 成人向け作品かどうか（IGDBのthemesに"Erotic"が含まれるかで判定）。
   final bool isAdult;
@@ -82,8 +86,8 @@ class Game {
   /// 表示用の概要。日本語訳があればそれを、なければ原文を返す。
   String? get displaySummary => summaryJa ?? summary;
 
-  /// 表示用のタイトル。開発元が日本の会社で日本語訳があればそれを、それ以外は原題を返す。
-  String get displayName => isJapaneseDeveloper ? (nameJa ?? name) : name;
+  /// 表示用のタイトル。IGDBのLocalized Title（日本）があればそれを、無ければ原題を返す。
+  String get displayName => nameJa ?? name;
 
   factory Game.fromJson(Map<String, dynamic> json) {
     return Game(
@@ -97,6 +101,7 @@ class Game {
       summary: json['summary'] as String?,
       summaryJa: json['summary_ja'] as String?,
       nameJa: json['name_ja'] as String?,
+      genres: (json['genres'] as List?)?.cast<String>() ?? const [],
       isAdult: json['is_adult'] as bool? ?? false,
       isJapaneseDeveloper: json['is_japanese_developer'] as bool? ?? false,
       developers: (json['developers'] as List?)?.cast<String>() ?? const [],

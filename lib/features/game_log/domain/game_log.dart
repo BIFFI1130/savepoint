@@ -12,6 +12,27 @@ enum GameLogStatus {
   String toDb() => this == GameLogStatus.wantToPlay ? 'want_to_play' : 'played';
 }
 
+/// 記録の公開範囲。他ユーザーの「つながり」フィード（follow_feedビュー）に
+/// 表示されるかどうかを、ゲーム（記録）単位で制御する。
+enum GameLogVisibility {
+  private_('private', '非公開', '自分にのみ表示されます'),
+  mutual('mutual', '相互フォローのみ', 'お互いにフォローしているユーザーにのみ表示されます'),
+  public('public', '全公開', 'あなたをフォローしているユーザーに表示されます');
+
+  const GameLogVisibility(this.dbValue, this.label, this.description);
+  final String dbValue;
+  final String label;
+  final String description;
+
+  static GameLogVisibility fromDb(String? value) {
+    return switch (value) {
+      'private' => GameLogVisibility.private_,
+      'mutual' => GameLogVisibility.mutual,
+      _ => GameLogVisibility.public,
+    };
+  }
+}
+
 /// 「遊びたい」リストの優先度。DB上はsmallint（1=高, 2=中, 3=低）、未設定はnull。
 enum BacklogPriority {
   high(1, '高'),
@@ -47,6 +68,7 @@ class GameLog {
     this.isCleared = false,
     this.clearTimeMinutes,
     this.priority,
+    this.visibility = GameLogVisibility.public,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -60,6 +82,7 @@ class GameLog {
   final bool isCleared;
   final int? clearTimeMinutes;
   final BacklogPriority? priority;
+  final GameLogVisibility visibility;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -74,6 +97,7 @@ class GameLog {
       isCleared: json['is_cleared'] as bool? ?? false,
       clearTimeMinutes: json['clear_time_minutes'] as int?,
       priority: BacklogPriority.fromDb(json['priority'] as int?),
+      visibility: GameLogVisibility.fromDb(json['visibility'] as String?),
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );

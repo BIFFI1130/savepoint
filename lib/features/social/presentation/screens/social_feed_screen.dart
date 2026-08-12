@@ -7,7 +7,8 @@ import '../../../../core/widgets/avatar_image.dart';
 import '../providers/social_providers.dart';
 
 /// 「つながり」タブのトップ画面。フォロー中ユーザーの一覧と、
-/// ユーザー検索・プロフィール設定・フォロワー・ブロック中一覧への入り口。
+/// ユーザー検索・フォロワー・ブロック中一覧への入り口。
+/// プロフィール設定はマイログ画面の歯車アイコンから行う。
 class SocialFeedScreen extends ConsumerWidget {
   const SocialFeedScreen({super.key});
 
@@ -27,8 +28,6 @@ class SocialFeedScreen extends ConsumerWidget {
           PopupMenuButton<String>(
             onSelected: (value) {
               switch (value) {
-                case 'profile':
-                  context.push('/social/profile-settings');
                 case 'followers':
                   context.push('/social/followers');
                 case 'blocked':
@@ -36,7 +35,6 @@ class SocialFeedScreen extends ConsumerWidget {
               }
             },
             itemBuilder: (context) => const [
-              PopupMenuItem(value: 'profile', child: Text('プロフィール設定')),
               PopupMenuItem(value: 'followers', child: Text('フォロワー')),
               PopupMenuItem(value: 'blocked', child: Text('ブロック中のユーザー')),
             ],

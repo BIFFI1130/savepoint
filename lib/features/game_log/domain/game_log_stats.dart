@@ -33,8 +33,8 @@ class GameLogStats {
   /// 開発元が日本の会社かどうか。タイトルを日本語表示するかどうかの判定に使う。
   final bool isJapaneseDeveloper;
 
-  /// 表示用のタイトル。開発元が日本の会社で日本語訳があればそれを、それ以外は原題を返す。
-  String get displayName => isJapaneseDeveloper ? (nameJa ?? name) : name;
+  /// 表示用のタイトル。IGDBのLocalized Title（日本）があればそれを、無ければ原題を返す。
+  String get displayName => nameJa ?? name;
 
   factory GameLogStats.fromJson(Map<String, dynamic> json) {
     return GameLogStats(

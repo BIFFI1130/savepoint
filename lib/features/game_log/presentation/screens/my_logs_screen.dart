@@ -91,6 +91,13 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('マイログ'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'プロフィール設定',
+            onPressed: () => context.push('/social/profile-settings'),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [

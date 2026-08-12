@@ -20,9 +20,11 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen> {
 
   DateTime _currentPeriodStart(SummaryPeriodType type) {
     final now = DateTime.now();
-    return type == SummaryPeriodType.month
-        ? DateTime(now.year, now.month)
-        : DateTime(now.year);
+    return switch (type) {
+      SummaryPeriodType.month => DateTime(now.year, now.month),
+      SummaryPeriodType.year => DateTime(now.year),
+      SummaryPeriodType.all => DateTime(now.year),
+    };
   }
 
   bool get _isAtCurrentPeriod =>
@@ -57,30 +59,32 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen> {
               segments: const [
                 ButtonSegment(value: SummaryPeriodType.month, label: Text('月間')),
                 ButtonSegment(value: SummaryPeriodType.year, label: Text('年間')),
+                ButtonSegment(value: SummaryPeriodType.all, label: Text('すべて')),
               ],
               selected: {_periodType},
               onSelectionChanged: (selection) => _changePeriodType(selection.first),
             ),
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left),
-                onPressed: () => _shiftPeriod(-1),
-              ),
-              Text(
-                _periodType == SummaryPeriodType.month
-                    ? '${_periodStart.year}年${_periodStart.month}月'
-                    : '${_periodStart.year}年',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              IconButton(
-                icon: const Icon(Icons.chevron_right),
-                onPressed: _isAtCurrentPeriod ? null : () => _shiftPeriod(1),
-              ),
-            ],
-          ),
+          if (_periodType != SummaryPeriodType.all)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left),
+                  onPressed: () => _shiftPeriod(-1),
+                ),
+                Text(
+                  _periodType == SummaryPeriodType.month
+                      ? '${_periodStart.year}年${_periodStart.month}月'
+                      : '${_periodStart.year}年',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right),
+                  onPressed: _isAtCurrentPeriod ? null : () => _shiftPeriod(1),
+                ),
+              ],
+            ),
           Expanded(
             child: logsAsync.when(
               data: (logs) {
@@ -151,6 +155,12 @@ class _SummaryBody extends StatelessWidget {
           Text('評価の内訳', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           _RatingBreakdown(ratingCounts: summary.ratingCounts),
+          if (summary.genreCounts.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            Text('好きなジャンル', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            _GenreBreakdown(genreCounts: summary.genreCounts),
+          ],
           const SizedBox(height: 24),
           Text('この期間に記録した作品', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -245,6 +255,52 @@ class _RatingBreakdown extends StatelessWidget {
                     '${ratingCounts[star] ?? 0}',
                     textAlign: TextAlign.end,
                   ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// ジャンルごとの記録件数を多い順に棒グラフ表示する。上位8件のみ表示する。
+class _GenreBreakdown extends StatelessWidget {
+  const _GenreBreakdown({required this.genreCounts});
+
+  final Map<String, int> genreCounts;
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = genreCounts.entries.take(8).toList();
+    final maxCount = entries.isEmpty
+        ? 0
+        : entries.map((e) => e.value).reduce((a, b) => a > b ? a : b);
+    return Column(
+      children: [
+        for (final entry in entries)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 96,
+                  child: Text(entry.key, overflow: TextOverflow.ellipsis),
+                ),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: maxCount == 0 ? 0 : entry.value / maxCount,
+                      minHeight: 10,
+                      backgroundColor:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 28,
+                  child: Text('${entry.value}', textAlign: TextAlign.end),
                 ),
               ],
             ),

@@ -36,6 +36,7 @@ class GameSearchScreen extends ConsumerStatefulWidget {
 }
 
 class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
+  final _queryController = TextEditingController();
   final _developerController = TextEditingController();
   final _scrollController = ScrollController();
   final Set<String> _selectedPlatforms = {};
@@ -55,6 +56,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
 
   @override
   void dispose() {
+    _queryController.dispose();
     _developerController.dispose();
     _developerDebounce?.cancel();
     _scrollController.removeListener(_onScroll);
@@ -103,6 +105,11 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
   void _onQueryChanged(String value) {
     setState(() => _queryText = value);
     ref.read(gameSearchProvider.notifier).search(value);
+  }
+
+  void _clearQuery() {
+    _queryController.clear();
+    _onQueryChanged('');
   }
 
   void _onSortChanged(GameSortType sort) {
@@ -184,10 +191,18 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
         Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: TextField(
-              decoration: const InputDecoration(
+              controller: _queryController,
+              decoration: InputDecoration(
                 hintText: 'タイトルで検索',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _queryText.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.clear),
+                        tooltip: '検索文字列をクリア',
+                        onPressed: _clearQuery,
+                      ),
+                border: const OutlineInputBorder(),
               ),
               onChanged: _onQueryChanged,
             ),

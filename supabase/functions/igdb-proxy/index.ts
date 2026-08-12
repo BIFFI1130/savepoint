@@ -25,7 +25,7 @@ const IGDB_BASE_URL = 'https://api.igdb.com/v4';
 const TWITCH_TOKEN_URL = 'https://id.twitch.tv/oauth2/token';
 const GOOGLE_TRANSLATE_URL = 'https://translation.googleapis.com/language/translate/v2';
 
-const SEARCH_FIELDS = 'id,name,cover.url,first_release_date,platforms.name,summary,url,themes.name';
+const SEARCH_FIELDS = 'id,name,cover.url,first_release_date,platforms.name,summary,url,themes.name,genres.name';
 /** IGDBのthemes名。この名前が付いている作品は成人向けとして扱う。 */
 const ADULT_THEME_NAME = 'Erotic';
 /**
@@ -79,6 +79,15 @@ const DETAILS_FIELDS = `${SEARCH_FIELDS},` +
 /** ISO 3166-1数値コードの日本（IGDBのcompanies.countryはこの体系。実データで確認済み）。 */
 const JAPAN_COUNTRY_CODE = 392;
 
+/**
+ * ゲームタイトルの日本語表示は、以前はGoogle翻訳による機械翻訳を使っていたが、
+ * IGDBが公式に持つ「Localized Title」（game_localizationsエンドポイント、
+ * regionが"Japan"の行）に切り替えた。機械翻訳と違い実際の公式日本語タイトル
+ * （ローカライズ版が存在する場合）を返せるため、こちらを優先する。
+ * regions.nameの値（/regionsエンドポイントで確認済み）。
+ */
+const JAPAN_REGION_NAME = 'Japan';
+
 /** IGDBのwebsites.typeの値（/website_typesエンドポイントで確認済み）。公式サイトのみ使う。 */
 const OFFICIAL_WEBSITE_TYPE = 1;
 
@@ -114,6 +123,7 @@ interface RawIgdbGame {
   summary?: string;
   url?: string; // このゲームのIGDB上のページURL（帰属表示のリンク先として使う）
   themes?: { name: string }[];
+  genres?: { name: string }[];
   involved_companies?: InvolvedCompany[];
   similar_games?: SimilarGameRaw[];
   websites?: WebsiteRaw[];
@@ -130,6 +140,7 @@ function pickOfficialWebsiteUrl(websites: WebsiteRaw[] | undefined): string | nu
 interface SimilarGameSummary {
   id: number;
   name: string;
+  name_ja: string | null;
   cover_url: string | null;
 }
 
@@ -151,24 +162,34 @@ function toIsoDate(unixSeconds: number | undefined): string | null {
   return new Date(unixSeconds * 1000).toISOString().slice(0, 10);
 }
 
-/** 一覧表示に必要な軽いフィールドのみの行。search結果のキャッシュに使う。 */
-function toSearchRow(raw: RawIgdbGame) {
+/**
+ * 一覧表示に必要な軽いフィールドのみの行。search結果のキャッシュに使う。
+ * nameJaはIGDBのLocalized Title（Japan）から取得した値。無ければnullを渡し、
+ * クライアント側でoriginalタイトル（name）にフォールバックする。
+ */
+function toSearchRow(raw: RawIgdbGame, nameJa: string | null) {
   return {
     id: raw.id,
     name: raw.name ?? '(タイトル不明)',
+    name_ja: nameJa,
     cover_url: toBigCoverUrl(raw.cover?.url),
     first_release_date: toIsoDate(raw.first_release_date),
     platforms: (raw.platforms ?? []).map((p) => p.name),
     summary: raw.summary ?? null,
     igdb_url: raw.url ?? null,
+    genres: (raw.genres ?? []).map((g) => g.name),
     is_adult: (raw.themes ?? []).some((t) => t.name === ADULT_THEME_NAME),
     raw_igdb_json: raw,
     cached_at: new Date().toISOString(),
   };
 }
 
-/** 詳細表示用に、企業情報・関連作品まで含めた行。details取得時のみ使う。 */
-function toDetailRow(raw: RawIgdbGame) {
+/**
+ * 詳細表示用に、企業情報・関連作品まで含めた行。details取得時のみ使う。
+ * jaNamesは対象ゲーム自身と関連作品（similar_games）分のIDをキーにした
+ * Localized Title（Japan）のマップ。
+ */
+function toDetailRow(raw: RawIgdbGame, jaNames: Map<number, string>) {
   const involved = raw.involved_companies ?? [];
   const developers = involved
     .filter((c) => c.developer && c.company?.name)
@@ -182,11 +203,12 @@ function toDetailRow(raw: RawIgdbGame) {
   const similarGames: SimilarGameSummary[] = (raw.similar_games ?? []).map((g) => ({
     id: g.id,
     name: g.name ?? '(タイトル不明)',
+    name_ja: jaNames.get(g.id) ?? null,
     cover_url: toBigCoverUrl(g.cover?.url),
   }));
 
   return {
-    ...toSearchRow(raw),
+    ...toSearchRow(raw, jaNames.get(raw.id) ?? null),
     developers,
     publishers,
     is_japanese_developer: isJapaneseDeveloper,
@@ -262,42 +284,72 @@ function currentWeekRangeUnix(): { start: number; end: number } {
 }
 
 /**
- * 既にキャッシュ済みの日本語タイトル（name_ja）・開発元が日本の会社かどうか
- * （is_japanese_developer）を行にマージして返す。search/weekly_releasesは
- * 軽量化のため新規翻訳・企業情報取得は行わず、既にdetails取得済みのものだけを再利用する。
+ * 既にキャッシュ済みの「開発元が日本の会社かどうか」（is_japanese_developer）を
+ * 行にマージして返す。search/weekly_releasesは軽量化のため企業情報の再取得は行わず、
+ * 既にdetails取得済みのものだけを再利用する。
  */
-async function mergeCachedNameJa<T extends { id: number; name: string }>(
+async function mergeCachedIsJapaneseDeveloper<T extends { id: number }>(
   db: ReturnType<typeof serviceRoleClient>,
   rows: T[],
-): Promise<(T & { name_ja?: string | null; is_japanese_developer?: boolean })[]> {
+): Promise<(T & { is_japanese_developer?: boolean })[]> {
   if (rows.length === 0) return rows;
   const { data } = await db
     .from('games')
-    .select('id, name_ja, is_japanese_developer')
+    .select('id, is_japanese_developer')
     .in('id', rows.map((r) => r.id));
   const cachedById = new Map((data ?? []).map((r) => [r.id, r]));
-  return rows.map((row) => {
-    const cached = cachedById.get(row.id);
-    return {
-      ...row,
-      name_ja: normalizeTranslatedName(row.name, cached?.name_ja ?? null),
-      is_japanese_developer: cached?.is_japanese_developer ?? false,
-    };
-  });
+  return rows.map((row) => ({
+    ...row,
+    is_japanese_developer: cachedById.get(row.id)?.is_japanese_developer ?? false,
+  }));
 }
 
 /**
- * タイトル翻訳結果の後処理。MyMemoryは "Control（コントロール）" のように、
- * 原題をそのままカタカナ読みで括弧書きしただけの実質的に無意味な「翻訳」を返すことがある。
- * こうした場合は英語のままの方が自然なため、翻訳結果が原題から始まっている（＝原題に
- * 何かを付け足しただけ）ときは原題をそのまま採用する。
+ * 対象ゲームIDのうち、IGDBのLocalized Title（regionが"Japan"）が設定されている
+ * ものだけをid→タイトルのマップにして返す。1ゲームに複数行あった場合は最初の
+ * 非空文字列を採用する。該当が無いゲームはマップに含まれない
+ * （＝呼び出し側はoriginalタイトルにフォールバックする）。
  */
-function normalizeTranslatedName(original: string, translated: string | null): string | null {
-  if (!translated) return translated;
-  const normalizedOriginal = original.trim().toLowerCase();
-  const normalizedTranslated = translated.trim().toLowerCase();
-  if (normalizedTranslated.startsWith(normalizedOriginal)) return original;
-  return translated;
+async function fetchJapaneseLocalizedNames(
+  accessToken: string,
+  gameIds: number[],
+): Promise<Map<number, string>> {
+  const uniqueIds = [...new Set(gameIds)];
+  const map = new Map<number, string>();
+  if (uniqueIds.length === 0) return map;
+
+  const rows = await queryIgdbEndpoint<{ game: number; name?: string }>(
+    accessToken,
+    'game_localizations',
+    `fields game,name; where game = (${uniqueIds.join(',')}) & region.name = "${JAPAN_REGION_NAME}"; limit 500;`,
+  );
+  for (const row of rows) {
+    const name = row.name?.trim();
+    if (name && !map.has(row.game)) {
+      map.set(row.game, name);
+    }
+  }
+  return map;
+}
+
+/**
+ * 日本語クエリを英語に翻訳してのIGDB検索が0件だった場合のフォールバック。
+ * 「ストッカーの中の死体っていくら？」（原題"How Much for the Body in the
+ * Freezer"）のように、機械翻訳では原題から意味的にずれてしまい検索がヒットしない
+ * ケースがあるため、IGDBのLocalized Title（Japan）自体をあいまい一致で検索し、
+ * 該当ゲームIDを返す。
+ */
+async function fetchGameIdsByJapaneseLocalizedTitle(
+  accessToken: string,
+  query: string,
+): Promise<number[]> {
+  const escaped = query.replace(/"/g, '\\"');
+  const rows = await queryIgdbEndpoint<{ game: number }>(
+    accessToken,
+    'game_localizations',
+    `fields game; where name ~ *"${escaped}"* & region.name = "${JAPAN_REGION_NAME}"; limit 50;`,
+  );
+  return [...new Set(rows.map((r) => r.game))];
 }
 
 /** igdb_tokens テーブルから有効なTwitchトークンを取得し、なければ新規取得して保存する。 */
@@ -531,15 +583,34 @@ Deno.serve(async (req) => {
         }
       }
 
-      const rows = raws.map(toSearchRow);
+      // 日本語クエリを英語に翻訳しての検索が0件だった場合、機械翻訳が原題の
+      // ニュアンスから外れてしまっている可能性がある（例:「ストッカーの中の死体
+      // っていくら？」→原題"How Much for the Body in the Freezer"）。この場合、
+      // IGDBのLocalized Title（Japan）自体をあいまい一致で検索し直す。
+      if (raws.length === 0 && hasQuery && JAPANESE_CHARS_REGEX.test((query as string).trim())) {
+        const gameIds = await fetchGameIdsByJapaneseLocalizedTitle(
+          accessToken,
+          (query as string).trim(),
+        );
+        if (gameIds.length > 0) {
+          const idFilters = [...filters, `id = (${gameIds.join(',')})`];
+          raws = await queryIgdb(
+            accessToken,
+            `fields ${SEARCH_FIELDS}; where ${idFilters.join(' & ')}; limit ${SEARCH_PAGE_SIZE};`,
+          );
+        }
+      }
+
+      const jaNames = await fetchJapaneseLocalizedNames(accessToken, raws.map((r) => r.id));
+      const rows = raws.map((raw) => toSearchRow(raw, jaNames.get(raw.id) ?? null));
       if (rows.length > 0) {
         const { error: upsertError } = await db.from('games').upsert(rows);
         if (upsertError) {
           throw new Error(`games upsert failed: ${upsertError.message}`);
         }
       }
-      const rowsWithNameJa = await mergeCachedNameJa(db, rows);
-      return new Response(JSON.stringify(rowsWithNameJa), {
+      const rowsWithDevFlag = await mergeCachedIsJapaneseDeveloper(db, rows);
+      return new Response(JSON.stringify(rowsWithDevFlag), {
         headers: { 'Content-Type': 'application/json' },
       });
     }
@@ -560,51 +631,24 @@ Deno.serve(async (req) => {
           headers: { 'Content-Type': 'application/json' },
         });
       }
-      const row = toDetailRow(raws[0]);
+      const raw = raws[0];
+      const similarIds = (raw.similar_games ?? []).map((g) => g.id);
+      const jaNames = await fetchJapaneseLocalizedNames(accessToken, [raw.id, ...similarIds]);
+      const row = toDetailRow(raw, jaNames);
 
-      // 既に翻訳済みならAPIを呼ばずに使い回す（翻訳コストの節約とレスポンス短縮のため）。
+      // 概要の翻訳は既に翻訳済みならAPIを呼ばずに使い回す（翻訳コストの節約とレスポンス短縮のため）。
+      // タイトル（name_ja）はIGDBのLocalized Titleを毎回そのまま使うため、キャッシュ再利用は不要。
       const { data: existing } = await db
         .from('games')
-        .select('summary_ja, name_ja')
+        .select('summary_ja')
         .eq('id', row.id)
         .maybeSingle();
       const summaryJa = existing?.summary_ja ??
         (row.summary ? await translateToJapanese(row.summary) : null);
-      const nameJa = normalizeTranslatedName(
-        row.name,
-        existing?.name_ja ?? await translateToJapanese(row.name),
-      );
-
-      // 関連作品のタイトルも日本語優先で表示する。既にキャッシュ済みならそれを使い、
-      // 無ければ翻訳して軽量な行（id/name/name_ja）だけgamesにキャッシュしておく
-      // （次回以降その作品が関連作品や検索結果に出た際に再利用できるようにするため）。
-      const similarWithNameJa = await mergeCachedNameJa(db, row.similar_games);
-      const untranslatedSimilar = similarWithNameJa.filter((g) => !g.name_ja);
-      for (const similar of untranslatedSimilar) {
-        similar.name_ja = normalizeTranslatedName(
-          similar.name,
-          await translateToJapanese(similar.name),
-        );
-      }
-      if (untranslatedSimilar.length > 0) {
-        const { error: similarUpsertError } = await db.from('games').upsert(
-          untranslatedSimilar.map((g) => ({
-            id: g.id,
-            name: g.name,
-            cover_url: g.cover_url,
-            name_ja: g.name_ja,
-          })),
-        );
-        if (similarUpsertError) {
-          throw new Error(`games upsert failed (similar_games): ${similarUpsertError.message}`);
-        }
-      }
 
       const fullRow = {
         ...row,
         summary_ja: summaryJa,
-        name_ja: nameJa,
-        similar_games: similarWithNameJa,
       };
       const { error: upsertError } = await db.from('games').upsert(fullRow);
       if (upsertError) {
@@ -641,15 +685,16 @@ Deno.serve(async (req) => {
         accessToken,
         `fields ${SEARCH_FIELDS}; where ${weeklyFilters.join(' & ')}; sort total_rating_count desc; limit 30;`,
       );
-      const rows = raws.map(toSearchRow);
+      const jaNames = await fetchJapaneseLocalizedNames(accessToken, raws.map((r) => r.id));
+      const rows = raws.map((raw) => toSearchRow(raw, jaNames.get(raw.id) ?? null));
       if (rows.length > 0) {
         const { error: upsertError } = await db.from('games').upsert(rows);
         if (upsertError) {
           throw new Error(`games upsert failed: ${upsertError.message}`);
         }
       }
-      const rowsWithNameJa = await mergeCachedNameJa(db, rows);
-      return new Response(JSON.stringify(rowsWithNameJa), {
+      const rowsWithDevFlag = await mergeCachedIsJapaneseDeveloper(db, rows);
+      return new Response(JSON.stringify(rowsWithDevFlag), {
         headers: { 'Content-Type': 'application/json' },
       });
     }

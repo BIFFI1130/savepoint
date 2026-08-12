@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/star_rating.dart';
 import '../../../game_search/presentation/providers/game_search_providers.dart';
+import '../../domain/game_log.dart';
 import '../providers/log_providers.dart';
 
 class LogReviewScreen extends ConsumerStatefulWidget {
@@ -24,6 +25,7 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
   bool _isCleared = false;
   bool _isSaving = false;
   bool _initialized = false;
+  GameLogVisibility _visibility = GameLogVisibility.public;
 
   @override
   void dispose() {
@@ -74,6 +76,7 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
             hasSpoiler: _hasSpoiler,
             isCleared: _isCleared,
             clearTimeMinutes: _clearTimeMinutes,
+            visibility: _visibility,
           );
       ref.invalidate(myLogsProvider);
       ref.invalidate(existingLogProvider(widget.gameId));
@@ -154,6 +157,7 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
         _reviewController.text = existingLog.reviewText ?? '';
         _hasSpoiler = existingLog.hasSpoiler;
         _isCleared = existingLog.isCleared;
+        _visibility = existingLog.visibility;
         final minutes = existingLog.clearTimeMinutes;
         if (minutes != null) {
           final fixed = (minutes / 60).toStringAsFixed(2);
@@ -202,6 +206,23 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
                     ),
                   ),
                 ],
+                const SizedBox(height: 16),
+                Text('公開範囲', style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: 4),
+                SegmentedButton<GameLogVisibility>(
+                  segments: [
+                    for (final v in GameLogVisibility.values)
+                      ButtonSegment(value: v, label: Text(v.label)),
+                  ],
+                  selected: {_visibility},
+                  onSelectionChanged: (selection) =>
+                      setState(() => _visibility = selection.first),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _visibility.description,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
                 const SizedBox(height: 8),
                 FilledButton(
                   onPressed: _isSaving ? null : _save,
