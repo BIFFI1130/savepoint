@@ -18,6 +18,8 @@ workflows:
         - SUPABASE_VARIABLES
         # DISCORD_WEBHOOK_URL を含むCodemagic側の変数グループ（ダッシュボード名と完全一致させてください）
         - DISCORD_VARIABLES
+        # FIREBASE_TOKEN（firebase appdistribution:distribute の認証用）を含むCodemagic側の変数グループ
+        - FIREBASE_VARIABLES
     scripts:
       - name: Get Flutter packages
         script: flutter pub get
@@ -48,14 +50,34 @@ workflows:
 
           # 5. ビルド成功フラグを作成
           touch /tmp/build_success
+      - name: Build APK for Android
+        script: |
+          flutter build apk --release --dart-define-from-file=env/dev.json
+
+          # ビルド成功フラグを作成（Android版のpublishingステップの実行判定に使う）
+          touch /tmp/android_build_success
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
+      - build/app/outputs/flutter-apk/*.apk
     publishing:
       app_store_connect:
         auth: integration
         submit_to_testflight: false
       scripts:
+        - name: Publish Android to Firebase App Distribution
+          script: |
+            # Androidビルドが成功した場合のみFirebase App Distributionへ配信する
+            if [ -f /tmp/android_build_success ]; then
+              npm install -g firebase-tools
+
+              firebase appdistribution:distribute build/app/outputs/flutter-apk/app-release.apk \
+                --app 1:763009686501:android:22db046778e22c10c1ed0c \
+                --testers "lanbian38@gmail.com" \
+                --token "$FIREBASE_TOKEN"
+            else
+              echo "Androidビルドが失敗したかスキップされたため、Firebase App Distributionへのパブリッシュをスキップしました。"
+            fi
         - name: Notify Discord
           script: |
             # ビルド成功フラグが存在する場合のみDiscord通知を送信
