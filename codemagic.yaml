@@ -1,30 +1,4 @@
 workflows:
-  ios-unsigned-build:
-    name: iOS unsigned build (検証用)
-    max_build_duration: 60
-    instance_type: mac_mini_m2
-    environment:
-      flutter: stable
-      xcode: latest
-      cocoapods: default
-      groups:
-        # SUPABASE_URL / SUPABASE_ANON_KEY を含むCodemagic側の変数グループ。
-        - SUPABASE_VARIABLES
-    # 手動トリガーのみ（TestFlight配信が安定して動くようになったため、
-    # push毎の自動検証ビルドは停止。必要な時にダッシュボードから手動実行する）。
-    scripts:
-      - name: Get Flutter packages
-        script: flutter pub get
-      - name: Analyze
-        script: flutter analyze
-      - name: Build iOS (署名なし・toolchain検証用)
-        script: |
-          flutter build ios --release --no-codesign \
-            --dart-define=SUPABASE_URL=$SUPABASE_URL \
-            --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
-    artifacts:
-      - build/ios/iphoneos/*.app
-
   ios-testflight:
     name: iOS TestFlight配信
     max_build_duration: 60
@@ -42,6 +16,8 @@ workflows:
       groups:
         # SUPABASE_URL / SUPABASE_ANON_KEY を含むCodemagic側の変数グループ。
         - SUPABASE_VARIABLES
+        # DISCORD_WEBHOOK_URL を含むCodemagic側の変数グループ。
+        - DISCORD_VARIABLESS
     # 手動トリガーのみ（pushの度にTestFlightへアップロードしないようにするため）。
     # Codemagicダッシュボードの「Start new build」からこのワークフローを選んで実行する。
     scripts:
