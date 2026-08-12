@@ -4,7 +4,7 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     integrations:
-      # Codemagicダッシュボードで登録したApp Store Connect APIキーの参照名。
+      # Codemagicダッシュボードで登録したApp Store Connect APIキーの参照名
       app_store_connect: savepoint_appstore
     environment:
       flutter: stable
@@ -14,12 +14,10 @@ workflows:
         distribution_type: app_store
         bundle_identifier: com.biffi.savepoint
       groups:
-        # SUPABASE_URL / SUPABASE_ANON_KEY を含むCodemagic側の変数グループ。
+        # SUPABASE_URL / SUPABASE_ANON_KEY を含むCodemagic側の変数グループ
         - SUPABASE_VARIABLES
-        # DISCORD_WEBHOOK_URL を含むCodemagic側の変数グループ。
-        - DISCORD_VARIABLESS
-    # 手動トリガーのみ（pushの度にTestFlightへアップロードしないようにするため）。
-    # Codemagicダッシュボードの「Start new build」からこのワークフローを選んで実行する。
+        # DISCORD_WEBHOOK_URL を含むCodemagic側の変数グループ（ダッシュボード名と完全一致させてください）
+        - DISCORD_VARIABLES
     scripts:
       - name: Get Flutter packages
         script: flutter pub get
@@ -30,27 +28,57 @@ workflows:
           xcode-project use-profiles --custom-export-options='{"testFlightInternalTestingOnly": true}'
       - name: Build ipa for App Store
         script: |
-          # TestFlightは同じビルド番号を再アップロードできないため、
-          # App Store Connect上の最新ビルド番号を取得して+1する。
-          # 6799825415 は App Store Connect → App情報 に表示されているSavePointのApple ID。
+          # 1. pubspec.yaml からバージョン名 (例: 1.0.0) を抽出
+          APP_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d '+' -f 1 | tr -d '[:space:]')
+          
+          # 2. App Store Connect上の最新ビルド番号を取得して+1
           LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number "6799825415")
-          # 過去のビルドでバージョン文字列（例: "1.0.0"）が混ざっている場合に備え、
-          # "."より前の整数部分だけを取り出してから+1する。
           NEXT_BUILD_NUMBER=$((${LATEST_BUILD_NUMBER%%.*} + 1))
+          
+          # 3. publishingステップへ変数を引き継ぐために $CM_ENV に書き出し
+          echo "APP_VERSION=$APP_VERSION" >> $CM_ENV
+          echo "APP_BUILD_NUMBER=$NEXT_BUILD_NUMBER" >> $CM_ENV
+
+          # 4. ビルド実行
           flutter build ipa --release \
             --export-options-plist=/Users/builder/export_options.plist \
             --build-number=$NEXT_BUILD_NUMBER \
             --dart-define=SUPABASE_URL=$SUPABASE_URL \
             --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+
+          # 5. ビルド成功フラグを作成
+          touch /tmp/build_success
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
     publishing:
       app_store_connect:
         auth: integration
-        # .ipaのApp Store Connectへのアップロード自体はこのセクションがあれば行われる。
-        # submit_to_testflightはビルドを「外部ベータ版レビュー」に提出する処理を追加で
-        # 走らせるものだが、内部テスト限定ビルド（testFlightInternalTestingOnly）とは
-        # 相性が悪くエラーになるため無効化する。内部テストへの追加はApp Store Connect側で
-        # 手動で行う（またはビルドは自動的にInternal Testingグループへ配布される）。
         submit_to_testflight: false
+      scripts:
+        - name: Notify Discord
+          script: |
+            # ビルド成功フラグが存在する場合のみDiscord通知を送信
+            if [ -f /tmp/build_success ]; then
+              # コミットハッシュの先頭7文字を取得
+              COMMIT_HASH=$(echo "${CM_COMMIT}" | cut -c 1-7)
+
+              # 送信メッセージの作成
+              MESSAGE=$(cat <<EOF
+            iOS版TestFlightビルドが成功＆パブリッシュされました。
+            Version：${APP_VERSION}
+            Version Code：${APP_BUILD_NUMBER}
+            Commit：${COMMIT_HASH}
+            EOF
+              )
+
+              # jq を使用して安全にJSONを組み立て、Discord WebhookへPOST
+              JSON_PAYLOAD=$(jq -n --arg content "$MESSAGE" '{content: $content}')
+              
+              curl -H "Content-Type: application/json" \
+                -X POST \
+                -d "$JSON_PAYLOAD" \
+                "$DISCORD_WEBHOOK_URL"
+            else
+              echo "ビルドが失敗したかスキップされたため、Discord通知を送信しませんでした。"
+            fi
