@@ -60,7 +60,9 @@ workflows:
           ANDROID_BUILD_NUMBER=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d '+' -f 2 | tr -d '[:space:]')
           echo "ANDROID_BUILD_NUMBER=$ANDROID_BUILD_NUMBER" >> $CM_ENV
 
-          flutter build apk --release --dart-define-from-file=env/dev.json
+          flutter build apk --release \
+            --dart-define=SUPABASE_URL=$SUPABASE_URL \
+            --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
 
           # ビルド成功フラグを作成（Android版のpublishingステップの実行判定に使う）
           touch /tmp/android_build_success
