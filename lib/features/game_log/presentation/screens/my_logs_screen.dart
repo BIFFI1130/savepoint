@@ -175,9 +175,9 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
         title: const Text('マイログ'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'プロフィール設定',
-            onPressed: () => context.push('/social/profile-settings'),
+            icon: const Icon(Icons.person_outline),
+            tooltip: 'プロフィール',
+            onPressed: () => context.push('/social/my-profile'),
           ),
         ],
         bottom: TabBar(

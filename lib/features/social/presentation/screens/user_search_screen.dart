@@ -45,7 +45,7 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
             TextField(
               autofocus: true,
               decoration: const InputDecoration(
-                hintText: 'ユーザー名・表示名で検索',
+                hintText: 'ユーザーID・表示名で検索',
                 prefixIcon: Icon(Icons.search),
                 border: OutlineInputBorder(),
               ),
@@ -64,7 +64,7 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
     final results = _results;
     if (results == null) {
       return const EmptyView(
-        message: 'ユーザー名や表示名で検索してみましょう',
+        message: 'ユーザーIDや表示名で検索してみましょう',
         icon: Icons.person_search_outlined,
       );
     }

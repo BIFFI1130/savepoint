@@ -14,35 +14,71 @@ import '../../features/calendar/presentation/screens/release_calendar_screen.dar
 import '../../features/game_log/presentation/screens/log_review_screen.dart';
 import '../../features/home/presentation/providers/home_providers.dart';
 import '../../features/home/presentation/screens/release_list_screen.dart';
-import '../../features/social/presentation/screens/profile_settings_screen.dart';
+import '../../features/social/presentation/screens/my_profile_screen.dart';
 import '../../features/social/presentation/screens/social_feed_screen.dart';
 import '../../features/social/presentation/screens/user_list_screen.dart';
 import '../../features/social/presentation/screens/user_profile_screen.dart';
 import '../../features/social/presentation/screens/user_search_screen.dart';
+import '../../features/social/presentation/screens/username_onboarding_screen.dart';
 import '../../features/summary/presentation/screens/summary_screen.dart';
 import '../../features/timeline/presentation/screens/timeline_screen.dart';
+import '../../features/update/presentation/screens/update_required_screen.dart';
+import '../onboarding/username_gate.dart';
 import '../supabase/supabase_client.dart';
+import '../update/update_gate.dart';
 import 'home_shell.dart';
 import '../../features/game_search/presentation/screens/game_detail_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshStream = GoRouterRefreshStream(supabase.auth.onAuthStateChange);
   ref.onDispose(refreshStream.dispose);
+  final usernameGate = ref.read(usernameGateProvider);
+  final updateGate = ref.read(updateGateProvider);
 
   return GoRouter(
     initialLocation: '/home',
-    refreshListenable: refreshStream,
+    refreshListenable: Listenable.merge([refreshStream, usernameGate, updateGate]),
     redirect: (context, state) {
+      final isUpdateRoute = state.matchedLocation == '/update-required';
+
+      // 古いビルドは、ログイン状態に関わらず一切使わせない（サインイン画面より優先）。
+      if (updateGate.needsUpdate == true && !isUpdateRoute) {
+        return '/update-required';
+      }
+      if (updateGate.needsUpdate == false && isUpdateRoute) {
+        return '/home';
+      }
+
       final isLoggedIn = supabase.auth.currentSession != null;
       final isAuthRoute =
           state.matchedLocation == '/sign-in' ||
           state.matchedLocation == '/sign-up';
+      final isOnboardingRoute = state.matchedLocation == '/onboarding/username';
 
       if (!isLoggedIn && !isAuthRoute) return '/sign-in';
       if (isLoggedIn && isAuthRoute) return '/home';
+
+      if (isLoggedIn) {
+        // ユーザーIDが未設定（テスト段階中は設定済みでも常に）の間は、
+        // ユーザーID入力画面以外への遷移をすべてブロックする。
+        if (usernameGate.needsOnboarding == true && !isOnboardingRoute) {
+          return '/onboarding/username';
+        }
+        if (usernameGate.needsOnboarding == false && isOnboardingRoute) {
+          return '/home';
+        }
+      }
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/update-required',
+        builder: (context, state) => const UpdateRequiredScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding/username',
+        builder: (context, state) => const UsernameOnboardingScreen(),
+      ),
       GoRoute(
         path: '/sign-in',
         builder: (context, state) => const SignInScreen(),
@@ -139,8 +175,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const UserSearchScreen(),
       ),
       GoRoute(
-        path: '/social/profile-settings',
-        builder: (context, state) => const ProfileSettingsScreen(),
+        path: '/social/my-profile',
+        builder: (context, state) => const MyProfileScreen(),
       ),
       GoRoute(
         path: '/social/followers',

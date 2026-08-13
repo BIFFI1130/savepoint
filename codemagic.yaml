@@ -16,12 +16,28 @@ workflows:
         distribution_type: app_store
         bundle_identifier: com.biffi.savepoint
       groups:
-        # SUPABASE_URL / SUPABASE_ANON_KEY を含むCodemagic側の変数グループ
+        # SUPABASE_URL / SUPABASE_ANON_KEY を含むCodemagic側の変数グループ。
+        # app_versionsテーブルへの更新チェック用書き込みには、加えて
+        # SUPABASE_SERVICE_ROLE_KEY（Supabaseダッシュボードの Project Settings > API >
+        # service_role key）をこのグループに追加登録すること。未設定の場合、
+        # app_versionsの更新はスキップされ、パブリッシュ自体は成功のまま完了する
+        # （＝強制アップデート機能が動かないだけで、配信は今まで通り成功する）。
         - SUPABASE_VARIABLES
         # DISCORD_WEBHOOK_URL を含むCodemagic側の変数グループ（ダッシュボード名と完全一致させてください）
         - DISCORD_VARIABLES
         # FIREBASE_TOKEN（firebase appdistribution:distribute の認証用）を含むCodemagic側の変数グループ
         - FIREBASE_VARIABLES
+    cache:
+      # Android SDK Platformの再ダウンロード・Gradleの依存解決・CocoaPodsの再取得を
+      # ビルド間で省略できるようにし、ビルド時間を短縮する。
+      cache_paths:
+        - $HOME/.gradle/caches
+        - $HOME/.gradle/wrapper
+        - $HOME/.pub-cache
+        - $CM_BUILD_DIR/.dart_tool
+        - $CM_BUILD_DIR/android/.gradle
+        - $HOME/Library/Caches/CocoaPods
+        - /usr/local/share/android-sdk
     scripts:
       - name: Get Flutter packages
         script: flutter pub get
@@ -71,7 +87,11 @@ workflows:
 
           (
             set -euo pipefail
+            # Firebase App Distributionのテスターはほぼ全員arm64実機のため、
+            # --target-platform=android-arm64でビルド対象アーキテクチャを絞り、
+            # armv7・x86_64向けの重複ビルド・パッケージングを省いてビルド時間を短縮する。
             flutter build apk --release \
+              --target-platform=android-arm64 \
               --dart-define=SUPABASE_URL=$SUPABASE_URL \
               --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
           ) > /tmp/android_build.log 2>&1 &
@@ -117,6 +137,22 @@ workflows:
               if [ -f /tmp/build_success ]; then
                 IPA_PATH=$(find build/ios/ipa -name '*.ipa' | head -n 1)
                 app-store-connect publish --path "$IPA_PATH"
+
+                # TestFlight/Firebase配信はストアの自動更新チェックが効かないため、
+                # app_versionsテーブルに最新ビルド番号を反映し、アプリ側で古いビルドを
+                # 検知して強制アップデート画面を出せるようにする（SUPABASE_SERVICE_ROLE_KEYが
+                # 未設定の場合はスキップし、TestFlightへのパブリッシュ自体は成功のまま完了させる）。
+                if [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+                  curl -sf -X POST "$SUPABASE_URL/rest/v1/app_versions" \
+                    -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+                    -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+                    -H "Content-Type: application/json" \
+                    -H "Prefer: resolution=merge-duplicates" \
+                    -d "$(jq -n --arg build "$APP_BUILD_NUMBER" '{platform:"ios", latest_build: ($build|tonumber), update_url: "itms-beta://"}')"
+                  echo "app_versions（ios）を更新しました: build=$APP_BUILD_NUMBER"
+                else
+                  echo "SUPABASE_SERVICE_ROLE_KEYが未設定のため、app_versionsの更新をスキップしました。"
+                fi
               else
                 echo "iOSビルドが失敗したため、TestFlightへのパブリッシュをスキップしました。"
                 exit 1
@@ -132,10 +168,31 @@ workflows:
                 if ! command -v firebase >/dev/null 2>&1; then
                   npm install -g firebase-tools
                 fi
-                firebase appdistribution:distribute build/app/outputs/flutter-apk/app-release.apk \
+                # --jsonでテスター向けダウンロードリンク（testingUri）を機械可読な形で取得する。
+                FIREBASE_OUTPUT=$(firebase appdistribution:distribute build/app/outputs/flutter-apk/app-release.apk \
                   --app 1:763009686501:android:22db046778e22c10c1ed0c \
                   --testers "lanbian38@gmail.com" \
-                  --token "$FIREBASE_TOKEN"
+                  --token "$FIREBASE_TOKEN" \
+                  --json)
+                echo "$FIREBASE_OUTPUT"
+                TESTING_URI=$(echo "$FIREBASE_OUTPUT" | jq -r '.result.testingUri // empty')
+                echo "テスター向けダウンロードリンク: ${TESTING_URI:-取得できませんでした}"
+
+                # app_versionsテーブルに最新ビルド番号とダウンロードリンクを反映する
+                # （SUPABASE_SERVICE_ROLE_KEYが未設定の場合はスキップし、Firebaseへの
+                # パブリッシュ自体は成功のまま完了させる）。
+                if [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+                  curl -sf -X POST "$SUPABASE_URL/rest/v1/app_versions" \
+                    -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+                    -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+                    -H "Content-Type: application/json" \
+                    -H "Prefer: resolution=merge-duplicates" \
+                    -d "$(jq -n --arg build "$ANDROID_BUILD_NUMBER" --arg url "$TESTING_URI" \
+                      '{platform:"android", latest_build: ($build|tonumber), update_url: $url}')"
+                  echo "app_versions（android）を更新しました: build=$ANDROID_BUILD_NUMBER"
+                else
+                  echo "SUPABASE_SERVICE_ROLE_KEYが未設定のため、app_versionsの更新をスキップしました。"
+                fi
               else
                 echo "Androidビルドが失敗したため、Firebase App Distributionへのパブリッシュをスキップしました。"
                 exit 1

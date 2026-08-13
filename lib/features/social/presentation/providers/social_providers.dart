@@ -8,7 +8,7 @@ final socialRepositoryProvider = Provider<SocialRepository>((ref) {
   return SocialRepository();
 });
 
-/// 自分のプロフィール（ユーザー名・表示名・公開設定）。
+/// 自分のプロフィール（ユーザーID・表示名・公開設定）。
 final myProfileProvider = FutureProvider<SocialProfile?>((ref) async {
   return ref.read(socialRepositoryProvider).fetchMyProfile();
 });

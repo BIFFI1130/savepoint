@@ -68,5 +68,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<!-- 強制アップデート画面からTestFlightアプリを直接開くために使用 -->
+		<string>itms-beta</string>
+	</array>
 </dict>
 </plist>

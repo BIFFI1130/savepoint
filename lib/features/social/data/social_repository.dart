@@ -1,3 +1,7 @@
+import 'dart:typed_data';
+
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../core/supabase/supabase_client.dart';
 import '../domain/follow_feed_entry.dart';
 import '../domain/report_reason.dart';
@@ -23,7 +27,7 @@ class SocialRepository {
     return SocialProfile.fromJson(row);
   }
 
-  /// ユーザー名または表示名でユーザーを検索する（自分自身は除外）。
+  /// ユーザーIDまたは表示名でユーザーを検索する（自分自身は除外）。
   Future<List<SocialProfile>> searchUsers(String query) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return [];
@@ -40,17 +44,51 @@ class SocialRepository {
         .toList(growable: false);
   }
 
+  /// プロフィール確認ページ（人アイコン）の「保存する」ボタンで一括保存する項目。
+  /// ユーザーID（username）と表示名は別の専用エンドポイント（[setUsername]・
+  /// [updateDisplayName]）で個別に保存するため、ここには含めない。
   Future<void> updateMyProfile({
-    required String? username,
-    required String? displayName,
     required bool isPublic,
+    required String? gameHistory,
+    required List<String> favoriteGenres,
   }) async {
     await supabase.from('profiles').update({
-      'username': (username == null || username.isEmpty) ? null : username,
+      'is_public': isPublic,
+      'game_history':
+          (gameHistory == null || gameHistory.isEmpty) ? null : gameHistory,
+      'favorite_genres': favoriteGenres,
+    }).eq('id', _myId);
+  }
+
+  /// 表示名だけを更新する（プロフィール確認ページの鉛筆アイコンから呼ばれる）。
+  Future<void> updateDisplayName(String? displayName) async {
+    await supabase.from('profiles').update({
       'display_name':
           (displayName == null || displayName.isEmpty) ? null : displayName,
-      'is_public': isPublic,
     }).eq('id', _myId);
+  }
+
+  /// ユーザーID（半角英数字、一意）を設定する。ユーザーID入力画面（オンボーディング）
+  /// からのみ呼ばれる想定。一度設定したユーザーIDは通常はプロフィール確認ページからは
+  /// 変更できない（UI側で編集不可にしている）。
+  Future<void> setUsername(String username) async {
+    await supabase.from('profiles').update({'username': username}).eq('id', _myId);
+  }
+
+  /// プロフィール画像を"avatars"バケットにアップロードし、公開URLをprofiles.avatar_urlに
+  /// 保存する。アップロード先は本人のuidをフォルダ名にする（RLSポリシーがこれを前提に
+  /// 本人のみ書き込み可としているため）。
+  Future<String> uploadAvatar(List<int> bytes, {required String fileExt}) async {
+    final path = '$_myId/avatar.$fileExt';
+    await supabase.storage.from('avatars').uploadBinary(
+          path,
+          Uint8List.fromList(bytes),
+          fileOptions: const FileOptions(upsert: true),
+        );
+    final url =
+        '${supabase.storage.from('avatars').getPublicUrl(path)}?t=${DateTime.now().millisecondsSinceEpoch}';
+    await supabase.from('profiles').update({'avatar_url': url}).eq('id', _myId);
+    return url;
   }
 
   Future<bool> isFollowing(String userId) async {
