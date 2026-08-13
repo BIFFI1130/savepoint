@@ -1,7 +1,9 @@
 workflows:
-  ios-testflight:
-    name: iOS TestFlight配信
+  release:
+    name: iOS TestFlight & Android Firebase配信
     max_build_duration: 60
+    # iOSのコード署名・ipaビルドにはmacが必須。AndroidのAPKビルドも同じマシン上で
+    # バックグラウンドジョブとして並行実行する（詳細は各scriptのコメント参照）。
     instance_type: mac_mini_m2
     integrations:
       # Codemagicダッシュボードで登録したApp Store Connect APIキーの参照名
@@ -28,106 +30,159 @@ workflows:
           # testFlightInternalTestingOnly を付けることで、外部向けベータ版レビューへの
           # 自動提出を行わず、内部テストグループへの配布だけにする。
           xcode-project use-profiles --custom-export-options='{"testFlightInternalTestingOnly": true}'
-      - name: Build ipa for App Store
+      - name: Resolve build numbers
         script: |
-          # 1. pubspec.yaml からバージョン名 (例: 1.0.0) を抽出
+          set -euo pipefail
+
+          # pubspec.yaml からバージョン名 (例: 1.0.0) を抽出
           APP_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d '+' -f 1 | tr -d '[:space:]')
-          
-          # 2. App Store Connect上の最新ビルド番号を取得して+1
+          echo "APP_VERSION=$APP_VERSION" >> $CM_ENV
+
+          # App Store Connect上の最新ビルド番号を取得して+1（iOS用）
           LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number "6799825415")
           NEXT_BUILD_NUMBER=$((${LATEST_BUILD_NUMBER%%.*} + 1))
-          
-          # 3. publishingステップへ変数を引き継ぐために $CM_ENV に書き出し
-          echo "APP_VERSION=$APP_VERSION" >> $CM_ENV
           echo "APP_BUILD_NUMBER=$NEXT_BUILD_NUMBER" >> $CM_ENV
-
-          # 4. ビルド実行
-          flutter build ipa --release \
-            --export-options-plist=/Users/builder/export_options.plist \
-            --build-number=$NEXT_BUILD_NUMBER \
-            --dart-define=SUPABASE_URL=$SUPABASE_URL \
-            --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
-
-          # 5. ビルド成功フラグを作成
-          touch /tmp/build_success
-      - name: Build APK for Android
-        script: |
-          # 途中のコマンドが失敗した場合に、それに気づかず後続処理（成功フラグ作成など）が
-          # 実行されてしまわないよう、エラー発生時点でスクリプトを即座に停止させる。
-          set -euo pipefail
 
           # pubspec.yaml のバージョン番号（+以降のビルド番号）をAndroidのversionCodeとして使う
           ANDROID_BUILD_NUMBER=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d '+' -f 2 | tr -d '[:space:]')
           echo "ANDROID_BUILD_NUMBER=$ANDROID_BUILD_NUMBER" >> $CM_ENV
+      - name: Build iOS ipa and Android APK in parallel
+        script: |
+          # iOS（xcodebuild）とAndroid（Gradle）は別ツールチェーンのため、同一マシン上でも
+          # バックグラウンドジョブ（&）として同時に走らせられる。それぞれをサブシェルにして
+          # 個別に `set -euo pipefail` を効かせつつ、外側のスクリプトはwaitの戻り値で
+          # 成否を判定する（外側で-eを使うと1つ目のwait失敗で即終了し、2つ目の結果を
+          # 待たずにスクリプトが止まってしまうため、あえて付けていない）。
+          #
+          # 注意: 2つの `flutter build` を同一プロジェクトディレクトリに対して同時実行するため、
+          # 稀にFlutter側の内部ロック（Cache/pub取得まわり）で片方が一瞬待たされることがあるが、
+          # 処理自体は安全に完了する。ビルド生成物の出力先（build/ios と build/app）は
+          # 分かれているため、成果物が競合することはない。
 
-          flutter build apk --release \
-            --dart-define=SUPABASE_URL=$SUPABASE_URL \
-            --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+          (
+            set -euo pipefail
+            flutter build ipa --release \
+              --export-options-plist=/Users/builder/export_options.plist \
+              --build-number=$APP_BUILD_NUMBER \
+              --dart-define=SUPABASE_URL=$SUPABASE_URL \
+              --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+          ) > /tmp/ios_build.log 2>&1 &
+          IOS_BUILD_PID=$!
 
-          # ビルド成功フラグを作成（Android版のpublishingステップの実行判定に使う）
-          touch /tmp/android_build_success
+          (
+            set -euo pipefail
+            flutter build apk --release \
+              --dart-define=SUPABASE_URL=$SUPABASE_URL \
+              --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+          ) > /tmp/android_build.log 2>&1 &
+          ANDROID_BUILD_PID=$!
+
+          # ここで両方のビルド完了を待ち合わせる（join）。
+          wait $IOS_BUILD_PID; IOS_BUILD_STATUS=$?
+          wait $ANDROID_BUILD_PID; ANDROID_BUILD_STATUS=$?
+
+          echo "----- iOS build log -----"
+          cat /tmp/ios_build.log
+          echo "----- Android build log -----"
+          cat /tmp/android_build.log
+
+          if [ $IOS_BUILD_STATUS -eq 0 ]; then
+            touch /tmp/build_success
+          else
+            echo "iOSビルドが失敗しました（exit=$IOS_BUILD_STATUS）"
+          fi
+
+          if [ $ANDROID_BUILD_STATUS -eq 0 ]; then
+            touch /tmp/android_build_success
+          else
+            echo "Androidビルドが失敗しました（exit=$ANDROID_BUILD_STATUS）"
+          fi
+        # ビルドが失敗してもpublishingフェーズ（パブリッシング・Discord通知）は実行し、
+        # 失敗をDiscordに通知できるようにする（成功フラグの有無で成否を判定する）。
+        ignore_failure: true
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
       - build/app/outputs/flutter-apk/*.apk
     publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: false
       scripts:
-        - name: Publish Android to Firebase App Distribution
+        - name: Publish iOS and Android in parallel
+          script: |
+            # iOSはApp Store Connect（TestFlight向けアップロードのみ、グループへの
+            # 自動提出はしない）、AndroidはFirebase App Distributionへ、それぞれ
+            # バックグラウンドジョブとして同時にパブリッシュし、両方の完了を待ち合わせる。
+
+            (
+              set -euo pipefail
+              if [ -f /tmp/build_success ]; then
+                IPA_PATH=$(find build/ios/ipa -name '*.ipa' | head -n 1)
+                app-store-connect publish --path "$IPA_PATH"
+              else
+                echo "iOSビルドが失敗したため、TestFlightへのパブリッシュをスキップしました。"
+                exit 1
+              fi
+            ) > /tmp/ios_publish.log 2>&1 &
+            IOS_PUBLISH_PID=$!
+
+            (
+              set -euo pipefail
+              if [ -f /tmp/android_build_success ]; then
+                # Codemagicのmacイメージにはfirebase-toolsがプリインストール済みのため、
+                # 既にある場合はグローバルインストールをスキップする（EEXISTで失敗するのを防ぐ）。
+                if ! command -v firebase >/dev/null 2>&1; then
+                  npm install -g firebase-tools
+                fi
+                firebase appdistribution:distribute build/app/outputs/flutter-apk/app-release.apk \
+                  --app 1:763009686501:android:22db046778e22c10c1ed0c \
+                  --testers "lanbian38@gmail.com" \
+                  --token "$FIREBASE_TOKEN"
+              else
+                echo "Androidビルドが失敗したため、Firebase App Distributionへのパブリッシュをスキップしました。"
+                exit 1
+              fi
+            ) > /tmp/android_publish.log 2>&1 &
+            ANDROID_PUBLISH_PID=$!
+
+            # ここで両方のパブリッシュ完了を待ち合わせる（join）。
+            wait $IOS_PUBLISH_PID; IOS_PUBLISH_STATUS=$?
+            wait $ANDROID_PUBLISH_PID; ANDROID_PUBLISH_STATUS=$?
+
+            echo "----- iOS publish log -----"
+            cat /tmp/ios_publish.log
+            echo "----- Android publish log -----"
+            cat /tmp/android_publish.log
+
+            [ $IOS_PUBLISH_STATUS -eq 0 ] && touch /tmp/ios_publish_success
+            [ $ANDROID_PUBLISH_STATUS -eq 0 ] && touch /tmp/android_publish_success
+
+            # このステップ自体は常に成功扱いにし、後続のDiscord通知を必ず実行する
+            # （成否はDiscordメッセージ側でフラグを見て報告する）。
+            true
+        - name: Notify Discord
           script: |
             set -euo pipefail
 
-            # Androidビルドが成功した場合のみFirebase App Distributionへ配信する
-            if [ -f /tmp/android_build_success ]; then
-              # Codemagicのmacイメージにはfirebase-toolsがプリインストール済みのため、
-              # 既にある場合はグローバルインストールをスキップする（EEXISTで失敗するのを防ぐ）。
-              if ! command -v firebase >/dev/null 2>&1; then
-                npm install -g firebase-tools
-              fi
+            COMMIT_HASH=$(echo "${CM_COMMIT}" | cut -c 1-7)
 
-              firebase appdistribution:distribute build/app/outputs/flutter-apk/app-release.apk \
-                --app 1:763009686501:android:22db046778e22c10c1ed0c \
-                --testers "lanbian38@gmail.com" \
-                --token "$FIREBASE_TOKEN"
-            else
-              echo "Androidビルドが失敗したかスキップされたため、Firebase App Distributionへのパブリッシュをスキップしました。"
+            IOS_LINE="iOS TestFlight：スキップ（ビルドまたはパブリッシュ失敗）"
+            if [ -f /tmp/ios_publish_success ]; then
+              IOS_LINE="iOS TestFlight：成功＆パブリッシュ済み（Version：${APP_VERSION} / Build：${APP_BUILD_NUMBER}）"
             fi
-        - name: Notify Discord
-          script: |
-            # iOS・Androidのどちらか一方でもビルド成功フラグがあれば通知を送信
-            if [ -f /tmp/build_success ] || [ -f /tmp/android_build_success ]; then
-              # コミットハッシュの先頭7文字を取得
-              COMMIT_HASH=$(echo "${CM_COMMIT}" | cut -c 1-7)
 
-              # iOS・Androidそれぞれの結果行を、実際にビルドが成功した場合のみ組み立てる
-              IOS_LINE="iOS TestFlight：スキップ（ビルド失敗）"
-              if [ -f /tmp/build_success ]; then
-                IOS_LINE="iOS TestFlight：成功＆パブリッシュ済み（Version：${APP_VERSION} / Build：${APP_BUILD_NUMBER}）"
-              fi
+            ANDROID_LINE="Android Firebase App Distribution：スキップ（ビルドまたはパブリッシュ失敗）"
+            if [ -f /tmp/android_publish_success ]; then
+              ANDROID_LINE="Android Firebase App Distribution：成功＆パブリッシュ済み（Version：${APP_VERSION} / Build：${ANDROID_BUILD_NUMBER}）"
+            fi
 
-              ANDROID_LINE="Android Firebase App Distribution：スキップ（ビルド失敗）"
-              if [ -f /tmp/android_build_success ]; then
-                ANDROID_LINE="Android Firebase App Distribution：成功＆パブリッシュ済み（Version：${APP_VERSION} / Build：${ANDROID_BUILD_NUMBER}）"
-              fi
-
-              # 送信メッセージの作成
-              MESSAGE=$(cat <<EOF
-            SavePointのビルドが完了しました。
+            MESSAGE="SavePointのビルドが完了しました。
             ${IOS_LINE}
             ${ANDROID_LINE}
-            Commit：${COMMIT_HASH}
-            EOF
-              )
+            Commit：${COMMIT_HASH}"
 
-              # jq を使用して安全にJSONを組み立て、Discord WebhookへPOST
-              JSON_PAYLOAD=$(jq -n --arg content "$MESSAGE" '{content: $content}')
+            # jq を使用して安全にJSONを組み立て、Discord WebhookへPOST
+            JSON_PAYLOAD=$(jq -n --arg content "$MESSAGE" '{content: $content}')
 
-              curl -H "Content-Type: application/json" \
-                -X POST \
-                -d "$JSON_PAYLOAD" \
-                "$DISCORD_WEBHOOK_URL"
-            else
-              echo "iOS・Androidともにビルドが失敗したかスキップされたため、Discord通知を送信しませんでした。"
-            fi
+            curl -H "Content-Type: application/json" \
+              -X POST \
+              -d "$JSON_PAYLOAD" \
+              "$DISCORD_WEBHOOK_URL"
