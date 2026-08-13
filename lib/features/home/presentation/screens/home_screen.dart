@@ -2,67 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
-import '../../../../core/widgets/genre_badge_selector.dart';
 import '../../../game_search/domain/game.dart';
-import '../../../game_search/domain/platform_options.dart';
 import '../providers/home_providers.dart';
-import 'release_list_screen.dart';
 
-class HomeScreen extends ConsumerStatefulWidget {
+/// ホーム画面自体では絞り込みは行わない（各セクションの見出し＞から遷移した先の
+/// 一覧画面でジャンル・対応ハード・詳しい条件を選べる）。
+const _noFilter = (
+  platforms: <String>{},
+  genres: <String>{},
+  includeAdult: false,
+  includeIndie: false,
+);
+
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  ConsumerState<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends ConsumerState<HomeScreen> {
-  final Set<String> _selectedPlatforms = {};
-  final Set<String> _selectedGenres = {};
-  bool _includeAdult = false;
-  bool _includeIndie = false;
-
-  void _onPlatformTap(String value) {
-    setState(() {
-      if (_selectedPlatforms.contains(value)) {
-        _selectedPlatforms.remove(value);
-      } else {
-        _selectedPlatforms.add(value);
-      }
-    });
-  }
-
-  void _onGenreTap(String value) {
-    setState(() {
-      if (_selectedGenres.contains(value)) {
-        _selectedGenres.remove(value);
-      } else {
-        _selectedGenres.add(value);
-      }
-    });
-  }
-
-  void _onIncludeAdultChanged(bool value) {
-    setState(() => _includeAdult = value);
-  }
-
-  void _onIncludeIndieChanged(bool value) {
-    setState(() => _includeIndie = value);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final filter = (
-      platforms: _selectedPlatforms,
-      genres: _selectedGenres,
-      includeAdult: _includeAdult,
-      includeIndie: _includeIndie,
-    );
-    final releasesAsync = ref.watch(weeklyReleasesProvider(filter));
-    final monthlyReleasesAsync = ref.watch(monthlyReleasesProvider(filter));
-    final top100Async = ref.watch(top100Provider(filter));
+  Widget build(BuildContext context, WidgetRef ref) {
+    final releasesAsync = ref.watch(weeklyReleasesProvider(_noFilter));
+    final monthlyReleasesAsync = ref.watch(monthlyReleasesProvider(_noFilter));
+    final top100Async = ref.watch(top100Provider(_noFilter));
 
     return Scaffold(
       appBar: AppBar(title: const Text('ホーム')),
@@ -70,10 +31,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Divider(height: 24),
+            const SizedBox(height: 8),
             _SectionHeader(
               title: '今週発売のゲーム',
-              onTap: () => context.push('/home/weekly', extra: filter),
+              onTap: () => context.push('/home/weekly', extra: _noFilter),
             ),
             releasesAsync.when(
               data: (games) {
@@ -93,14 +54,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: ErrorView(
                   message: '今週発売のゲームの取得に失敗しました',
-                  onRetry: () => ref.invalidate(weeklyReleasesProvider(filter)),
+                  onRetry: () => ref.invalidate(weeklyReleasesProvider(_noFilter)),
                 ),
               ),
             ),
             const SizedBox(height: 24),
             _SectionHeader(
               title: '今月発売のゲーム',
-              onTap: () => context.push('/home/monthly', extra: filter),
+              onTap: () => context.push('/home/monthly', extra: _noFilter),
             ),
             monthlyReleasesAsync.when(
               data: (games) {
@@ -120,14 +81,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: ErrorView(
                   message: '今月発売のゲームの取得に失敗しました',
-                  onRetry: () => ref.invalidate(monthlyReleasesProvider(filter)),
+                  onRetry: () =>
+                      ref.invalidate(monthlyReleasesProvider(_noFilter)),
                 ),
               ),
             ),
             const SizedBox(height: 24),
             _SectionHeader(
               title: 'IGDB：TOP100',
-              onTap: () => context.push('/home/top100', extra: filter),
+              onTap: () => context.push('/home/top100', extra: _noFilter),
             ),
             top100Async.when(
               data: (games) {
@@ -147,7 +109,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: ErrorView(
                   message: 'IGDB TOP100の取得に失敗しました',
-                  onRetry: () => ref.invalidate(top100Provider(filter)),
+                  onRetry: () => ref.invalidate(top100Provider(_noFilter)),
                 ),
               ),
             ),
