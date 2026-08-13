@@ -2,8 +2,10 @@ import '../../game_log/domain/game_log.dart';
 
 /// フォロー中ユーザーの「遊んだ／遊びたい」ステータス1件分。
 ///
-/// follow_feedビュー由来のため、評価・レビュー・ネタバレ・クリア情報・優先度は
-/// 一切含まれない（意図的にステータスのみを公開する設計）。
+/// 評価（星）・レビュー本文・ネタバレフラグ・クリア情報は、follow_feedビューが
+/// 元のgame_logs.visibility（非公開/相互フォロー/全公開）に基づいて既にフィルタ
+/// 済みの行のみを返す。つまりこのエントリが取得できている時点で、閲覧者は
+/// レビュー内容を見る権限を持っている。
 class FollowFeedEntry {
   const FollowFeedEntry({
     required this.userId,
@@ -17,6 +19,11 @@ class FollowFeedEntry {
     required this.status,
     required this.createdAt,
     required this.updatedAt,
+    this.rating,
+    this.reviewText,
+    this.hasSpoiler = false,
+    this.isCleared = false,
+    this.clearTimeMinutes,
   });
 
   final String userId;
@@ -30,6 +37,11 @@ class FollowFeedEntry {
   final GameLogStatus status;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final int? rating;
+  final String? reviewText;
+  final bool hasSpoiler;
+  final bool isCleared;
+  final int? clearTimeMinutes;
 
   String get userLabel {
     if (displayName != null && displayName!.isNotEmpty) return displayName!;
@@ -53,6 +65,11 @@ class FollowFeedEntry {
       status: GameLogStatus.fromDb(json['status'] as String? ?? 'played'),
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
+      rating: json['rating'] as int?,
+      reviewText: json['review_text'] as String?,
+      hasSpoiler: json['has_spoiler'] as bool? ?? false,
+      isCleared: json['is_cleared'] as bool? ?? false,
+      clearTimeMinutes: json['clear_time_minutes'] as int?,
     );
   }
 }

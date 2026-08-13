@@ -26,7 +26,16 @@ class HomeScreen extends ConsumerWidget {
     final top100Async = ref.watch(top100Provider(_noFilter));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('ホーム')),
+      appBar: AppBar(
+        title: const Text('ホーム'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_month_outlined),
+            tooltip: '発売日カレンダー',
+            onPressed: () => context.push('/calendar'),
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
+import '../../../../core/widgets/genre_badge_selector.dart';
 import '../../../game_log/domain/game_log_stats.dart';
 import '../providers/trending_providers.dart';
 
@@ -17,19 +18,107 @@ class TrendingScreen extends StatefulWidget {
 
 class _TrendingScreenState extends State<TrendingScreen> {
   bool _includeAdult = false;
+  // Riverpodのfamilyプロバイダーの引数として使うため、Setは常に新しいインスタンスに
+  // 差し替える（同一インスタンスをin-placeでadd/removeすると、DartのSetは値の等価性を
+  // 持たないためProviderが「引数が変わっていない」と誤認し、再フェッチされなくなる）。
+  Set<String> _selectedGenres = {};
   bool _isGridView = false;
 
-  void _onIncludeAdultChanged(bool value) {
-    setState(() => _includeAdult = value);
+  bool get _hasActiveFilter => _includeAdult || _selectedGenres.isNotEmpty;
+
+  void _openFilterSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            void toggleGenre(String value) {
+              setState(() {
+                _selectedGenres = _selectedGenres.contains(value)
+                    ? ({..._selectedGenres}..remove(value))
+                    : ({..._selectedGenres}..add(value));
+              });
+              setSheetState(() {});
+            }
+
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.6,
+              minChildSize: 0.3,
+              maxChildSize: 0.9,
+              builder: (context, scrollController) {
+                return SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('絞り込み', style: Theme.of(context).textTheme.titleMedium),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _selectedGenres = {};
+                                _includeAdult = false;
+                              });
+                              setSheetState(() {});
+                            },
+                            child: const Text('リセット'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text('ジャンルから探す', style: Theme.of(context).textTheme.labelMedium),
+                      const SizedBox(height: 8),
+                      GenreBadgeSelector(
+                        selectedGenres: _selectedGenres,
+                        onToggle: toggleGenre,
+                      ),
+                      AdvancedFiltersSection(
+                        includeAdult: _includeAdult,
+                        onIncludeAdultChanged: (value) {
+                          setState(() => _includeAdult = value);
+                          setSheetState(() {});
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final filter = (includeAdult: _includeAdult, genres: _selectedGenres);
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('トレンド'),
+          actions: [
+            IconButton(
+              icon: Icon(
+                _hasActiveFilter ? Icons.filter_alt : Icons.filter_alt_outlined,
+                color: _hasActiveFilter ? Theme.of(context).colorScheme.primary : null,
+              ),
+              tooltip: '絞り込み',
+              onPressed: _openFilterSheet,
+            ),
+            IconButton(
+              onPressed: () => setState(() => _isGridView = !_isGridView),
+              icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
+              tooltip: _isGridView ? 'リスト表示に切り替え' : 'グリッド表示に切り替え',
+            ),
+          ],
           bottom: const TabBar(
             tabs: [
               Tab(text: 'みんなが遊びたい'),
@@ -39,30 +128,12 @@ class _TrendingScreenState extends State<TrendingScreen> {
         ),
         body: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: AdvancedFiltersSection(
-                includeAdult: _includeAdult,
-                onIncludeAdultChanged: _onIncludeAdultChanged,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: IconButton(
-                  onPressed: () => setState(() => _isGridView = !_isGridView),
-                  icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
-                  tooltip: _isGridView ? 'リスト表示に切り替え' : 'グリッド表示に切り替え',
-                ),
-              ),
-            ),
             Expanded(
               child: TabBarView(
                 children: [
                   _RankingList(
                     provider: trendingWantToPlayProvider,
-                    includeAdult: _includeAdult,
+                    filter: filter,
                     countSuffix: '人が遊びたい',
                     countSelector: _wantToPlayCount,
                     emptyMessage: 'まだ「遊びたい」の記録がありません',
@@ -70,7 +141,7 @@ class _TrendingScreenState extends State<TrendingScreen> {
                   ),
                   _RankingList(
                     provider: trendingPlayedProvider,
-                    includeAdult: _includeAdult,
+                    filter: filter,
                     countSuffix: '人が遊んだ',
                     countSelector: _playedCount,
                     emptyMessage: 'まだ「遊んだ」の記録がありません',
@@ -99,15 +170,15 @@ const _medalColors = <int, Color>{
 class _RankingList extends ConsumerWidget {
   const _RankingList({
     required this.provider,
-    required this.includeAdult,
+    required this.filter,
     required this.countSuffix,
     required this.countSelector,
     required this.emptyMessage,
     required this.isGridView,
   });
 
-  final FutureProviderFamily<List<GameLogStats>, bool> provider;
-  final bool includeAdult;
+  final FutureProviderFamily<List<GameLogStats>, TrendingFilter> provider;
+  final TrendingFilter filter;
   final String countSuffix;
   final int Function(GameLogStats) countSelector;
   final String emptyMessage;
@@ -115,7 +186,7 @@ class _RankingList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final statsAsync = ref.watch(provider(includeAdult));
+    final statsAsync = ref.watch(provider(filter));
 
     return statsAsync.when(
       data: (stats) {
@@ -171,7 +242,7 @@ class _RankingList extends ConsumerWidget {
       loading: () => const LoadingView(),
       error: (error, _) => ErrorView(
         message: 'ランキングの取得に失敗しました',
-        onRetry: () => ref.invalidate(provider(includeAdult)),
+        onRetry: () => ref.invalidate(provider(filter)),
       ),
     );
   }

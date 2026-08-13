@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
+import '../../../../core/widgets/genre_badge_selector.dart';
 import '../../../../core/widgets/star_rating.dart';
 import '../../../favorites/presentation/providers/favorite_providers.dart';
 import '../../../favorites/presentation/widgets/favorite_games_list.dart';
@@ -39,7 +40,10 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
   late final TabController _tabController;
   MyLogSortType _sort = MyLogSortType.addedOrder;
   bool _includeAdult = false;
+  final Set<String> _selectedGenres = {};
   bool _isGridView = false;
+
+  bool get _hasActiveFilter => _includeAdult || _selectedGenres.isNotEmpty;
 
   @override
   void initState() {
@@ -59,7 +63,11 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
   ) {
     final filtered = logs
         .where(
-          (e) => e.log.status == status && (_includeAdult || !e.game.isAdult),
+          (e) =>
+              e.log.status == status &&
+              (_includeAdult || !e.game.isAdult) &&
+              (_selectedGenres.isEmpty ||
+                  e.game.genres.any(_selectedGenres.contains)),
         )
         .toList();
     filtered.sort((a, b) {
@@ -85,6 +93,77 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
       }
     });
     return filtered;
+  }
+
+  void _openFilterSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            void toggleGenre(String value) {
+              setState(() {
+                if (_selectedGenres.contains(value)) {
+                  _selectedGenres.remove(value);
+                } else {
+                  _selectedGenres.add(value);
+                }
+              });
+              setSheetState(() {});
+            }
+
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.6,
+              minChildSize: 0.3,
+              maxChildSize: 0.9,
+              builder: (context, scrollController) {
+                return SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('絞り込み', style: Theme.of(context).textTheme.titleMedium),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _selectedGenres.clear();
+                                _includeAdult = false;
+                              });
+                              setSheetState(() {});
+                            },
+                            child: const Text('リセット'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text('ジャンルから探す', style: Theme.of(context).textTheme.labelMedium),
+                      const SizedBox(height: 8),
+                      GenreBadgeSelector(
+                        selectedGenres: _selectedGenres,
+                        onToggle: toggleGenre,
+                      ),
+                      AdvancedFiltersSection(
+                        includeAdult: _includeAdult,
+                        onIncludeAdultChanged: (value) {
+                          setState(() => _includeAdult = value);
+                          setSheetState(() {});
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -120,55 +199,54 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
             animation: _tabController.animation ?? _tabController,
             builder: (context, child) {
               final isFavoritesTab = _tabController.index == 2;
-              return Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
-                    child: Row(
-                      children: [
-                        if (!isFavoritesTab) ...[
-                          Text(
-                            '並び替え：',
-                            style: Theme.of(context).textTheme.labelMedium,
-                          ),
-                          const SizedBox(width: 8),
-                          DropdownButton<MyLogSortType>(
-                            value: _sort,
-                            isDense: true,
-                            items: [
-                              for (final type in MyLogSortType.values)
-                                DropdownMenuItem(
-                                  value: type,
-                                  child: Text(type.label),
-                                ),
-                            ],
-                            onChanged: (value) {
-                              if (value != null) setState(() => _sort = value);
-                            },
-                          ),
-                        ],
-                        const Spacer(),
-                        IconButton(
-                          onPressed: () =>
-                              setState(() => _isGridView = !_isGridView),
-                          icon: Icon(
-                            _isGridView ? Icons.view_list : Icons.grid_view,
-                          ),
-                          tooltip: _isGridView ? 'リスト表示に切り替え' : 'グリッド表示に切り替え',
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (!isFavoritesTab)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: AdvancedFiltersSection(
-                        includeAdult: _includeAdult,
-                        onIncludeAdultChanged: (value) =>
-                            setState(() => _includeAdult = value),
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+                child: Row(
+                  children: [
+                    if (!isFavoritesTab) ...[
+                      Text(
+                        '並び替え：',
+                        style: Theme.of(context).textTheme.labelMedium,
                       ),
+                      const SizedBox(width: 8),
+                      DropdownButton<MyLogSortType>(
+                        value: _sort,
+                        isDense: true,
+                        items: [
+                          for (final type in MyLogSortType.values)
+                            DropdownMenuItem(
+                              value: type,
+                              child: Text(type.label),
+                            ),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) setState(() => _sort = value);
+                        },
+                      ),
+                    ],
+                    const Spacer(),
+                    IconButton(
+                      icon: Icon(
+                        _hasActiveFilter
+                            ? Icons.filter_alt
+                            : Icons.filter_alt_outlined,
+                        color: _hasActiveFilter
+                            ? Theme.of(context).colorScheme.primary
+                            : null,
+                      ),
+                      tooltip: '絞り込み',
+                      onPressed: _openFilterSheet,
                     ),
-                ],
+                    IconButton(
+                      onPressed: () =>
+                          setState(() => _isGridView = !_isGridView),
+                      icon: Icon(
+                        _isGridView ? Icons.view_list : Icons.grid_view,
+                      ),
+                      tooltip: _isGridView ? 'リスト表示に切り替え' : 'グリッド表示に切り替え',
+                    ),
+                  ],
+                ),
               );
             },
           ),

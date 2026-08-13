@@ -295,8 +295,13 @@ function currentWeekRangeUnix(): { start: number; end: number } {
 /** 今月（1日0:00〜翌月1日0:00、UTC基準）のunixタイムスタンプ範囲を返す。 */
 function currentMonthRangeUnix(): { start: number; end: number } {
   const now = new Date();
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  return monthRangeUnix(now.getUTCFullYear(), now.getUTCMonth() + 1);
+}
+
+/** 指定した年月（1〜12）の1日0:00〜翌月1日0:00（UTC基準）のunixタイムスタンプ範囲を返す。 */
+function monthRangeUnix(year: number, month: number): { start: number; end: number } {
+  const start = new Date(Date.UTC(year, month - 1, 1));
+  const end = new Date(Date.UTC(year, month, 1));
   return {
     start: Math.floor(start.getTime() / 1000),
     end: Math.floor(end.getTime() / 1000),
@@ -548,7 +553,7 @@ Deno.serve(async (req) => {
   try {
     const {
       action, query, id, platform, platforms, developer, genre, genres,
-      offset, sort, includeUpcoming, includeAdult, includeIndie,
+      offset, sort, includeUpcoming, includeAdult, includeIndie, year, month,
     } = await req.json();
     const db = serviceRoleClient();
     const accessToken = await getTwitchAccessToken(db);
@@ -594,38 +599,55 @@ Deno.serve(async (req) => {
         filters.push(`first_release_date <= ${nowUnix}`);
       }
 
-      // デフォルトでは成人向け（Eroticテーマ）の作品を除外する。
-      if (includeAdult !== true) {
-        filters.push(`themes != (${ADULT_THEME_ID})`);
-      }
-
-      // デフォルトではインディー作品を除外する。ただし、ジャンルフィルタで
-      // 明示的に「インディー」が選択されている場合は除外しない。
-      if (includeIndie !== true && !genreList.includes('Indie')) {
-        filters.push(`genres != (${INDIE_GENRE_ID})`);
-      }
-
       // 「～Collector's Edition」「～Bundle」等、既存タイトルの別バージョンとして
-      // IGDBがversion_parentで紐付けている作品は一覧から除外し、本編のみを表示する。
+      // IGDBがversion_parentで紐付けている作品は常に一覧から除外し、本編のみを表示する。
       filters.push('version_parent = null');
 
       // DLC・アップデート・追加エピソード等、既存タイトルにparent_gameで
-      // 紐付けられている作品も除外する（例: 「Monster Hunter Rise: Title Update 3」は
+      // 紐付けられている作品も常に除外する（例: 「Monster Hunter Rise: Title Update 3」は
       // 「Monster Hunter Rise」に、「Honkai: Star Rail - ○○」も本編にまとめる）。
       // 起動する本体（ROM）が変わらない追加コンテンツは本編の記録に一本化する方針。
+      // タイトル検索時にこれを外すと、DLC/アップデートが本編と別の検索結果として
+      // 再び表示されてしまう不具合が過去に発生したため、hasQueryの有無に関わらず
+      // 常時適用する。
       filters.push('parent_game = null');
 
-      // MOD・ROMハック・ファンゲーム等の非公式作品を除外する。
-      // game_typeが未設定の作品も一部あるため、「game_type != (...)」単体だと
-      // IGDB側でnullとの比較がfalse扱いになりgame_type未設定の正規タイトルまで
-      // 一覧から消えてしまう。nullは許可した上でmod/forkだけを除外する。
-      filters.push(
-        `(game_type = null | game_type != (${UNOFFICIAL_GAME_TYPE_IDS.join(',')}))`,
-      );
-      // game_typeが未設定のままROMハック・ファンゲームとして扱われている作品も
-      // あるため、keywordsタグでも二重に除外する（to-many型フィールドへの
-      // 「!= (idリスト)」は要素が1件もその値と一致しなければtrueになる仕様）。
-      filters.push(`keywords != (${UNOFFICIAL_KEYWORD_IDS.join(',')})`);
+      // タイトル検索（hasQuery）時は、以下の独自キュレーションフィルタを一切適用せず、
+      // IGDBの`search`結果をそのまま返す。カテゴリ探索（ジャンル・ハード等での一覧）
+      // では引き続き適用する。
+      //
+      // これらのフィルタ（インディー除外・非公式作品除外・成人向け除外）は
+      // 「一覧をきれいに見せる」ためのキュレーションであり、タイトルを直接検索している
+      // ときに適用すると、本来ヒットすべき作品（インディー作品・IGDB側のgame_type
+      // タグ付けが実態と異なる作品など）が検索結果から消えてしまい、「検索しても
+      // ヒットしない＝検索精度が悪い」という体感につながっていた。
+      // ただし version_parent/parent_game（別バージョン・DLC/アップデートの除外）は
+      // 「起動する本体が変わらない付随作品を本編に一本化する」という別の目的のフィルタ
+      // であり、検索精度とは無関係のため、上記の通り常に適用する。
+      if (!hasQuery) {
+        // デフォルトでは成人向け（Eroticテーマ）の作品を除外する。
+        if (includeAdult !== true) {
+          filters.push(`themes != (${ADULT_THEME_ID})`);
+        }
+
+        // デフォルトではインディー作品を除外する。ただし、ジャンルフィルタで
+        // 明示的に「インディー」が選択されている場合は除外しない。
+        if (includeIndie !== true && !genreList.includes('Indie')) {
+          filters.push(`genres != (${INDIE_GENRE_ID})`);
+        }
+
+        // MOD・ROMハック・ファンゲーム等の非公式作品を除外する。
+        // game_typeが未設定の作品も一部あるため、「game_type != (...)」単体だと
+        // IGDB側でnullとの比較がfalse扱いになりgame_type未設定の正規タイトルまで
+        // 一覧から消えてしまう。nullは許可した上でmod/forkだけを除外する。
+        filters.push(
+          `(game_type = null | game_type != (${UNOFFICIAL_GAME_TYPE_IDS.join(',')}))`,
+        );
+        // game_typeが未設定のままROMハック・ファンゲームとして扱われている作品も
+        // あるため、keywordsタグでも二重に除外する（to-many型フィールドへの
+        // 「!= (idリスト)」は要素が1件もその値と一致しなければtrueになる仕様）。
+        filters.push(`keywords != (${UNOFFICIAL_KEYWORD_IDS.join(',')})`);
+      }
 
       const clauses = [`fields ${SEARCH_FIELDS}`];
       let translatedQuery = '';
@@ -657,21 +679,35 @@ Deno.serve(async (req) => {
         }
       }
 
-      // 日本語クエリを英語に翻訳しての検索が0件だった場合、機械翻訳が原題の
-      // ニュアンスから外れてしまっている可能性がある（例:「ストッカーの中の死体
-      // っていくら？」→原題"How Much for the Body in the Freezer"）。この場合、
-      // IGDBのLocalized Title（Japan）自体をあいまい一致で検索し直す。
-      if (raws.length === 0 && hasQuery && JAPANESE_CHARS_REGEX.test((query as string).trim())) {
+      // 日本語クエリの場合、機械翻訳した英語での検索は「0件」だけが問題とは限らない。
+      // 翻訳がニュアンスから外れている場合、探している作品とは無関係な作品が
+      // それなりの件数ヒットしてしまうことがあり（例:「素晴らしき日々」の翻訳結果に
+      // 別の無関係な作品が一致してしまう）、その場合raws.length !== 0となるため
+      // 従来は0件判定のこの分岐が発動せず、本来ヒットすべき作品が検索結果に
+      // 出てこなかった。そのため0件かどうかに関わらず常に、IGDBのLocalized Title
+      // （Japan）自体をあいまい一致で検索し、原題への直接一致を優先して結果の
+      // 先頭に差し込む（IDが重複するものは除去する）。
+      //
+      // pageOffset > 0（「もっと見る」による追加読み込み）のときはこの分岐を実行しない。
+      // ここで見つかる作品はoffsetに関わらず毎回同じ集合になるため、もし追加読み込み時にも
+      // 実行すると、同じ作品が先頭に何度も再挿入されてしまい、スクロールするたびに同じ
+      // タイトルが繰り返し出てくる（無限ループしているように見える）不具合になる。
+      if (pageOffset === 0 && hasQuery && JAPANESE_CHARS_REGEX.test((query as string).trim())) {
         const gameIds = await fetchGameIdsByJapaneseLocalizedTitle(
           accessToken,
           (query as string).trim(),
         );
         if (gameIds.length > 0) {
           const idFilters = [...filters, `id = (${gameIds.join(',')})`];
-          raws = await queryIgdb(
+          const localizedRaws = await queryIgdb(
             accessToken,
             `fields ${SEARCH_FIELDS}; where ${idFilters.join(' & ')}; limit ${SEARCH_PAGE_SIZE};`,
           );
+          const localizedIds = new Set(localizedRaws.map((r) => r.id));
+          raws = [
+            ...localizedRaws,
+            ...raws.filter((r) => !localizedIds.has(r.id)),
+          ].slice(0, SEARCH_PAGE_SIZE);
         }
       }
 
@@ -848,6 +884,42 @@ Deno.serve(async (req) => {
 
       const jaNames = await fetchJapaneseLocalizedNames(accessToken, ranked.map((r) => r.id));
       const rows = ranked.map((raw) => toSearchRow(raw, jaNames.get(raw.id) ?? null));
+      if (rows.length > 0) {
+        const { error: upsertError } = await db.from('games').upsert(rows);
+        if (upsertError) {
+          throw new Error(`games upsert failed: ${upsertError.message}`);
+        }
+      }
+      const rowsWithDevFlag = await mergeCachedIsJapaneseDeveloper(db, rows);
+      return new Response(JSON.stringify(rowsWithDevFlag), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // カレンダー表示用: 指定した年月に発売予定・発売済みのゲーム一覧（発売日昇順）。
+    // weekly/monthly_releasesと違い任意の年月を指定できる（前月・翌月へのナビゲーション用）。
+    if (action === 'calendar_releases') {
+      const now = new Date();
+      const yearNum = typeof year === 'number' ? year : now.getUTCFullYear();
+      const monthNum = typeof month === 'number' ? month : now.getUTCMonth() + 1;
+      const { start, end } = monthRangeUnix(yearNum, monthNum);
+      const calendarFilters = [
+        `first_release_date >= ${start}`,
+        `first_release_date < ${end}`,
+      ];
+      const platformFilter = buildPlatformFilter(releasePlatformList);
+      if (platformFilter) calendarFilters.push(platformFilter);
+      const genreFilter = buildGenreFilter(releaseGenreList);
+      if (genreFilter) calendarFilters.push(genreFilter);
+      calendarFilters.push(
+        ...commonExclusionFilters(includeAdult, includeIndie, releaseExcludeIndie),
+      );
+      const raws = await queryIgdb(
+        accessToken,
+        `fields ${SEARCH_FIELDS}; where ${calendarFilters.join(' & ')}; sort first_release_date asc; limit 500;`,
+      );
+      const jaNames = await fetchJapaneseLocalizedNames(accessToken, raws.map((r) => r.id));
+      const rows = raws.map((raw) => toSearchRow(raw, jaNames.get(raw.id) ?? null));
       if (rows.length > 0) {
         const { error: upsertError } = await db.from('games').upsert(rows);
         if (upsertError) {

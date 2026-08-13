@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/avatar_image.dart';
 import '../../../../core/widgets/cover_image.dart';
+import '../../../../core/widgets/star_rating.dart';
 import '../../../favorites/presentation/providers/favorite_providers.dart';
 import '../../../favorites/presentation/widgets/favorite_games_list.dart';
 import '../../../game_log/domain/game_log.dart';
@@ -383,9 +384,46 @@ class _UserGameList extends StatelessWidget {
       separatorBuilder: (context, index) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final entry = entries[index];
+        final hasReviewText =
+            entry.reviewText != null && entry.reviewText!.isNotEmpty;
         return ListTile(
           leading: CoverImage(url: entry.gameCoverUrl, width: 44, height: 60),
           title: Text(entry.displayGameName),
+          subtitle: entry.rating != null
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          StarRating(rating: entry.rating!.toDouble(), size: 16),
+                          if (entry.hasSpoiler) ...[
+                            const SizedBox(width: 6),
+                            const Chip(
+                              label: Text('ネタバレあり'),
+                              visualDensity: VisualDensity.compact,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ],
+                        ],
+                      ),
+                      if (hasReviewText)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            entry.reviewText!,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                  ),
+                )
+              : null,
+          isThreeLine: hasReviewText,
           onTap: () => context.push('/games/${entry.gameId}'),
         );
       },

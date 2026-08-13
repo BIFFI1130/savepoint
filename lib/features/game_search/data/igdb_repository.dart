@@ -153,4 +153,36 @@ class IgdbRepository {
         .map(Game.fromJson)
         .toList(growable: false);
   }
+
+  /// カレンダー表示用: 指定した年月に発売予定・発売済みのゲーム一覧（発売日昇順）。
+  /// [platforms]・[genres] は複数選択可能で、選択されたうちどれか1つでも
+  /// 当てはまればOR条件で含める。
+  Future<List<Game>> calendarReleases({
+    required int year,
+    required int month,
+    Set<String> platforms = const {},
+    Set<String> genres = const {},
+    bool includeAdult = false,
+    bool includeIndie = false,
+  }) async {
+    final response = await supabase.functions.invoke(
+      'igdb-proxy',
+      body: {
+        'action': 'calendar_releases',
+        'year': year,
+        'month': month,
+        if (platforms.isNotEmpty) 'platforms': platforms.toList(),
+        if (genres.isNotEmpty) 'genres': genres.toList(),
+        if (includeAdult) 'includeAdult': true,
+        if (includeIndie) 'includeIndie': true,
+      },
+    );
+
+    final data = response.data;
+    if (data is! List) return [];
+    return data
+        .cast<Map<String, dynamic>>()
+        .map(Game.fromJson)
+        .toList(growable: false);
+  }
 }

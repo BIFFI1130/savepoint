@@ -10,6 +10,7 @@ import '../../features/auth/presentation/screens/sign_up_screen.dart';
 import '../../features/collections/presentation/screens/collection_detail_screen.dart';
 import '../../features/collections/presentation/screens/collections_screen.dart';
 import '../../features/favorites/presentation/screens/favorite_games_edit_screen.dart';
+import '../../features/calendar/presentation/screens/release_calendar_screen.dart';
 import '../../features/game_log/presentation/screens/log_review_screen.dart';
 import '../../features/home/presentation/providers/home_providers.dart';
 import '../../features/home/presentation/screens/release_list_screen.dart';
@@ -56,6 +57,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           final initialIndex = state.extra is int ? state.extra as int : 0;
           return HomeShell(initialIndex: initialIndex);
         },
+      ),
+      GoRoute(
+        path: '/calendar',
+        builder: (context, state) => const ReleaseCalendarScreen(),
       ),
       GoRoute(
         path: '/home/weekly',

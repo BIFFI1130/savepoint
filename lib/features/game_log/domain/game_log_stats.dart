@@ -12,6 +12,7 @@ class GameLogStats {
     this.isJapaneseDeveloper = false,
     this.avgRating,
     this.ratingCount = 0,
+    this.genres = const [],
   });
 
   final int gameId;
@@ -33,6 +34,9 @@ class GameLogStats {
   /// 開発元が日本の会社かどうか。タイトルを日本語表示するかどうかの判定に使う。
   final bool isJapaneseDeveloper;
 
+  /// IGDBのジャンル名（英語）一覧。ジャンルフィルタの絞り込みに使う。
+  final List<String> genres;
+
   /// 表示用のタイトル。IGDBのLocalized Title（日本）があればそれを、無ければ原題を返す。
   String get displayName => nameJa ?? name;
 
@@ -48,6 +52,7 @@ class GameLogStats {
       isJapaneseDeveloper: json['is_japanese_developer'] as bool? ?? false,
       avgRating: (json['avg_rating'] as num?)?.toDouble(),
       ratingCount: json['rating_count'] as int? ?? 0,
+      genres: (json['genres'] as List?)?.cast<String>() ?? const [],
     );
   }
 }

@@ -35,10 +35,13 @@ class ReleaseListScreen extends ConsumerStatefulWidget {
 }
 
 class _ReleaseListScreenState extends ConsumerState<ReleaseListScreen> {
-  late final Set<String> _selectedPlatforms = {
+  // Riverpodのfamilyプロバイダーの引数として使うため、Setは常に新しいインスタンスに
+  // 差し替える（同一インスタンスをin-placeでadd/removeすると、DartのSetは値の等価性を
+  // 持たないためProviderが「引数が変わっていない」と誤認し、再フェッチされなくなる）。
+  late Set<String> _selectedPlatforms = {
     ...?widget.initialFilter?.platforms,
   };
-  late final Set<String> _selectedGenres = {
+  late Set<String> _selectedGenres = {
     ...?widget.initialFilter?.genres,
   };
   late bool _includeAdult = widget.initialFilter?.includeAdult ?? false;
@@ -47,21 +50,17 @@ class _ReleaseListScreenState extends ConsumerState<ReleaseListScreen> {
 
   void _onPlatformTap(String value) {
     setState(() {
-      if (_selectedPlatforms.contains(value)) {
-        _selectedPlatforms.remove(value);
-      } else {
-        _selectedPlatforms.add(value);
-      }
+      _selectedPlatforms = _selectedPlatforms.contains(value)
+          ? ({..._selectedPlatforms}..remove(value))
+          : ({..._selectedPlatforms}..add(value));
     });
   }
 
   void _onGenreTap(String value) {
     setState(() {
-      if (_selectedGenres.contains(value)) {
-        _selectedGenres.remove(value);
-      } else {
-        _selectedGenres.add(value);
-      }
+      _selectedGenres = _selectedGenres.contains(value)
+          ? ({..._selectedGenres}..remove(value))
+          : ({..._selectedGenres}..add(value));
     });
   }
 

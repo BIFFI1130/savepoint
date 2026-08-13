@@ -32,6 +32,13 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
   Timer? _developerDebounce;
   bool _isGridView = false;
 
+  bool get _hasActiveFilter =>
+      _selectedPlatforms.isNotEmpty ||
+      _selectedGenres.isNotEmpty ||
+      _includeAdult ||
+      _includeIndie ||
+      _developerController.text.trim().isNotEmpty;
+
   @override
   void initState() {
     super.initState();
@@ -58,32 +65,11 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
     }
   }
 
-  void _onPlatformTap(String value) {
-    setState(() {
-      if (_selectedPlatforms.contains(value)) {
-        _selectedPlatforms.remove(value);
-      } else {
-        _selectedPlatforms.add(value);
-      }
-    });
-    ref.read(gameSearchProvider.notifier).setPlatforms(_selectedPlatforms);
-  }
-
-  void _onGenreTap(String value) {
-    setState(() {
-      if (_selectedGenres.contains(value)) {
-        _selectedGenres.remove(value);
-      } else {
-        _selectedGenres.add(value);
-      }
-    });
-    ref.read(gameSearchProvider.notifier).setGenres(_selectedGenres);
-  }
-
   void _onDeveloperChanged(String value) {
     _developerDebounce?.cancel();
     _developerDebounce = Timer(const Duration(milliseconds: 450), () {
       ref.read(gameSearchProvider.notifier).setDeveloper(value);
+      if (mounted) setState(() {});
     });
   }
 
@@ -107,14 +93,138 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
     ref.read(gameSearchProvider.notifier).setIncludeUpcoming(value);
   }
 
-  void _onIncludeAdultChanged(bool value) {
-    setState(() => _includeAdult = value);
-    ref.read(gameSearchProvider.notifier).setIncludeAdult(value);
-  }
+  void _openFilterSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            void toggleGenre(String value) {
+              setState(() {
+                if (_selectedGenres.contains(value)) {
+                  _selectedGenres.remove(value);
+                } else {
+                  _selectedGenres.add(value);
+                }
+              });
+              ref.read(gameSearchProvider.notifier).setGenres(_selectedGenres);
+              setSheetState(() {});
+            }
 
-  void _onIncludeIndieChanged(bool value) {
-    setState(() => _includeIndie = value);
-    ref.read(gameSearchProvider.notifier).setIncludeIndie(value);
+            void togglePlatform(String value) {
+              setState(() {
+                if (_selectedPlatforms.contains(value)) {
+                  _selectedPlatforms.remove(value);
+                } else {
+                  _selectedPlatforms.add(value);
+                }
+              });
+              ref.read(gameSearchProvider.notifier).setPlatforms(_selectedPlatforms);
+              setSheetState(() {});
+            }
+
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.75,
+              minChildSize: 0.4,
+              maxChildSize: 0.95,
+              builder: (context, scrollController) {
+                return SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('絞り込み', style: Theme.of(context).textTheme.titleMedium),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _selectedGenres.clear();
+                                _selectedPlatforms.clear();
+                                _includeAdult = false;
+                                _includeIndie = false;
+                                _developerController.clear();
+                              });
+                              ref.read(gameSearchProvider.notifier)
+                                ..setGenres(_selectedGenres)
+                                ..setPlatforms(_selectedPlatforms)
+                                ..setIncludeAdult(false)
+                                ..setIncludeIndie(false)
+                                ..setDeveloper('');
+                              setSheetState(() {});
+                            },
+                            child: const Text('リセット'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text('ジャンルから探す', style: Theme.of(context).textTheme.labelMedium),
+                      const SizedBox(height: 8),
+                      GenreBadgeSelector(
+                        selectedGenres: _selectedGenres,
+                        onToggle: toggleGenre,
+                      ),
+                      const SizedBox(height: 16),
+                      Text('対応ハード', style: Theme.of(context).textTheme.labelMedium),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final option in platformOptions)
+                            FilterChip(
+                              label: Text(option.$1),
+                              selected: _selectedPlatforms.contains(option.$2),
+                              onSelected: (_) => togglePlatform(option.$2),
+                            ),
+                        ],
+                      ),
+                      AdvancedFiltersSection(
+                        includeAdult: _includeAdult,
+                        onIncludeAdultChanged: (value) {
+                          setState(() => _includeAdult = value);
+                          ref.read(gameSearchProvider.notifier).setIncludeAdult(value);
+                          setSheetState(() {});
+                        },
+                        includeIndie: _includeIndie,
+                        onIncludeIndieChanged: (value) {
+                          setState(() => _includeIndie = value);
+                          ref.read(gameSearchProvider.notifier).setIncludeIndie(value);
+                          setSheetState(() {});
+                        },
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: TextField(
+                              controller: _developerController,
+                              decoration: const InputDecoration(
+                                labelText: '開発元で絞り込み（任意）',
+                                hintText: '例：Nintendo',
+                                prefixIcon: Icon(Icons.apartment_outlined),
+                                border: OutlineInputBorder(),
+                                isDense: true,
+                              ),
+                              onChanged: (value) {
+                                _onDeveloperChanged(value);
+                                setSheetState(() {});
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -122,11 +232,28 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
     final resultsAsync = ref.watch(gameSearchProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('ゲームを探す')),
+      appBar: AppBar(
+        title: const Text('ゲームを探す'),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _hasActiveFilter ? Icons.filter_alt : Icons.filter_alt_outlined,
+              color: _hasActiveFilter ? Theme.of(context).colorScheme.primary : null,
+            ),
+            tooltip: '絞り込み',
+            onPressed: _openFilterSheet,
+          ),
+          IconButton(
+            onPressed: () => setState(() => _isGridView = !_isGridView),
+            icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
+            tooltip: _isGridView ? 'リスト表示に切り替え' : 'グリッド表示に切り替え',
+          ),
+        ],
+      ),
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
-          SliverToBoxAdapter(child: _buildFilters(context)),
+          SliverToBoxAdapter(child: _buildHeader(context)),
           resultsAsync.when(
             data: (results) {
               if (results.games.isEmpty) {
@@ -177,7 +304,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
     );
   }
 
-  Widget _buildFilters(BuildContext context) {
+  Widget _buildHeader(BuildContext context) {
     return Column(
       children: [
         Padding(
@@ -199,64 +326,6 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
             onChanged: _onQueryChanged,
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-          child: Text(
-            'ジャンルから探す',
-            style: Theme.of(context).textTheme.labelMedium,
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: GenreBadgeSelector(
-            selectedGenres: _selectedGenres,
-            onToggle: _onGenreTap,
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: Text('対応ハード', style: Theme.of(context).textTheme.labelMedium),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final option in platformOptions)
-                FilterChip(
-                  label: Text(option.$1),
-                  selected: _selectedPlatforms.contains(option.$2),
-                  onSelected: (_) => _onPlatformTap(option.$2),
-                ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: AdvancedFiltersSection(
-            includeAdult: _includeAdult,
-            onIncludeAdultChanged: _onIncludeAdultChanged,
-            includeIndie: _includeIndie,
-            onIncludeIndieChanged: _onIncludeIndieChanged,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: TextField(
-                  controller: _developerController,
-                  decoration: const InputDecoration(
-                    labelText: '開発元で絞り込み（任意）',
-                    hintText: '例：Nintendo',
-                    prefixIcon: Icon(Icons.apartment_outlined),
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  onChanged: _onDeveloperChanged,
-                ),
-              ),
-            ],
-          ),
-        ),
         _SortSelector(
           enabled: _queryText.trim().isEmpty,
           sort: _sort,
@@ -264,17 +333,8 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
           includeUpcoming: _includeUpcoming,
           onIncludeUpcomingChanged: _onIncludeUpcomingChanged,
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: IconButton(
-              onPressed: () => setState(() => _isGridView = !_isGridView),
-              icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
-              tooltip: _isGridView ? 'リスト表示に切り替え' : 'グリッド表示に切り替え',
-            ),
-          ),
-        ),
+        const SizedBox(height: 4),
+        const Divider(height: 1),
       ],
     );
   }
@@ -361,4 +421,3 @@ class _SortSelector extends StatelessWidget {
     );
   }
 }
-
