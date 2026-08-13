@@ -154,9 +154,10 @@ class IgdbRepository {
         .toList(growable: false);
   }
 
-  /// カレンダー表示用: 指定した年月に発売予定・発売済みのゲーム一覧（発売日昇順）。
-  /// [platforms]・[genres] は複数選択可能で、選択されたうちどれか1つでも
-  /// 当てはまればOR条件で含める。
+  /// カレンダー表示（月表示）用: 指定した年月に発売予定・発売済みのゲーム一覧
+  /// （人気順＝評価数の多い順。同じ日に複数発売がある場合に人気の高い作品を
+  /// 見出しに使えるようにするため）。[platforms]・[genres] は複数選択可能で、
+  /// 選択されたうちどれか1つでも当てはまればOR条件で含める。
   Future<List<Game>> calendarReleases({
     required int year,
     required int month,
@@ -171,6 +172,44 @@ class IgdbRepository {
         'action': 'calendar_releases',
         'year': year,
         'month': month,
+        if (platforms.isNotEmpty) 'platforms': platforms.toList(),
+        if (genres.isNotEmpty) 'genres': genres.toList(),
+        if (includeAdult) 'includeAdult': true,
+        if (includeIndie) 'includeIndie': true,
+      },
+    );
+
+    final data = response.data;
+    if (data is! List) return [];
+    return data
+        .cast<Map<String, dynamic>>()
+        .map(Game.fromJson)
+        .toList(growable: false);
+  }
+
+  /// カレンダー表示（デイリー表示）用: [rangeStart] から [days] 日間に発売予定・
+  /// 発売済みのゲーム一覧（人気順）。デイリー表示は日付を1件ずつ横スクロールするが、
+  /// 表示中の日付の前後を一定期間まとめて取得しキャッシュすることで、スワイプの都度
+  /// 通信が発生しないようにする。[platforms]・[genres] は複数選択可能で、選択された
+  /// うちどれか1つでも当てはまればOR条件で含める。
+  Future<List<Game>> calendarRangeReleases({
+    required DateTime rangeStart,
+    required int days,
+    Set<String> platforms = const {},
+    Set<String> genres = const {},
+    bool includeAdult = false,
+    bool includeIndie = false,
+  }) async {
+    final rangeStartStr =
+        '${rangeStart.year.toString().padLeft(4, '0')}-'
+        '${rangeStart.month.toString().padLeft(2, '0')}-'
+        '${rangeStart.day.toString().padLeft(2, '0')}';
+    final response = await supabase.functions.invoke(
+      'igdb-proxy',
+      body: {
+        'action': 'calendar_releases',
+        'weekStart': rangeStartStr,
+        'days': days,
         if (platforms.isNotEmpty) 'platforms': platforms.toList(),
         if (genres.isNotEmpty) 'genres': genres.toList(),
         if (includeAdult) 'includeAdult': true,

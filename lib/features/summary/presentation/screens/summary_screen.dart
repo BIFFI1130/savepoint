@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../game_log/presentation/providers/log_providers.dart';
+import '../../../game_search/domain/genre_options.dart';
 import '../../domain/period_summary.dart';
 
 class SummaryScreen extends ConsumerStatefulWidget {
@@ -218,11 +219,22 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-/// ジャンルごとの記録件数を多い順に棒グラフ表示する。上位8件のみ表示する。
+/// ジャンル表示ラベルから対応表のアイコン・色を引く。対応表に無い場合はデフォルト値を返す。
+(IconData icon, Color color) _genreIconAndColor(String label) {
+  final option = genreOptions
+      .cast<(String, String, IconData, Color)?>()
+      .firstWhere((o) => o!.$1 == label, orElse: () => null);
+  return (option?.$3 ?? Icons.sports_esports, option?.$4 ?? Colors.grey);
+}
+
+/// ジャンルごとの記録件数を多い順に縦棒グラフで表示する。上位8件のみ表示する。
+/// ラベルは専用アイコンのバッジ（文字無し）のみを並べ、タップするとジャンル名を表示する。
 class _GenreBreakdown extends StatelessWidget {
   const _GenreBreakdown({required this.genreCounts});
 
   final Map<String, int> genreCounts;
+
+  static const double _barAreaHeight = 120;
 
   @override
   Widget build(BuildContext context) {
@@ -230,36 +242,73 @@ class _GenreBreakdown extends StatelessWidget {
     final maxCount = entries.isEmpty
         ? 0
         : entries.map((e) => e.value).reduce((a, b) => a > b ? a : b);
-    return Column(
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         for (final entry in entries)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 96,
-                  child: Text(entry.key, overflow: TextOverflow.ellipsis),
-                ),
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: maxCount == 0 ? 0 : entry.value / maxCount,
-                      minHeight: 10,
-                      backgroundColor:
-                          Theme.of(context).colorScheme.surfaceContainerHighest,
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${entry.value}',
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    height: maxCount == 0
+                        ? 4
+                        : (_barAreaHeight - 20) * entry.value / maxCount,
+                    decoration: BoxDecoration(
+                      color: _genreIconAndColor(entry.key).$2,
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(4)),
                     ),
                   ),
-                ),
-                SizedBox(
-                  width: 28,
-                  child: Text('${entry.value}', textAlign: TextAlign.end),
-                ),
-              ],
+                  const SizedBox(height: 6),
+                  _GenreIconBadge(label: entry.key, count: entry.value),
+                ],
+              ),
             ),
           ),
       ],
+    );
+  }
+}
+
+/// ジャンルの専用アイコンのみを表示する正方形バッジ。タップするとジャンル名をSnackBarで表示する。
+class _GenreIconBadge extends StatelessWidget {
+  const _GenreIconBadge({required this.label, required this.count});
+
+  final String label;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, color) = _genreIconAndColor(label);
+    return Material(
+      color: color,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () {
+          ScaffoldMessenger.of(context).clearSnackBars();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$label：$count本'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        },
+        child: Container(
+          width: 36,
+          height: 36,
+          alignment: Alignment.center,
+          child: Icon(icon, size: 18, color: Colors.white),
+        ),
+      ),
     );
   }
 }

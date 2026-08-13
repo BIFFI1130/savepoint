@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 /// ジャンルの表示ラベル・IGDB上の正式なジャンル名・バッジ用のアイコンと色の対応表。
 /// 検索画面のジャンルフィルタ・ゲーム詳細画面のジャンルバッジ・まとめ画面のジャンル別集計で
-/// 共通して使う。IGDBのジャンル一覧から、日本のユーザーに馴染みのある分類のみを抜粋している。
+/// 共通して使う。https://www.igdb.com/genres に載っているIGDBの全ジャンル（23種、
+/// 2026-08-14時点でigdb-proxy経由の/genresエンドポイントで確認済み）を網羅する。
 const genreOptions = <(String label, String value, IconData icon, Color color)>[
   ('RPG', 'Role-playing (RPG)', Icons.castle, Color(0xFF6750A4)),
   ('アクション', "Hack and slash/Beat 'em up", Icons.bolt, Color(0xFFB3261E)),
@@ -16,6 +17,17 @@ const genreOptions = <(String label, String value, IconData icon, Color color)>[
   ('スポーツ', 'Sport', Icons.sports_soccer, Color(0xFF1D6B5B)),
   ('プラットフォーマー', 'Platform', Icons.terrain, Color(0xFF7A5230)),
   ('インディー', 'Indie', Icons.auto_awesome, Color(0xFF884191)),
+  ('ポイント&クリック', 'Point-and-click', Icons.ads_click, Color(0xFF3D5A80)),
+  ('音楽', 'Music', Icons.music_note, Color(0xFFB0468C)),
+  ('リアルタイムストラテジー', 'Real Time Strategy (RTS)', Icons.military_tech, Color(0xFF2F5233)),
+  ('ターン制ストラテジー', 'Turn-based strategy (TBS)', Icons.grid_view, Color(0xFF4E6E58)),
+  ('タクティクス', 'Tactical', Icons.shield, Color(0xFF5B4B8A)),
+  ('クイズ', 'Quiz/Trivia', Icons.quiz, Color(0xFFC77800)),
+  ('ピンボール', 'Pinball', Icons.adjust, Color(0xFF7B3F61)),
+  ('アーケード', 'Arcade', Icons.sports_esports, Color(0xFFAD1457)),
+  ('ビジュアルノベル', 'Visual Novel', Icons.menu_book, Color(0xFF6A4C93)),
+  ('カード・ボードゲーム', 'Card & Board Game', Icons.style, Color(0xFF546E7A)),
+  ('MOBA', 'MOBA', Icons.groups, Color(0xFF00838F)),
 ];
 
 /// IGDBのジャンル名（英語）を日本語表示ラベルに変換する。対応表に無い場合は原文のまま返す。

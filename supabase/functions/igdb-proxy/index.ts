@@ -312,6 +312,22 @@ function monthRangeUnix(year: number, month: number): { start: number; end: numb
 }
 
 /**
+ * "YYYY-MM-DD"形式の日付（範囲の開始日）から、その日0:00〜[days]日後0:00
+ * （UTC基準）のunixタイムスタンプ範囲を返す。カレンダー画面の週表示・デイリー表示で使う
+ * （[days]省略時は7日間＝週表示用）。
+ */
+function weekRangeUnix(weekStartDate: string, days = 7): { start: number; end: number } {
+  const [y, m, d] = weekStartDate.split('-').map(Number);
+  const start = new Date(Date.UTC(y, m - 1, d));
+  const end = new Date(start);
+  end.setUTCDate(start.getUTCDate() + days);
+  return {
+    start: Math.floor(start.getTime() / 1000),
+    end: Math.floor(end.getTime() / 1000),
+  };
+}
+
+/**
  * 既にキャッシュ済みの「開発元が日本の会社かどうか」（is_japanese_developer）を
  * 行にマージして返す。search/weekly_releasesは軽量化のため企業情報の再取得は行わず、
  * 既にdetails取得済みのものだけを再利用する。
@@ -556,7 +572,7 @@ Deno.serve(async (req) => {
   try {
     const {
       action, query, id, platform, platforms, developer, genre, genres,
-      offset, sort, includeUpcoming, includeAdult, includeIndie, year, month,
+      offset, sort, includeUpcoming, includeAdult, includeIndie, year, month, weekStart, days,
     } = await req.json();
     const db = serviceRoleClient();
     const accessToken = await getTwitchAccessToken(db);
@@ -860,13 +876,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    // カレンダー表示用: 指定した年月に発売予定・発売済みのゲーム一覧（発売日昇順）。
-    // weekly/monthly_releasesと違い任意の年月を指定できる（前月・翌月へのナビゲーション用）。
+    // カレンダー表示用: 指定した年月（月表示）または任意の日数範囲（週表示・デイリー表示、
+    // weekStart指定時。daysで範囲の長さを指定、省略時は7日間）に発売予定・発売済みの
+    // ゲーム一覧。同じ日に複数発売がある場合にその日の見出しや一覧を人気順にできるよう、
+    // 発売日順ではなく人気順（total_rating_count降順）で返す
+    // （Flutter側で発売日ごとにグループ化する際、人気順が保たれる）。
+    // weekly/monthly_releasesと違い任意の年月・日付範囲を指定できる（前後ナビゲーション用）。
     if (action === 'calendar_releases') {
       const now = new Date();
-      const yearNum = typeof year === 'number' ? year : now.getUTCFullYear();
-      const monthNum = typeof month === 'number' ? month : now.getUTCMonth() + 1;
-      const { start, end } = monthRangeUnix(yearNum, monthNum);
+      const { start, end } = typeof weekStart === 'string'
+        ? weekRangeUnix(weekStart, typeof days === 'number' ? days : 7)
+        : monthRangeUnix(
+            typeof year === 'number' ? year : now.getUTCFullYear(),
+            typeof month === 'number' ? month : now.getUTCMonth() + 1,
+          );
       const calendarFilters = [
         `first_release_date >= ${start}`,
         `first_release_date < ${end}`,
@@ -880,7 +903,7 @@ Deno.serve(async (req) => {
       );
       const raws = await queryIgdb(
         accessToken,
-        `fields ${SEARCH_FIELDS}; where ${calendarFilters.join(' & ')}; sort first_release_date asc; limit 500;`,
+        `fields ${SEARCH_FIELDS}; where ${calendarFilters.join(' & ')}; sort total_rating_count desc; limit 500;`,
       );
       const jaNames = await fetchJapaneseLocalizedNames(accessToken, raws.map((r) => r.id));
       const rows = raws.map((raw) => toSearchRow(raw, jaNames.get(raw.id) ?? null));
