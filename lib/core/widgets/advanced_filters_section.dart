@@ -4,12 +4,15 @@ import 'package:flutter/material.dart';
 /// [includeAdult]・[onIncludeAdultChanged] で成人向け作品表示チェックボックスを提供し、
 /// [includeIndie]・[onIncludeIndieChanged] を指定するとインディー作品表示チェックボックスも
 /// 併せて提供する（未指定の場合は表示しない）。
+/// [showAdultOption] がfalseの場合、成人向け作品表示チェックボックス自体を表示しない
+/// （生年月から18歳未満と分かっているユーザーには選択肢そのものを見せない）。
 /// [children] で画面固有の追加フィルタ（開発元絞り込みなど）を並べられる。
 class AdvancedFiltersSection extends StatefulWidget {
   const AdvancedFiltersSection({
     super.key,
     required this.includeAdult,
     required this.onIncludeAdultChanged,
+    this.showAdultOption = true,
     this.includeIndie,
     this.onIncludeIndieChanged,
     this.children = const [],
@@ -17,6 +20,7 @@ class AdvancedFiltersSection extends StatefulWidget {
 
   final bool includeAdult;
   final ValueChanged<bool> onIncludeAdultChanged;
+  final bool showAdultOption;
   final bool? includeIndie;
   final ValueChanged<bool>? onIncludeIndieChanged;
   final List<Widget> children;
@@ -48,15 +52,16 @@ class _AdvancedFiltersSectionState extends State<AdvancedFiltersSection> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     ...widget.children,
-                    CheckboxListTile(
-                      value: widget.includeAdult,
-                      onChanged: (value) =>
-                          widget.onIncludeAdultChanged(value ?? false),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                      controlAffinity: ListTileControlAffinity.leading,
-                      dense: true,
-                      title: const Text('成人向け作品を表示する'),
-                    ),
+                    if (widget.showAdultOption)
+                      CheckboxListTile(
+                        value: widget.includeAdult,
+                        onChanged: (value) =>
+                            widget.onIncludeAdultChanged(value ?? false),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        dense: true,
+                        title: const Text('成人向け作品を表示する'),
+                      ),
                     if (widget.onIncludeIndieChanged != null)
                       CheckboxListTile(
                         value: widget.includeIndie ?? false,

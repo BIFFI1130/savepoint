@@ -8,6 +8,7 @@ import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/game_sliver_grid.dart';
 import '../../../../core/widgets/game_sliver_list.dart';
 import '../../../../core/widgets/genre_badge_selector.dart';
+import '../../../social/presentation/providers/social_providers.dart';
 import '../../domain/platform_options.dart';
 import '../providers/game_search_providers.dart';
 
@@ -94,6 +95,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
   }
 
   void _openFilterSheet() {
+    final isAdultUser = ref.read(isAdultUserProvider);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -190,6 +192,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
                           ref.read(gameSearchProvider.notifier).setIncludeAdult(value);
                           setSheetState(() {});
                         },
+                        showAdultOption: isAdultUser,
                         includeIndie: _includeIndie,
                         onIncludeIndieChanged: (value) {
                           setState(() => _includeIndie = value);

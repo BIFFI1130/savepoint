@@ -5,7 +5,148 @@
 
 ---
 
-## 2026-08-13（続き）
+## 2026-08-14（続き）
+
+### 対応済み: Android配布テスターをFirebase App Distributionのグループで管理するように変更
+
+- ユーザー要望: 「Androidユーザーへのテスト配布をデータ化したいです（今は一人のユーザーを
+  決め打ち）。App Distributionのテスターをそのまま使えないでしょうか？」
+- 従来`codemagic.yaml`は`firebase appdistribution:distribute`の宛先を
+  `--testers "lanbian38@gmail.com"`と1人決め打ちにしていた。Firebase App Distributionには
+  「テスターグループ」機能があり、グループ名を指定して配布すればグループ内の全テスターに
+  自動配布される（テスターの追加・削除はFirebase側の操作だけで完結し、CIの設定変更は不要）
+  ため、これに切り替えるのが要望に合致すると判断。ユーザーに実行内容を確認の上で対応。
+- Firebase CLI（`firebase appdistribution:groups:create`・`firebase appdistribution:
+  testers:add --group-alias`）でプロジェクト`savepoint-505117`に`testers`という
+  エイリアスのグループ（表示名「テスター」）を新規作成し、既存の2人のテスター
+  （`0ce38f3c2xb491k@ezweb.ne.jp`・`lanbian38@gmail.com`）をそのグループに追加した。
+- `codemagic.yaml`の`firebase appdistribution:distribute`呼び出しを
+  `--testers "lanbian38@gmail.com"`から`--groups "testers"`に変更。今後テスターを
+  増減させたい場合は、Firebaseコンソールの「App Distribution > テスターとグループ」
+  （このユーザーが最初に共有したスクリーンショットの画面）で`testers`グループに
+  テスターを追加・削除するだけでよく、`codemagic.yaml`を触る必要はない。
+- YAML構文はPythonの`yaml.safe_load`で確認済み。`firebase appdistribution:group:list`・
+  `firebase appdistribution:testers:list testers`で2人ともグループに正しく所属している
+  ことを確認済み。次回のCodemagicビルドで実際にこのグループ宛に配布されるかは
+  ローカルでは検証できないため、次回のリリースビルドで確認が必要。
+
+## 2026-08-14
+
+まとめてユーザーから依頼のあった6件のバグ修正・新機能を対応。
+
+### 対応済み: オレの推しゲー — 空状態メッセージの簡素化・未保存確認ダイアログ
+
+- ユーザー要望: 「何も追加されていないとき、『まだ推しゲーが登録されていません』だけで良い」
+  「戻るときに保存してなかったら確認してほしい」。
+- `lib/features/favorites/presentation/screens/favorite_games_edit_screen.dart`:
+  - 空状態の`EmptyView`メッセージから「右下のボタンから追加しましょう」の2行目を削除し、
+    「まだ推しゲーが登録されていません」のみに変更（プロフィール画面側の表示は既に
+    このメッセージのみだったので、編集画面側を合わせた）。
+  - `_hydrate`で初期値（`_initialGameIds`・`_initialRanked`）を保持し、現在の状態と比較する
+    `_isDirty`を追加。画面全体を`PopScope(canPop: !_isDirty)`で包み、`onPopInvokedWithResult`で
+    未保存の変更がある場合のみ確認ダイアログ（「編集内容を破棄しますか？」）を出す。
+    保存成功時は`_initialGameIds`/`_initialRanked`を保存後の値で更新してから`pop()`する
+    （更新しないと、保存直後の自動pop自体が「未保存変更あり」と誤判定されてダイアログが
+    出てしまうため）。
+  - エミュレータで確認: 1件削除→戻る→確認ダイアログ表示→「編集を続ける」で画面に留まる→
+    再度戻る→「破棄する」でDB上の元の内容のまま一覧に戻ることを確認。
+
+### 対応済み: ゲーム詳細画面「遊んだ」ボタンの配色がデフォルトで選択状態に見える
+
+- ユーザー報告: 「『遊んだ』の配色がデフォルトで押されているように見えている。『遊びたい』と
+  同じでいい」。
+- 原因: `_StatusAndLogSection`（`lib/features/game_search/presentation/screens/game_detail_screen.dart`）
+  で「遊んだ」ボタンが常時`FilledButton.icon`だった（記録の有無に関わらず塗りつぶし＝選択中に
+  見える配色）。「遊びたい」ボタンは`isWantToPlay`で`FilledButton`/`OutlinedButton`を
+  切り替えていたのに、「遊んだ」だけ切り替えがなかった。
+- `isPlayed`のとき`FilledButton.icon`（記録を編集する）、そうでないとき`OutlinedButton.icon`
+  （遊んだ）に切り替えるよう修正。エミュレータで未記録のゲームを開き、両ボタンとも
+  アウトライン表示になることを確認。
+
+### 対応済み: igdb-proxy — 成人向け/インディーフィルタがタイトル検索で効かない・Persona 5 Royalが検索に出ない
+
+- ユーザー報告2件: 「検索で『成人向け作品を表示する』『インディー作品を表示する』のフィルターが
+  効いていない気がする」「Persona5 Royalが検索に引っかからない」。原因は両方とも
+  `supabase/functions/igdb-proxy/index.ts`の`search`アクション。
+- **フィルタが効かない件**: 以前のセッションで「タイトル検索時は独自キュレーションフィルタ
+  （成人向け・インディー・非公式作品除外）を一切適用しない」という実装にしていた
+  （検索精度を優先した意図的な変更だったが、結果としてチェックボックスがタイトル検索では
+  常に無視される状態になっていた）。`hasQuery`の有無に関わらず`commonExclusionFilters()`を
+  常に適用するよう統一し、検索・一覧のどちらでもチェックボックスの効果が一貫するようにした。
+- **Persona 5 Royalが出ない件**: `parent_game = null`を無条件に除外条件へ入れていたのが原因。
+  IGDB上「Persona 5 Royal」はgame_type=10（expanded_game）でparent_game=Persona 5と
+  紐付けられており、これが「DLC/アップデート等の付随コンテンツ」除外に誤って巻き込まれていた。
+  `ATTACHMENT_GAME_TYPE_IDS`（1=dlc_addon, 2=expansion, 6=episode, 14=update）を新設し、
+  parent_gameが設定されていてもgame_typeがこれらに該当しない場合（expanded_game/remake/
+  remaster/standalone_expansion/port等、実質的に別ROMの独立タイトル）は除外しないよう変更。
+  従来のDLC重複表示バグ対策（parent_game持ちの本物のDLC除外）は維持されている。
+- `search`アクション内の個別実装を`commonExclusionFilters()`呼び出しに統一し、コードの重複も
+  削減。`npx supabase functions deploy igdb-proxy`でデプロイ済み。curlで動作確認:
+  - `query: "Persona 5 Royal"` → id=114283「Persona 5 Royal」がヒットするようになった。
+  - `query: "HuniePop"`（Erotic + Indie両方に該当）→ `includeAdult`/`includeIndie`ともに
+    falseなら0件、両方trueなら1件ヒット。タイトル検索でもチェックボックスが機能することを確認。
+
+### 対応済み: 生年月オンボーディング・18歳未満への成人向けオプション非表示
+
+- ユーザー要望: 「生年月の登録がされていなければ、起動時に生年月の入力を求める」
+  「登録された生年月が18歳を超えていなければ『成人向け作品を表示する』オプションを表示しない」。
+- **DB**: `supabase/migrations/20260814000000_add_birthdate_to_profiles.sql`で
+  `profiles.birth_year`・`profiles.birth_month`（年・月のみ、日は取得しない）を追加。
+- **年齢判定**: `lib/core/utils/age.dart`に`isAdultBirthYearMonth(year, month)`を新設。
+  日が不明なため、誕生月と同じ月の間は「まだ17歳の可能性がある」として非成人扱いにし、
+  翌月になって初めて成人と判定する安全側の実装
+  （`(now.year - birthYear > 18) || (now.year - birthYear == 18 && now.month > birthMonth)`）。
+- **強制オンボーディング**: `lib/core/onboarding/birthdate_gate.dart`
+  （`UsernameGateController`と同じ設計）と`lib/features/social/presentation/screens/
+  birthdate_onboarding_screen.dart`（`PopScope(canPop: false)`、生年・生月のドロップダウン2つ）
+  を新規実装。`app_router.dart`のredirectに、ユーザーID設定済みの場合のみ続けて生年月をチェック
+  するロジックを追加（`/onboarding/birthdate`ルート）。
+- **成人向けオプションの非表示**: `lib/features/social/presentation/providers/
+  social_providers.dart`に`isAdultUserProvider`（`myProfileProvider`の生年月から算出）を追加。
+  `AdvancedFiltersSection`（`lib/core/widgets/advanced_filters_section.dart`）に
+  `showAdultOption`フラグを追加し、falseなら「成人向け作品を表示する」チェックボックス自体を
+  描画しない。呼び出し元5箇所（検索・トレンド・カレンダー・ホームの一覧・マイログ）すべてに
+  `showAdultOption: (ref.watch|ref.read)(isAdultUserProvider)`を渡した。トレンド画面のみ
+  `StatefulWidget`だったため`ConsumerStatefulWidget`に変更が必要だった。
+- 既存テストアカウント`test1`（birth_year=2000, birth_month=11、既に設定済みだった）を使い、
+  一時的に生年月をnullにしてエミュレータで確認: ①起動時に生年月入力画面が強制表示される
+  ②戻るボタンでは閉じられない ③2016年1月（18歳未満）で保存すると検索画面の「詳しい条件」に
+  「成人向け作品を表示する」が表示されなくなる（「インディー作品を表示する」は表示されたまま）
+  ことを確認。確認後、test1の生年月は元の値（2000年11月）に復元済み。
+
+### 対応済み: igdb-proxy — 表示するgame_typeをホワイトリスト方式に変更
+
+- ユーザー要望: 「Bundle, DLC, Update, Pack/Addon, Mod は表示しないようにしてください。
+  （Main Game, Expansion, Remake, Expanded Gameのみ）」。
+- 直前の対応で導入した`ATTACHMENT_GAME_TYPE_IDS`（除外リスト方式）と既存の
+  `UNOFFICIAL_GAME_TYPE_IDS`（mod/fork除外）を統合し、`ALLOWED_GAME_TYPE_IDS = [0, 2, 8, 10]`
+  （main_game/expansion/remake/expanded_game）のホワイトリスト方式に変更。
+  `commonExclusionFilters()`のgame_type条件を
+  `(game_type = null | game_type = (0,2,8,10))`に一本化（game_type未設定の作品は
+  引き続き許可）。これによりBundle(3)・DLC/addon(1)・standalone_expansion(4)・
+  episode(6)・season(7)・remaster(9)・port(11)・fork(12)・pack(13)・update(14)は
+  ユーザー指定のリストに含まれないものも含めすべて除外される。
+- `npx supabase functions deploy igdb-proxy`でデプロイ済み。curlで確認:
+  「Persona 5 Royal」検索で本編のみ表示され「Persona 5 Royal: Persona Bundle」が
+  消えたこと、「Monster Hunter Rise Title Update」で0件になったこと、
+  「Cyberpunk 2077」で本編のみ表示されることを確認。
+
+### 対応済み: 「遊びたい」ボタンをトグル化（もう一度押すと解除）
+
+- ユーザー要望: 「『遊びたい』は押されている状態で再び押すと解除されてほしい」。
+- `game_detail_screen.dart`の`_markWantToPlay`を`_toggleWantToPlay(GameLog? log)`に変更。
+  現在の記録が`GameLogStatus.wantToPlay`のときは`logRepository.deleteLog(log.id)`で記録ごと
+  削除して解除し、それ以外（未登録・遊んだ済み）のときは従来通り`markWantToPlay`で登録する。
+  「遊びたい」記録は評価・レビューを持たない前提のため、解除＝削除で問題ない
+  （もし評価・レビュー付きの「遊んだ」記録だった場合はこの分岐に入らないため消えない）。
+- エミュレータで確認: 未記録タイトルで「遊びたい」→「遊びたい登録済み」（塗りつぶし）に変化→
+  もう一度タップ→「遊びたい」（アウトライン）に戻り、「記録を削除する」ボタンも消えて
+  記録が完全に解除されたことを確認。
+
+### 補足: flutter analyze・全体確認
+
+- 上記すべてのDart変更後、`flutter analyze`をプロジェクト全体に対して実行し、新規の
+  warning/errorがないことを確認（既存の`onReorder`非推奨警告のみ残存、対応不要）。
 
 ### 対応済み: CodemagicのCIビルド時間短縮（ビルド5分・パブリッシュ1分30秒だった）
 

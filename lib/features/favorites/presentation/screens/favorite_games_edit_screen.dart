@@ -36,11 +36,50 @@ class _FavoriteGamesEditScreenState
   List<_FavoriteSlot>? _slots;
   bool _ranked = true;
   bool _isSaving = false;
+  List<int>? _initialGameIds;
+  bool _initialRanked = true;
 
   void _hydrate(List<_FavoriteSlot> slots, bool ranked) {
     if (_slots != null) return;
     _slots = slots;
     _ranked = ranked;
+    _initialGameIds = slots.map((s) => s.gameId).toList();
+    _initialRanked = ranked;
+  }
+
+  /// 保存していない変更があるかどうか（並び替え・追加・削除・順位あり設定の変更を含む）。
+  bool get _isDirty {
+    final slots = _slots;
+    final initialIds = _initialGameIds;
+    if (slots == null || initialIds == null) return false;
+    if (_ranked != _initialRanked) return true;
+    final currentIds = slots.map((s) => s.gameId).toList();
+    if (currentIds.length != initialIds.length) return true;
+    for (var i = 0; i < currentIds.length; i++) {
+      if (currentIds[i] != initialIds[i]) return true;
+    }
+    return false;
+  }
+
+  Future<bool> _confirmDiscard() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('編集内容を破棄しますか？'),
+        content: const Text('保存していない変更があります。このまま戻ると変更は失われます。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('編集を続ける'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('破棄する'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
   Future<void> _addGame() async {
@@ -83,6 +122,8 @@ class _FavoriteGamesEditScreenState
             ranked: _ranked,
           );
       ref.invalidate(myFavoritesProvider);
+      _initialGameIds = _slots!.map((s) => s.gameId).toList();
+      _initialRanked = _ranked;
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -104,140 +145,150 @@ class _FavoriteGamesEditScreenState
   Widget build(BuildContext context) {
     final favoritesAsync = ref.watch(myFavoritesProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('オレの推しゲーを編集'),
-        actions: [
-          TextButton(
-            onPressed: (_slots == null || _isSaving) ? null : _save,
-            child: _isSaving
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('保存'),
-          ),
-        ],
-      ),
-      body: favoritesAsync.when(
-        data: (favorites) {
-          _hydrate([
-            for (final f in favorites)
-              _FavoriteSlot(
-                gameId: f.gameId,
-                name: f.displayGameName,
-                coverUrl: f.gameCoverUrl,
-              ),
-          ], favorites.isEmpty ? true : favorites.first.favoritesRanked);
-          final slots = _slots!;
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(value: true, label: Text('順位あり')),
-                    ButtonSegment(value: false, label: Text('順不同')),
-                  ],
-                  selected: {_ranked},
-                  onSelectionChanged: (selection) =>
-                      setState(() => _ranked = selection.first),
+    return PopScope(
+      canPop: !_isDirty,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldPop = await _confirmDiscard();
+        if (shouldPop && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('オレの推しゲーを編集'),
+          actions: [
+            TextButton(
+              onPressed: (_slots == null || _isSaving) ? null : _save,
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('保存'),
+            ),
+          ],
+        ),
+        body: favoritesAsync.when(
+          data: (favorites) {
+            _hydrate([
+              for (final f in favorites)
+                _FavoriteSlot(
+                  gameId: f.gameId,
+                  name: f.displayGameName,
+                  coverUrl: f.gameCoverUrl,
                 ),
-              ),
-              Expanded(
-                child: slots.isEmpty
-                    ? const EmptyView(
-                        message: 'まだ推しゲーが登録されていません\n右下のボタンから追加しましょう',
-                        icon: Icons.favorite_border,
-                      )
-                    : ReorderableListView.builder(
-                        buildDefaultDragHandles: false,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        itemCount: slots.length,
-                        onReorder: _onReorder,
-                        itemBuilder: (context, index) {
-                          final slot = slots[index];
-                          return ListTile(
-                            key: ValueKey(slot.gameId),
-                            leading: _ranked
-                                ? CircleAvatar(child: Text('${index + 1}'))
-                                : const Icon(
-                                    Icons.favorite,
-                                    color: Colors.pink,
-                                  ),
-                            title: Row(
-                              children: [
-                                CoverImage(
-                                  url: slot.coverUrl,
-                                  width: 32,
-                                  height: 44,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(child: Text(slot.name)),
-                              ],
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.arrow_upward),
-                                  iconSize: 20,
-                                  visualDensity: VisualDensity.compact,
-                                  tooltip: '上へ移動',
-                                  onPressed: index == 0
-                                      ? null
-                                      : () => _moveBy(index, -1),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.arrow_downward),
-                                  iconSize: 20,
-                                  visualDensity: VisualDensity.compact,
-                                  tooltip: '下へ移動',
-                                  onPressed: index == slots.length - 1
-                                      ? null
-                                      : () => _moveBy(index, 1),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.close),
-                                  visualDensity: VisualDensity.compact,
-                                  tooltip: '削除',
-                                  onPressed: () => _removeAt(index),
-                                ),
-                                ReorderableDragStartListener(
-                                  index: index,
-                                  child: const Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                    ),
-                                    child: Icon(Icons.drag_handle),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: FilledButton.icon(
-                  onPressed: slots.length >= _maxFavorites ? null : _addGame,
-                  icon: const Icon(Icons.add),
-                  label: Text(
-                    slots.length >= _maxFavorites
-                        ? '最大5件まで登録できます'
-                        : 'ゲームを追加（${slots.length}/$_maxFavorites）',
+            ], favorites.isEmpty ? true : favorites.first.favoritesRanked);
+            final slots = _slots!;
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(value: true, label: Text('順位あり')),
+                      ButtonSegment(value: false, label: Text('順不同')),
+                    ],
+                    selected: {_ranked},
+                    onSelectionChanged: (selection) =>
+                        setState(() => _ranked = selection.first),
                   ),
                 ),
-              ),
-            ],
-          );
-        },
-        loading: () => const LoadingView(),
-        error: (error, _) => ErrorView(
-          message: '推しゲーの取得に失敗しました',
-          onRetry: () => ref.invalidate(myFavoritesProvider),
+                Expanded(
+                  child: slots.isEmpty
+                      ? const EmptyView(
+                          message: 'まだ推しゲーが登録されていません',
+                          icon: Icons.favorite_border,
+                        )
+                      : ReorderableListView.builder(
+                          buildDefaultDragHandles: false,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          itemCount: slots.length,
+                          onReorder: _onReorder,
+                          itemBuilder: (context, index) {
+                            final slot = slots[index];
+                            return ListTile(
+                              key: ValueKey(slot.gameId),
+                              leading: _ranked
+                                  ? CircleAvatar(child: Text('${index + 1}'))
+                                  : const Icon(
+                                      Icons.favorite,
+                                      color: Colors.pink,
+                                    ),
+                              title: Row(
+                                children: [
+                                  CoverImage(
+                                    url: slot.coverUrl,
+                                    width: 32,
+                                    height: 44,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: Text(slot.name)),
+                                ],
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.arrow_upward),
+                                    iconSize: 20,
+                                    visualDensity: VisualDensity.compact,
+                                    tooltip: '上へ移動',
+                                    onPressed: index == 0
+                                        ? null
+                                        : () => _moveBy(index, -1),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.arrow_downward),
+                                    iconSize: 20,
+                                    visualDensity: VisualDensity.compact,
+                                    tooltip: '下へ移動',
+                                    onPressed: index == slots.length - 1
+                                        ? null
+                                        : () => _moveBy(index, 1),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.close),
+                                    visualDensity: VisualDensity.compact,
+                                    tooltip: '削除',
+                                    onPressed: () => _removeAt(index),
+                                  ),
+                                  ReorderableDragStartListener(
+                                    index: index,
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                      ),
+                                      child: Icon(Icons.drag_handle),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: FilledButton.icon(
+                    onPressed: slots.length >= _maxFavorites ? null : _addGame,
+                    icon: const Icon(Icons.add),
+                    label: Text(
+                      slots.length >= _maxFavorites
+                          ? '最大5件まで登録できます'
+                          : 'ゲームを追加（${slots.length}/$_maxFavorites）',
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+          loading: () => const LoadingView(),
+          error: (error, _) => ErrorView(
+            message: '推しゲーの取得に失敗しました',
+            onRetry: () => ref.invalidate(myFavoritesProvider),
+          ),
         ),
       ),
     );

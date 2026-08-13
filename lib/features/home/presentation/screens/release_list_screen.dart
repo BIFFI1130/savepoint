@@ -7,6 +7,7 @@ import '../../../../core/widgets/game_sliver_grid.dart';
 import '../../../../core/widgets/game_sliver_list.dart';
 import '../../../../core/widgets/genre_badge_selector.dart';
 import '../../../game_search/domain/platform_options.dart';
+import '../../../social/presentation/providers/social_providers.dart';
 import '../providers/home_providers.dart';
 
 /// ホーム画面の各セクション（今週発売・今月発売・IGDB TOP100）に対応する一覧種別。
@@ -171,6 +172,7 @@ class _ReleaseListScreenState extends ConsumerState<ReleaseListScreen> {
             includeAdult: _includeAdult,
             onIncludeAdultChanged: (value) =>
                 setState(() => _includeAdult = value),
+            showAdultOption: ref.watch(isAdultUserProvider),
             includeIndie: _includeIndie,
             onIncludeIndieChanged: (value) =>
                 setState(() => _includeIndie = value),

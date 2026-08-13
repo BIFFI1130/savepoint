@@ -9,6 +9,7 @@ import '../../../../core/widgets/genre_badge_selector.dart';
 import '../../../../core/widgets/star_rating.dart';
 import '../../../favorites/presentation/providers/favorite_providers.dart';
 import '../../../favorites/presentation/widgets/favorite_games_list.dart';
+import '../../../social/presentation/providers/social_providers.dart';
 import '../../domain/game_log.dart';
 import '../providers/log_providers.dart';
 
@@ -96,6 +97,7 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
   }
 
   void _openFilterSheet() {
+    final isAdultUser = ref.read(isAdultUserProvider);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -154,6 +156,7 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
                           setState(() => _includeAdult = value);
                           setSheetState(() {});
                         },
+                        showAdultOption: isAdultUser,
                       ),
                     ],
                   ),

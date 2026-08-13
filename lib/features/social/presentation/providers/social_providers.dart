@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/utils/age.dart';
 import '../../data/social_repository.dart';
 import '../../domain/follow_feed_entry.dart';
 import '../../domain/social_profile.dart';
@@ -11,6 +12,13 @@ final socialRepositoryProvider = Provider<SocialRepository>((ref) {
 /// 自分のプロフィール（ユーザーID・表示名・公開設定）。
 final myProfileProvider = FutureProvider<SocialProfile?>((ref) async {
   return ref.read(socialRepositoryProvider).fetchMyProfile();
+});
+
+/// 自分が生年月から確実に18歳以上と判定できるかどうか。未取得・未設定の間はfalse
+/// （成人向け作品を表示する選択肢を出さない、安全側の初期値）。
+final isAdultUserProvider = Provider<bool>((ref) {
+  final profile = ref.watch(myProfileProvider).valueOrNull;
+  return isAdultBirthYearMonth(profile?.birthYear, profile?.birthMonth);
 });
 
 /// 指定ユーザーのプロフィール。

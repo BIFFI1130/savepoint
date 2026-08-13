@@ -37,12 +37,15 @@ const ADULT_THEME_NAME = 'Erotic';
 const ADULT_THEME_ID = 42;
 const SEARCH_PAGE_SIZE = 24;
 /**
- * IGDBのgame_type値のうち、MOD・ROMハック等の非公式派生作品を示すもの
- * （5=mod, 12=fork）。category（旧フィールド）は未設定の作品が多く実用に
- * ならなかったため、より網羅的に値が入っているgame_typeを使う。
- * 一覧・週間新作の両方でこれらを除外する。
+ * IGDBのgame_type値のうち、一覧・検索に表示してよい「独立した作品」を示すものだけを
+ * 許可するホワイトリスト（0=main_game, 2=expansion, 8=remake, 10=expanded_game）。
+ * これ以外（1=dlc_addon, 3=bundle, 4=standalone_expansion, 5=mod, 6=episode,
+ * 7=season, 9=remaster, 11=port, 12=fork, 13=pack）はすべて除外する。
+ * category（旧フィールド）は未設定の作品が多く実用にならなかったため、より網羅的に
+ * 値が入っているgame_typeを使う。game_typeそのものが未設定（null）の作品も一部あるため、
+ * nullは許可した上で、上記リスト外の値だけを除外する。
  */
-const UNOFFICIAL_GAME_TYPE_IDS = [5, 12];
+const ALLOWED_GAME_TYPE_IDS = [0, 2, 8, 10];
 
 /**
  * IGDBのkeywords（タグ）IDのうち、ROMハック・ファンゲーム等の非公式作品に
@@ -488,7 +491,8 @@ function parseStringListParam(arrValue: unknown, singularValue: unknown): string
 
 /**
  * 一覧系アクション（search/weekly_releases/monthly_releases/top100）で共通して
- * 適用する除外フィルタ（成人向け・インディー・別バージョン・DLC・非公式作品）。
+ * 適用する除外フィルタ（成人向け・インディー・別バージョン・DLC/Bundle/Pack/Mod等の
+ * 非公式・付随作品）。game_typeはALLOWED_GAME_TYPE_IDSのホワイトリストで絞り込む。
  * [excludeIndie] はジャンルフィルタで明示的に「インディー」が選ばれている場合など、
  * 呼び出し側でインディー除外を無効化したい場合にfalseを渡す。
  */
@@ -505,9 +509,8 @@ function commonExclusionFilters(
     filters.push(`genres != (${INDIE_GENRE_ID})`);
   }
   filters.push('version_parent = null');
-  filters.push('parent_game = null');
   filters.push(
-    `(game_type = null | game_type != (${UNOFFICIAL_GAME_TYPE_IDS.join(',')}))`,
+    `(game_type = null | game_type = (${ALLOWED_GAME_TYPE_IDS.join(',')}))`,
   );
   filters.push(`keywords != (${UNOFFICIAL_KEYWORD_IDS.join(',')})`);
   return filters;
@@ -599,55 +602,16 @@ Deno.serve(async (req) => {
         filters.push(`first_release_date <= ${nowUnix}`);
       }
 
-      // 「～Collector's Edition」「～Bundle」等、既存タイトルの別バージョンとして
-      // IGDBがversion_parentで紐付けている作品は常に一覧から除外し、本編のみを表示する。
-      filters.push('version_parent = null');
-
-      // DLC・アップデート・追加エピソード等、既存タイトルにparent_gameで
-      // 紐付けられている作品も常に除外する（例: 「Monster Hunter Rise: Title Update 3」は
-      // 「Monster Hunter Rise」に、「Honkai: Star Rail - ○○」も本編にまとめる）。
-      // 起動する本体（ROM）が変わらない追加コンテンツは本編の記録に一本化する方針。
-      // タイトル検索時にこれを外すと、DLC/アップデートが本編と別の検索結果として
-      // 再び表示されてしまう不具合が過去に発生したため、hasQueryの有無に関わらず
-      // 常時適用する。
-      filters.push('parent_game = null');
-
-      // タイトル検索（hasQuery）時は、以下の独自キュレーションフィルタを一切適用せず、
-      // IGDBの`search`結果をそのまま返す。カテゴリ探索（ジャンル・ハード等での一覧）
-      // では引き続き適用する。
-      //
-      // これらのフィルタ（インディー除外・非公式作品除外・成人向け除外）は
-      // 「一覧をきれいに見せる」ためのキュレーションであり、タイトルを直接検索している
-      // ときに適用すると、本来ヒットすべき作品（インディー作品・IGDB側のgame_type
-      // タグ付けが実態と異なる作品など）が検索結果から消えてしまい、「検索しても
-      // ヒットしない＝検索精度が悪い」という体感につながっていた。
-      // ただし version_parent/parent_game（別バージョン・DLC/アップデートの除外）は
-      // 「起動する本体が変わらない付随作品を本編に一本化する」という別の目的のフィルタ
-      // であり、検索精度とは無関係のため、上記の通り常に適用する。
-      if (!hasQuery) {
-        // デフォルトでは成人向け（Eroticテーマ）の作品を除外する。
-        if (includeAdult !== true) {
-          filters.push(`themes != (${ADULT_THEME_ID})`);
-        }
-
-        // デフォルトではインディー作品を除外する。ただし、ジャンルフィルタで
-        // 明示的に「インディー」が選択されている場合は除外しない。
-        if (includeIndie !== true && !genreList.includes('Indie')) {
-          filters.push(`genres != (${INDIE_GENRE_ID})`);
-        }
-
-        // MOD・ROMハック・ファンゲーム等の非公式作品を除外する。
-        // game_typeが未設定の作品も一部あるため、「game_type != (...)」単体だと
-        // IGDB側でnullとの比較がfalse扱いになりgame_type未設定の正規タイトルまで
-        // 一覧から消えてしまう。nullは許可した上でmod/forkだけを除外する。
-        filters.push(
-          `(game_type = null | game_type != (${UNOFFICIAL_GAME_TYPE_IDS.join(',')}))`,
-        );
-        // game_typeが未設定のままROMハック・ファンゲームとして扱われている作品も
-        // あるため、keywordsタグでも二重に除外する（to-many型フィールドへの
-        // 「!= (idリスト)」は要素が1件もその値と一致しなければtrueになる仕様）。
-        filters.push(`keywords != (${UNOFFICIAL_KEYWORD_IDS.join(',')})`);
-      }
+      // 成人向け・インディー・別バージョン・DLC/アップデート・非公式作品の除外は、
+      // カテゴリ探索だけでなくタイトル検索（hasQuery）時も含めて常に適用する。
+      // 以前はタイトル検索時にこれらを一切適用しない実装だったが、そうすると
+      // 「成人向け作品を表示する」「インディー作品を表示する」チェックボックスが
+      // タイトル検索では見た目上まったく効かない状態になってしまっていた
+      // （オフのままでも検索結果に混ざる）。チェックボックスの効果を検索・一覧の
+      // どちらでも一貫させるため、commonExclusionFiltersに統一する。
+      filters.push(
+        ...commonExclusionFilters(includeAdult, includeIndie, !genreList.includes('Indie')),
+      );
 
       const clauses = [`fields ${SEARCH_FIELDS}`];
       let translatedQuery = '';

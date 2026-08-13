@@ -30,10 +30,17 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
   /// nullなら何も表示していない状態。
   String? _expandedGenre;
 
-  Future<void> _markWantToPlay() async {
+  /// 「遊びたい」ボタンのトグル動作。既に「遊びたい」登録済みなら記録ごと削除して解除する
+  /// （遊びたい記録は評価・レビューを持たないため、解除＝削除で問題ない）。
+  /// それ以外（未登録・遊んだ済み）の場合は「遊びたい」として登録する。
+  Future<void> _toggleWantToPlay(GameLog? log) async {
     setState(() => _isUpdatingStatus = true);
     try {
-      await ref.read(logRepositoryProvider).markWantToPlay(widget.gameId);
+      if (log != null && log.status == GameLogStatus.wantToPlay) {
+        await ref.read(logRepositoryProvider).deleteLog(log.id);
+      } else {
+        await ref.read(logRepositoryProvider).markWantToPlay(widget.gameId);
+      }
       ref.invalidate(existingLogProvider(widget.gameId));
       ref.invalidate(myLogsProvider);
     } catch (_) {
@@ -191,7 +198,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                       gameId: widget.gameId,
                       log: log,
                       isUpdatingStatus: _isUpdatingStatus,
-                      onMarkWantToPlay: _markWantToPlay,
+                      onMarkWantToPlay: () => _toggleWantToPlay(log),
                       onDelete: log == null ? null : () => _deleteLog(log),
                     ),
                     loading: () => const SizedBox(
@@ -528,13 +535,17 @@ class _StatusAndLogSection extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: FilledButton.icon(
-                onPressed: () => context.push('/games/$gameId/log'),
-                icon: Icon(
-                  isPlayed ? Icons.edit_outlined : Icons.videogame_asset,
-                ),
-                label: Text(isPlayed ? '記録を編集する' : '遊んだ'),
-              ),
+              child: isPlayed
+                  ? FilledButton.icon(
+                      onPressed: () => context.push('/games/$gameId/log'),
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('記録を編集する'),
+                    )
+                  : OutlinedButton.icon(
+                      onPressed: () => context.push('/games/$gameId/log'),
+                      icon: const Icon(Icons.videogame_asset),
+                      label: const Text('遊んだ'),
+                    ),
             ),
           ],
         ),

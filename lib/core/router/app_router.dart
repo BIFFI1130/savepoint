@@ -14,6 +14,7 @@ import '../../features/calendar/presentation/screens/release_calendar_screen.dar
 import '../../features/game_log/presentation/screens/log_review_screen.dart';
 import '../../features/home/presentation/providers/home_providers.dart';
 import '../../features/home/presentation/screens/release_list_screen.dart';
+import '../../features/social/presentation/screens/birthdate_onboarding_screen.dart';
 import '../../features/social/presentation/screens/my_profile_screen.dart';
 import '../../features/social/presentation/screens/social_feed_screen.dart';
 import '../../features/social/presentation/screens/user_list_screen.dart';
@@ -23,6 +24,7 @@ import '../../features/social/presentation/screens/username_onboarding_screen.da
 import '../../features/summary/presentation/screens/summary_screen.dart';
 import '../../features/timeline/presentation/screens/timeline_screen.dart';
 import '../../features/update/presentation/screens/update_required_screen.dart';
+import '../onboarding/birthdate_gate.dart';
 import '../onboarding/username_gate.dart';
 import '../supabase/supabase_client.dart';
 import '../update/update_gate.dart';
@@ -33,11 +35,14 @@ final routerProvider = Provider<GoRouter>((ref) {
   final refreshStream = GoRouterRefreshStream(supabase.auth.onAuthStateChange);
   ref.onDispose(refreshStream.dispose);
   final usernameGate = ref.read(usernameGateProvider);
+  final birthdateGate = ref.read(birthdateGateProvider);
   final updateGate = ref.read(updateGateProvider);
 
   return GoRouter(
     initialLocation: '/home',
-    refreshListenable: Listenable.merge([refreshStream, usernameGate, updateGate]),
+    refreshListenable: Listenable.merge(
+      [refreshStream, usernameGate, birthdateGate, updateGate],
+    ),
     redirect: (context, state) {
       final isUpdateRoute = state.matchedLocation == '/update-required';
 
@@ -67,6 +72,18 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (usernameGate.needsOnboarding == false && isOnboardingRoute) {
           return '/home';
         }
+
+        // ユーザーIDの設定が済んでいる場合のみ、続けて生年月の入力を確認する
+        // （ユーザーID入力画面の最中に横取りしないようにするため）。
+        final isBirthdateRoute = state.matchedLocation == '/onboarding/birthdate';
+        if (usernameGate.needsOnboarding == false) {
+          if (birthdateGate.needsOnboarding == true && !isBirthdateRoute) {
+            return '/onboarding/birthdate';
+          }
+          if (birthdateGate.needsOnboarding == false && isBirthdateRoute) {
+            return '/home';
+          }
+        }
       }
       return null;
     },
@@ -78,6 +95,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/onboarding/username',
         builder: (context, state) => const UsernameOnboardingScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding/birthdate',
+        builder: (context, state) => const BirthdateOnboardingScreen(),
       ),
       GoRoute(
         path: '/sign-in',

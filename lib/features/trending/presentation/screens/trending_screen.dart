@@ -7,16 +7,17 @@ import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/genre_badge_selector.dart';
 import '../../../game_log/domain/game_log_stats.dart';
+import '../../../social/presentation/providers/social_providers.dart';
 import '../providers/trending_providers.dart';
 
-class TrendingScreen extends StatefulWidget {
+class TrendingScreen extends ConsumerStatefulWidget {
   const TrendingScreen({super.key});
 
   @override
-  State<TrendingScreen> createState() => _TrendingScreenState();
+  ConsumerState<TrendingScreen> createState() => _TrendingScreenState();
 }
 
-class _TrendingScreenState extends State<TrendingScreen> {
+class _TrendingScreenState extends ConsumerState<TrendingScreen> {
   bool _includeAdult = false;
   // Riverpodのfamilyプロバイダーの引数として使うため、Setは常に新しいインスタンスに
   // 差し替える（同一インスタンスをin-placeでadd/removeすると、DartのSetは値の等価性を
@@ -27,6 +28,7 @@ class _TrendingScreenState extends State<TrendingScreen> {
   bool get _hasActiveFilter => _includeAdult || _selectedGenres.isNotEmpty;
 
   void _openFilterSheet() {
+    final isAdultUser = ref.read(isAdultUserProvider);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -83,6 +85,7 @@ class _TrendingScreenState extends State<TrendingScreen> {
                           setState(() => _includeAdult = value);
                           setSheetState(() {});
                         },
+                        showAdultOption: isAdultUser,
                       ),
                     ],
                   ),

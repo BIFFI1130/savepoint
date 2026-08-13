@@ -8,6 +8,8 @@ class SocialProfile {
     this.isPublic = false,
     this.gameHistory,
     this.favoriteGenres = const [],
+    this.birthYear,
+    this.birthMonth,
   });
 
   final String id;
@@ -19,6 +21,10 @@ class SocialProfile {
   final String? gameHistory;
   /// 好きなジャンル（複数選択、genreOptionsの値と対応）。
   final List<String> favoriteGenres;
+  /// 生年（年齢確認用、日は取得しない）。
+  final int? birthYear;
+  /// 生月（1〜12、年齢確認用）。
+  final int? birthMonth;
 
   /// 表示名があればそれを、なければ@ユーザーID、どちらもなければ「名前未設定」を返す。
   String get displayLabel {
@@ -37,6 +43,8 @@ class SocialProfile {
       gameHistory: json['game_history'] as String?,
       favoriteGenres:
           (json['favorite_genres'] as List?)?.cast<String>() ?? const [],
+      birthYear: json['birth_year'] as int?,
+      birthMonth: json['birth_month'] as int?,
     );
   }
 }

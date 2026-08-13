@@ -75,6 +75,15 @@ class SocialRepository {
     await supabase.from('profiles').update({'username': username}).eq('id', _myId);
   }
 
+  /// 生年月（年齢確認用、日は取得しない）を設定する。生年月入力画面（オンボーディング）
+  /// からのみ呼ばれる想定。
+  Future<void> setBirthYearMonth({required int year, required int month}) async {
+    await supabase.from('profiles').update({
+      'birth_year': year,
+      'birth_month': month,
+    }).eq('id', _myId);
+  }
+
   /// プロフィール画像を"avatars"バケットにアップロードし、公開URLをprofiles.avatar_urlに
   /// 保存する。アップロード先は本人のuidをフォルダ名にする（RLSポリシーがこれを前提に
   /// 本人のみ書き込み可としているため）。

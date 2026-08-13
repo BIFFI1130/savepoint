@@ -8,6 +8,7 @@ import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/genre_badge_selector.dart';
 import '../../../game_search/domain/game.dart';
 import '../../../game_search/domain/platform_options.dart';
+import '../../../social/presentation/providers/social_providers.dart';
 import '../providers/calendar_providers.dart';
 
 const _weekdayLabels = ['日', '月', '火', '水', '木', '金', '土'];
@@ -48,6 +49,7 @@ class _ReleaseCalendarScreenState
   }
 
   void _openFilterSheet() {
+    final isAdultUser = ref.read(isAdultUserProvider);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -130,6 +132,7 @@ class _ReleaseCalendarScreenState
                           setState(() => _includeAdult = value);
                           setSheetState(() {});
                         },
+                        showAdultOption: isAdultUser,
                         includeIndie: _includeIndie,
                         onIncludeIndieChanged: (value) {
                           setState(() => _includeIndie = value);
