@@ -91,6 +91,15 @@ flutter run --dart-define-from-file=env/dev.json
 
 Windows上ではChrome（Web）やWindowsデスクトップ向けにまず起動確認ができます。iPhone実機での確認はCodemagic経由になります（下記）。
 
+### 5. dev/prod環境の分離
+
+開発・動作確認は上記の`env/dev.json`（devプロジェクト）を使い、自由にテストアカウントを作ったりデータを触ったりしてよい。本番用に別途「savepoint-prod」Supabaseプロジェクトを用意しており、マイグレーション・Edge Function（`igdb-proxy`・`delete-account`）・Storageバケット構成はdevと同一内容を反映済み。
+
+- 本番プロジェクトの接続情報は`env/prod.json`（git管理対象外、`env/prod.example.json`が雛形）に保存する
+- Codemagic CI（TestFlight・Firebase配信）は、ダッシュボード側の`SUPABASE_VARIABLES`変数グループが本番プロジェクトのURL/anon key/service_role keyを指すように設定する（このリポジトリのyamlにはURL/キー自体は含まれない）
+- 本番プロジェクトに対してマイグレーションを追加する場合は、`supabase db push --project-ref <prod-project-ref> --password <prod-db-password>`のように`--project-ref`を明示して実行し、ローカルの`supabase link`状態（dev向け）を変更しないようにする
+- 本番プロジェクトのDBパスワード・Edge Functionシークレット（TWITCH_CLIENT_ID/SECRET・GOOGLE_TRANSLATE_API_KEY）はパスワードマネージャー等で別途保管すること（Supabase側は書き込み専用のため、後から値を読み出すことはできない）
+
 ---
 
 ## Apple Developer側の設定（Sign in with Apple用）

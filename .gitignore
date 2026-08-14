@@ -47,6 +47,7 @@ app.*.map.json
 # SavePoint: 環境変数・シークレット（Supabase URL/anonキー等）はコミットしない
 /env/*.json
 !/env/dev.example.json
+!/env/prod.example.json
 
 # Supabase CLI
 /supabase/.branches
