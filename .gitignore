@@ -51,3 +51,7 @@ app.*.map.json
 # Supabase CLI
 /supabase/.branches
 /supabase/.temp
+
+# SavePoint: Android本番署名用キーストア・パスワード（絶対にコミットしない）
+/android/app/upload-keystore.jks
+/android/key.properties
