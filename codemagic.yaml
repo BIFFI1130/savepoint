@@ -57,6 +57,10 @@ workflows:
     scripts:
       - name: Get Flutter packages
         script: flutter pub get
+      - name: Run unit tests
+        script: flutter test
+        # ここが失敗した場合はignore_failureを付けていないため、後続のビルド・
+        # パブリッシュ工程は実行されずビルド全体が失敗扱いになる（意図した挙動）。
       - name: Set up code signing settings on Xcode project
         script: |
           # testFlightInternalTestingOnly を付けることで、外部向けベータ版レビューへの
