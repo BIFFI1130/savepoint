@@ -1,0 +1,1 @@
+アカウントを削除&#10;記録・レビューなど全てのデータが完全に削除されます" checkable="false" checked="false" clickable="true" enabled="true" focusable="true" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[42,2085][1038,2295]" /></node></node></node></node></node></node></node></no

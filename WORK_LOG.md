@@ -5,6 +5,41 @@
 
 ---
 
+## 2026-08-14（続き2）
+
+### 対応済み: アプリ内アカウント削除機能を実装（製品版リリース準備 #1）
+
+- 背景: 製品版リリース前の抜け漏れ調査で、Apple/Google審査に必須の「アプリ内アカウント
+  削除」機能が未実装だと判明（設定画面自体が無かった）。ユーザーの指示「1から順番に慎重に
+  実装していってください」を受けて対応。
+- 新規Edge Function `supabase/functions/delete-account/index.ts`: 呼び出し元のJWTを
+  anon keyクライアントで検証して本人確認した上で、service roleで
+  (1) Storage `avatars`バケット配下の本人のアバター画像を削除（ベストエフォート）、
+  (2) `auth.admin.deleteUser`で`auth.users`行を削除。`public.profiles`以下、
+  `game_logs`/`collections`/`collection_games`/`favorite_games`/`follows`/`blocks`/
+  `reports`など本人に紐づく全テーブルは既存の`on delete cascade`FK制約で連鎖削除される
+  （新規マイグレーション不要、既存スキーマの設計で完結）。
+- `lib/features/auth/data/auth_repository.dart`に`deleteAccount()`を追加
+  （Edge Function呼び出し→成功したら`signOut()`）。
+- `lib/features/social/presentation/screens/my_profile_screen.dart`に「アカウント」
+  セクションを新設。「ログアウト」（このアプリに元々無かった導線だったため合わせて追加）と
+  「アカウントを削除」の2項目。削除は誤操作防止のため2段階確認
+  （影響範囲の説明ダイアログ→「削除」と入力しないとボタンが有効化されない最終確認
+  ダイアログ）を経てから実行する設計にした。
+- 検証: Admin APIで使い捨てテストユーザーを作成し、(a) curlでEdge Functionを直接叩いて
+  正常削除・cascade削除・認証ヘッダー無し/不正トークンでの401拒否を確認、
+  (b) 実機（エミュレータ）でアプリ内サインイン→プロフィール画面→ログアウト→
+  アカウント削除の2段階ダイアログ→サインイン画面への自動遷移までUI操作で確認、
+  (c) バックエンド側で`auth.admin`から当該ユーザーが404になっている（完全削除）ことを
+  再度確認。既存の`test1`等の実データには一切手を加えていない。
+- 補足（作業メモ）: エミュレータの日本語Gboardは`adb shell input text`でASCII文字を
+  送ると既存の入力バッファに割り込む・ローマ字未確定のまま残る等の癖があり、加えて
+  漢字を含む文字列（確認ダイアログの「削除」）は`adb shell input text`自体が
+  非ASCII文字でNullPointerExceptionを起こし送信不可だった。最終的に
+  `uiautomator dump`で正確なウィジェット座標を都度取得してタップする方式と、
+  PowerShellの`Set-Clipboard`→エミュレータの共有クリップボード経由でIMEのクリップボード
+  候補チップをタップする方式で確実に操作できた。
+
 ## 2026-08-14（続き）
 
 ### 対応済み: Android配布テスターをFirebase App Distributionのグループで管理するように変更

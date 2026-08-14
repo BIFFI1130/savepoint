@@ -1,0 +1,1 @@
+EditText" package="com.biffi.savepoint" content-desc="" checkable="false" checked="false" clickable="true" enabled="true" focusable="true" focused="true" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[63,862][1017,1009]" /><node index="4" text="" resource-id="" 

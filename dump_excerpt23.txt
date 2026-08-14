@@ -1,0 +1,6 @@
+--- 4028
+w" package="com.biffi.savepoint" content-desc="本当に削除する場合は、下の欄に「削除」と入力してください。" checkable="false" checked="false" clickable="false" enabled="true" focusable="true" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[168,649][912,754]" /><node NAF="true"
+--- 4041
+om.biffi.savepoint" content-desc="本当に削除する場合は、下の欄に「削除」と入力してください。" checkable="false" checked="false" clickable="false" enabled="true" focusable="true" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[168,649][912,754]" /><node NAF="true" index="1" te
+--- 5043
+n" package="com.biffi.savepoint" content-desc="完全に削除する" checkable="false" checked="false" clickable="false" enabled="false" focusable="true" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[527,996][912,1122]" /></node></node></node></node></node><

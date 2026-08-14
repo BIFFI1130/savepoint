@@ -57,6 +57,19 @@ class AuthRepository {
     await _auth.signOut();
   }
 
+  /// ログイン中の自分のアカウントを完全に削除する（Edge Function `delete-account`
+  /// 経由）。プロフィール・記録・コレクション・お気に入り・フォロー関係・アバター画像など
+  /// 本人に紐づく全データがサーバー側で連鎖削除される。取り消しはできない。
+  /// 削除に成功したら、ローカルのセッションも破棄してサインイン画面に戻す。
+  Future<void> deleteAccount() async {
+    final response = await supabase.functions.invoke('delete-account');
+    final data = response.data;
+    if (data is Map && data['error'] != null) {
+      throw AuthException(data['error'].toString());
+    }
+    await signOut();
+  }
+
   String _generateRawNonce([int length = 32]) {
     const charset =
         '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._~';
