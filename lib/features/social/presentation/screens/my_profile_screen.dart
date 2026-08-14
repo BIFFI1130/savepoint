@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/avatar_image.dart';
@@ -125,6 +126,17 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  static const _privacyPolicyUrl =
+      'https://biffi1130.github.io/savepoint/privacy-policy.html';
+  static const _termsOfServiceUrl =
+      'https://biffi1130.github.io/savepoint/terms-of-service.html';
+
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Future<void> _confirmSignOut() async {
@@ -370,6 +382,22 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
               ),
             ),
             const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 8),
+            Text('アプリについて', style: Theme.of(context).textTheme.titleMedium),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.privacy_tip_outlined),
+              title: const Text('プライバシーポリシー'),
+              onTap: () => _openUrl(_privacyPolicyUrl),
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.description_outlined),
+              title: const Text('利用規約'),
+              onTap: () => _openUrl(_termsOfServiceUrl),
+            ),
+            const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 8),
             Text('アカウント', style: Theme.of(context).textTheme.titleMedium),
