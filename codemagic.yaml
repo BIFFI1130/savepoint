@@ -27,6 +27,14 @@ workflows:
         - DISCORD_VARIABLES
         # FIREBASE_TOKEN（firebase appdistribution:distribute の認証用）を含むCodemagic側の変数グループ
         - FIREBASE_VARIABLES
+        # Android本番署名用。以下4つの変数を含むグループ（ダッシュボード名と完全一致させてください）:
+        #   CM_KEYSTORE_PATH      — 「Encrypted file」としてandroid/app/upload-keystore.jksを
+        #                           アップロードする（テキストではなくファイルタイプの変数）
+        #   CM_KEYSTORE_PASSWORD  — キーストアのパスワード
+        #   CM_KEY_ALIAS          — "upload"
+        #   CM_KEY_PASSWORD       — キーのパスワード（このプロジェクトではstore passwordと同じ）
+        # 未設定の場合はdebug鍵にフォールバックする（ビルド自体は失敗しない）。
+        - ANDROID_SIGNING
     cache:
       # Android SDK Platformの再ダウンロード・Gradleの依存解決・CocoaPodsの再取得を
       # ビルド間で省略できるようにし、ビルド時間を短縮する。
@@ -69,6 +77,22 @@ workflows:
           # pubspec.yaml のバージョン番号（+以降のビルド番号）をAndroidのversionCodeとして使う
           ANDROID_BUILD_NUMBER=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d '+' -f 2 | tr -d '[:space:]')
           echo "ANDROID_BUILD_NUMBER=$ANDROID_BUILD_NUMBER" >> $CM_ENV
+      - name: Set up Android signing
+        script: |
+          # ANDROID_SIGNINGグループの変数が揃っている場合のみ android/key.properties を
+          # 生成する。CI機械は毎回使い捨てのため、これを用意しないとAndroidの
+          # ビルドツールが実行のたびに新しいdebug鍵を自動生成してしまい、Firebase
+          # App Distributionのテスターが「アプリを更新できない」（署名不一致）に
+          # 陥る。未設定の場合は何もせず、android/app/build.gradle.ktsの
+          # フォールバック（debug鍵）に任せる。
+          if [ -n "${CM_KEYSTORE_PATH:-}" ]; then
+            printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=%s\n' \
+              "$CM_KEYSTORE_PASSWORD" "$CM_KEY_PASSWORD" "$CM_KEY_ALIAS" "$CM_KEYSTORE_PATH" \
+              > android/key.properties
+            echo "android/key.properties を生成しました（本番鍵で署名します）。"
+          else
+            echo "ANDROID_SIGNINGが未設定のため、debug鍵で署名します。"
+          fi
       - name: Build iOS ipa and Android APK in parallel
         script: |
           # iOS（xcodebuild）とAndroid（Gradle）は別ツールチェーンのため、同一マシン上でも
