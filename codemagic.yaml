@@ -119,15 +119,17 @@ workflows:
               --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
 
             # クラッシュレポート（Crashlytics）のスタックトレースをシンボリケートできるよう、
-            # dSYMをアップロードする。Xcodeのビルドフェーズ編集を使わずCLIで行う方式。
-            # 失敗してもTestFlightへのパブリッシュ自体は継続させる（|| trueで握りつぶす）。
-            if ! command -v firebase >/dev/null 2>&1; then
-              npm install -g firebase-tools
-            fi
+            # dSYMをアップロードする。
+            # 注意: `firebase crashlytics:symbols:upload`（firebase-tools CLI）はAndroid(NDK)の
+            # ネイティブライブラリ（.so）向けのツールで、iOSのdSYM（Swift/Objective-Cの
+            # デバッグ情報）には対応していない（"No native libraries found"で失敗する）。
+            # iOSにはCocoaPodsでインストールされる専用バイナリ ios/Pods/FirebaseCrashlytics/
+            # upload-symbols を使う必要がある（`flutter build ipa`のpod installで導入済み）。
+            # 失敗してもTestFlightへのパブリッシュ自体は継続させる（|| echoで握りつぶす）。
             find build/ios/archive/Runner.xcarchive/dSYMs -name '*.dSYM' -print0 2>/dev/null \
-              | xargs -0 -I{} firebase crashlytics:symbols:upload \
-                  --app 1:763009686501:ios:ead1e95bbacd3613c1ed0c \
-                  --token "$FIREBASE_TOKEN" \
+              | xargs -0 -I{} ios/Pods/FirebaseCrashlytics/upload-symbols \
+                  -gsp ios/Runner/GoogleService-Info.plist \
+                  -p ios \
                   {} || echo "dSYMのアップロードに失敗しましたが、ビルド自体は継続します。"
           ) > /tmp/ios_build.log 2>&1 &
           IOS_BUILD_PID=$!
