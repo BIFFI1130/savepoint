@@ -56,3 +56,8 @@ app.*.map.json
 # SavePoint: Android本番署名用キーストア・パスワード（絶対にコミットしない）
 /android/app/upload-keystore.jks
 /android/key.properties
+
+# SavePoint: adb/uiautomatorでのUI検証時に生成される一時ファイル
+/window_dump.xml
+/window_screenshot.png
+/screenshots/
