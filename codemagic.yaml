@@ -89,6 +89,18 @@ workflows:
               --build-number=$APP_BUILD_NUMBER \
               --dart-define=SUPABASE_URL=$SUPABASE_URL \
               --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+
+            # クラッシュレポート（Crashlytics）のスタックトレースをシンボリケートできるよう、
+            # dSYMをアップロードする。Xcodeのビルドフェーズ編集を使わずCLIで行う方式。
+            # 失敗してもTestFlightへのパブリッシュ自体は継続させる（|| trueで握りつぶす）。
+            if ! command -v firebase >/dev/null 2>&1; then
+              npm install -g firebase-tools
+            fi
+            find build/ios/archive/Runner.xcarchive/dSYMs -name '*.dSYM' -print0 2>/dev/null \
+              | xargs -0 -I{} firebase crashlytics:symbols:upload \
+                  --app 1:763009686501:ios:ead1e95bbacd3613c1ed0c \
+                  --token "$FIREBASE_TOKEN" \
+                  {} || echo "dSYMのアップロードに失敗しましたが、ビルド自体は継続します。"
           ) > /tmp/ios_build.log 2>&1 &
           IOS_BUILD_PID=$!
 

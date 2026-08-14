@@ -1,8 +1,12 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
 import 'core/supabase/supabase_client.dart';
+import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +19,19 @@ Future<void> main() async {
     runApp(_StartupErrorApp(error: error));
     return;
   }
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // デバッグ実行中はCrashlyticsへの送信を無効化し、開発中のエラーでノイズを
+  // 増やさないようにする（TestFlight/Firebase配信のリリースビルドでのみ収集する）。
+  await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(
+    !kDebugMode,
+  );
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  PlatformDispatcher.instance.onError = (error, stackTrace) {
+    FirebaseCrashlytics.instance.recordError(error, stackTrace, fatal: true);
+    return true;
+  };
+
   runApp(const ProviderScope(child: SavePointApp()));
 }
 

@@ -5,6 +5,54 @@
 
 ---
 
+## 2026-08-14（続き3）
+
+### 対応済み: クラッシュレポート（Firebase Crashlytics）導入（製品版リリース準備 #5）
+
+製品版リリース準備の punch list 項目5。既存のFirebaseプロジェクト`savepoint-505117`
+（これまでAndroidのFirebase App Distribution配信専用に使っていたもの）にiOSアプリを
+新規登録し、Flutter側にCrashlyticsを組み込んだ。
+
+- `flutterfire configure`でiOS/Android両方のFirebaseアプリを登録し`lib/firebase_options.dart`
+  を生成。iOS用`GoogleService-Info.plist`は`flutterfire configure`が自動配置しなかったため、
+  `firebase apps:sdkconfig IOS <appId>`で直接ダウンロードして`ios/Runner/`に配置した
+  （Xcodeがない環境のためproject.pbxprojへのリソース登録はできていないが、Dart側の
+  `Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform)`で必要な値は
+  すべて渡されるため、プラグインの動作自体に支障はない）。
+- `flutterfire configure`が`android/settings.gradle.kts`に古いバージョン(4.3.15)の
+  google-services pluginを重複追加し、既存の`android/build.gradle.kts`側の宣言(4.5.0)と
+  バージョン衝突してビルドが失敗する問題が発生。重複分を削除して解消。
+- `pubspec.yaml`に`firebase_core`・`firebase_crashlytics`を追加。`lib/main.dart`で
+  Supabase初期化成功後にFirebaseを初期化し、`FlutterError.onError`と
+  `PlatformDispatcher.instance.onError`をCrashlyticsに接続（Dart側の同期・非同期例外を
+  両方捕捉）。デバッグ実行時（`kDebugMode`）は収集を無効化し、リリースビルドのみ収集する。
+- Android側は`android/build.gradle.kts`・`android/app/build.gradle.kts`にCrashlytics
+  Gradle pluginと`firebase-crashlytics`/`firebase-crashlytics-ndk`依存を追加し、リリース
+  ビルドで`nativeSymbolUploadEnabled = true`を設定（ネイティブ層のクラッシュもシンボリケート
+  可能にする）。
+- iOS側はXcodeのビルドフェーズ編集（dSYMアップロード用Run Script）をWindows環境からは
+  行えないため、代わりに`codemagic.yaml`のiOSビルドステップ内で
+  `firebase crashlytics:symbols:upload`をCLIから実行するようにし、`flutter build ipa`の
+  直後にdSYMをアップロードする（失敗してもTestFlightへのパブリッシュ自体は継続するよう
+  `|| echo ...`で握りつぶす）。
+
+検証:
+- `flutter build apk --release`が成功することを確認（Crashlytics Gradle設定のシンタックス
+  エラーがないことの確認）。
+- Androidエミュレータでリリースビルド（x86_64ターゲットでエミュレータのアーキテクチャに
+  合わせてビルドし直したもの）を実機確認。起動時ログで`FirebaseCrashlytics`・
+  `libcrashlytics`（NDK側ネイティブハンドラ）が正常に初期化されることを確認。
+  `adb shell am crash com.biffi.savepoint`で強制的にクラッシュさせた後、次回起動時に
+  Crashlyticsがローカルのクラッシュレポートファイル（priority-reports配下）を検出し
+  アップロード処理を試みるログを確認した（Firebase Consoleダッシュボードへの反映は
+  数分〜数時間のタイムラグがあるため、実際の反映は別途確認が必要）。
+- `flutter analyze`は既存の無関係な警告のみでクリーン。
+- iOS側は実機/シミュレータでの検証はできなかった（Windows環境のため）。次回のCodemagic
+  ビルドで`firebase crashlytics:symbols:upload`ステップのログを確認し、実際に動作するか
+  確認すること。
+
+---
+
 ## 2026-08-14（続き2）
 
 ### 対応済み: アプリ内アカウント削除機能を実装（製品版リリース準備 #1）

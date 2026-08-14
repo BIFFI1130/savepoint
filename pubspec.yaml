@@ -66,6 +66,8 @@ dependencies:
 
   # 実行中のアプリ自身のビルド番号を取得（TestFlight/Firebase配信での更新チェック用）
   package_info_plus: ^8.1.2
+  firebase_core: ^4.13.0
+  firebase_crashlytics: ^5.2.7
 
 dev_dependencies:
   flutter_test:
