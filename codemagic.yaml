@@ -37,7 +37,14 @@ workflows:
         - $CM_BUILD_DIR/.dart_tool
         - $CM_BUILD_DIR/android/.gradle
         - $HOME/Library/Caches/CocoaPods
-        - /usr/local/share/android-sdk
+        # Android SDK全体（10〜20GB規模、エミュレータイメージ等を含む）を丸ごと
+        # キャッシュするとCleaning up（キャッシュのアップロード）が非常に重くなるため、
+        # 実際にビルドで必要になる部分（プラットフォーム・ビルドツール・ライセンス
+        # 承諾情報）だけをキャッシュ対象にする。これによりcompileSdkVersionが
+        # 上がった際の新規プラットフォームの再ダウンロードも避けられる。
+        - /usr/local/share/android-sdk/platforms
+        - /usr/local/share/android-sdk/build-tools
+        - /usr/local/share/android-sdk/licenses
     scripts:
       - name: Get Flutter packages
         script: flutter pub get
