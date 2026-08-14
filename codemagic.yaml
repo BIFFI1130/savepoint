@@ -51,14 +51,11 @@ workflows:
         # バイナリ（grpc-binary・abseil-cpp-binary等）を捕捉できていなかったため、
         # 実際にSPMが使うキャッシュ先に差し替える。
         - $HOME/Library/Caches/org.swift.swiftpm
-        # Android SDK全体（10〜20GB規模、エミュレータイメージ等を含む）を丸ごと
-        # キャッシュするとCleaning up（キャッシュのアップロード）が非常に重くなるため、
-        # 実際にビルドで必要になる部分（プラットフォーム・ビルドツール・ライセンス
-        # 承諾情報）だけをキャッシュ対象にする。これによりcompileSdkVersionが
-        # 上がった際の新規プラットフォームの再ダウンロードも避けられる。
-        - /usr/local/share/android-sdk/platforms
-        - /usr/local/share/android-sdk/build-tools
-        - /usr/local/share/android-sdk/licenses
+        # Android SDK platforms/build-toolsのキャッシュは以前ここにあったが、
+        # SPMキャッシュ追加後にアーカイブ合計が4.5GBに達しCodemagicの上限(3GB)を
+        # 超過し、キャッシュそのものが毎回破棄される事態になったため外した。
+        # sdkmanagerでの単一プラットフォーム再ダウンロードはGradle/SPMの依存解決
+        # ほど時間がかからないため、優先度の低いこちらを落として3GB以内に収める。
     scripts:
       - name: Get Flutter packages
         script: flutter pub get
