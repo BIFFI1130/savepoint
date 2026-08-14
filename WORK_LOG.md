@@ -5,6 +5,47 @@
 
 ---
 
+## 2026-08-14（続き5）
+
+### 対応済み: igdb-proxyにレート制限を導入（製品版リリース準備 #7）
+
+igdb-proxy Edge Functionは`verify_jwt = true`（supabase/config.toml）が設定されているが、
+これは「有効なJWTが付いているか」の検証でしかなく、アプリに埋め込まれているanon key自体も
+有効なJWTであるため、サインアップ前の呼び出し（＝anon keyさえ入手すれば誰でも）でも
+実質無制限に呼び出せる状態だった。IGDB(Twitch)・Google Translateはこちらの契約枠を
+消費する外部APIのため、大量呼び出しによる枠の消費・コスト増を防ぐ目的でレート制限を追加。
+
+- マイグレーション`20260814030000_add_rate_limit_counters.sql`: `rate_limit_counters`
+  テーブル（key/window_start/request_count）と、それを競合なく増分・判定する
+  `check_rate_limit(p_key, p_limit, p_window_seconds)` RPC関数（SECURITY DEFINER、
+  固定ウィンドウ方式）を追加。
+- マイグレーション`20260814040000_grant_service_role_rate_limit_counters.sql`:
+  動作確認用にservice_roleへselect権限を付与（このプロジェクトはservice_roleへの
+  GRANTが自動では付かない設計のため）。
+- `supabase/functions/igdb-proxy/index.ts`: リクエストの`Authorization`ヘッダーから
+  サインイン済みユーザーかどうかを判定し（`user:<uuid>`）、そうでなければ
+  `x-forwarded-for`のIPアドレス（`ip:<addr>`）を識別子として使うレート制限キーを生成。
+  毎リクエストの先頭で`check_rate_limit`を呼び、1分あたり60回を超えたら429
+  （「リクエストが多すぎます」）を返して以降の処理（IGDB/Twitch呼び出し等）を
+  スキップする。判定自体が失敗した場合は機能を止めないよう許可側に倒す
+  （fail-open）。
+- dev（lsitiazbafrgeyklcckc）・prod（hjqgeewbuwuxwyorceog）両方にマイグレーション適用・
+  関数デプロイ済み。
+
+検証:
+- 通常の1回のリクエストは200で成功することを確認（レート制限が正常系に影響しないこと）。
+- `check_rate_limit` RPCを直接呼び、limit=2で1回目・2回目はtrue、3回目はfalseになる
+  ことを確認（判定ロジック自体の正しさ）。
+- 同一IPから80件を20並列でigdb-proxyに送り、60件超過分が429で拒否される
+  ことを実際のFunction経由で確認。`rate_limit_counters`テーブルの中身
+  （key・window_start・request_countの推移）も直接確認した。
+- 大量並列時に一部リクエストが500になる事象を確認したが、これは既存のTwitch
+  トークン取得処理が極端な同時実行下で不安定になるものと見られ、今回追加した
+  レート制限のロジック自体が原因ではない（通常のアプリ利用でここまでの同時
+  リクエストは発生しない想定のため、深追いはしていない）。
+
+---
+
 ## 2026-08-14（続き4）
 
 ### 対応済み: 通報の運営側確認手段を整備（製品版リリース準備 #6）

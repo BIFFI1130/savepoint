@@ -163,6 +163,54 @@ function serviceRoleClient() {
   );
 }
 
+/**
+ * このFunctionは`verify_jwt = true`（config.toml）だが、これは「有効なJWTが
+ * 付いているか」しか見ておらず、アプリに埋め込まれているanon key自体も有効な
+ * JWTであるため、サインアップ前の呼び出しも技術的には素通りしてしまう。
+ * IGDB/Twitch・Google Translateの利用枠を無関係な大量呼び出しで消費されない
+ * よう、呼び出し元を識別してレート制限をかける。
+ *
+ * サインイン済みユーザーのJWTならuser_id、それ以外（anon keyのみ）は
+ * リクエスト元IPを識別子として使う。
+ */
+async function resolveRateLimitKey(req: Request): Promise<string> {
+  const authHeader = req.headers.get('Authorization');
+  if (authHeader) {
+    try {
+      const callerClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } },
+      );
+      const { data: { user } } = await callerClient.auth.getUser();
+      if (user) return `igdb-proxy:user:${user.id}`;
+    } catch {
+      // 認証エラーの場合はIPベースの識別にフォールバックする。
+    }
+  }
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || req.headers.get('cf-connecting-ip')
+    || 'unknown';
+  return `igdb-proxy:ip:${ip}`;
+}
+
+/** 1分あたりの許容リクエスト数。通常の検索・閲覧操作では十分な余裕を持たせている。 */
+const RATE_LIMIT_PER_MINUTE = 60;
+
+async function checkRateLimit(db: ReturnType<typeof createClient>, key: string): Promise<boolean> {
+  const { data, error } = await db.rpc('check_rate_limit', {
+    p_key: key,
+    p_limit: RATE_LIMIT_PER_MINUTE,
+    p_window_seconds: 60,
+  });
+  if (error) {
+    // レート制限の判定自体が失敗した場合は、機能を止めないよう許可する側に倒す。
+    console.error('check_rate_limit failed', error);
+    return true;
+  }
+  return data === true;
+}
+
 function toBigCoverUrl(url: string | undefined): string | null {
   if (!url) return null;
   const withScheme = url.startsWith('//') ? `https:${url}` : url;
@@ -569,12 +617,20 @@ Deno.serve(async (req) => {
     return new Response('Method Not Allowed', { status: 405 });
   }
 
+  const db = serviceRoleClient();
+  const rateLimitKey = await resolveRateLimitKey(req);
+  if (!(await checkRateLimit(db, rateLimitKey))) {
+    return new Response(
+      JSON.stringify({ error: 'リクエストが多すぎます。しばらく待ってから再度お試しください。' }),
+      { status: 429, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
+
   try {
     const {
       action, query, id, platform, platforms, developer, genre, genres,
       offset, sort, includeUpcoming, includeAdult, includeIndie, year, month, weekStart, days,
     } = await req.json();
-    const db = serviceRoleClient();
     const accessToken = await getTwitchAccessToken(db);
 
     if (action === 'search') {
