@@ -45,7 +45,12 @@ workflows:
         - $HOME/.pub-cache
         - $CM_BUILD_DIR/.dart_tool
         - $CM_BUILD_DIR/android/.gradle
-        - $HOME/Library/Caches/CocoaPods
+        # Firebase導入後、iOS側の依存はCocoaPodsではなくXcodeのSwift Package Managerで
+        # 取得されるようになった（sign_in_with_apple単体はCocoaPods、Firebase一式は
+        # SPM）。CocoaPodsキャッシュはもうダウンロード時間の大部分を占めるFirebase系
+        # バイナリ（grpc-binary・abseil-cpp-binary等）を捕捉できていなかったため、
+        # 実際にSPMが使うキャッシュ先に差し替える。
+        - $HOME/Library/Caches/org.swift.swiftpm
         # Android SDK全体（10〜20GB規模、エミュレータイメージ等を含む）を丸ごと
         # キャッシュするとCleaning up（キャッシュのアップロード）が非常に重くなるため、
         # 実際にビルドで必要になる部分（プラットフォーム・ビルドツール・ライセンス
