@@ -149,3 +149,19 @@ supabase/
 2. Supabase Dashboardでテーブル・RLSポリシー・トリガーが作成されているか確認
 3. `supabase functions invoke igdb-proxy --data '{"action":"search","query":"zelda"}'` などで疎通確認
 4. サインアップ → Sign in with Apple → ゲーム検索 → 詳細表示 → 記録・評価・レビュー投稿 → マイログ一覧に反映されることを実機で確認
+
+## 通報の確認方法（運営向け）
+
+ユーザーからの通報は`reports`テーブルに保存されるが、一般ユーザー（anon/authenticated）には
+一切公開されない（insertのみ許可）。運営は以下のいずれかの方法で確認する。
+
+- Supabase Dashboard → Table Editor → `reports_with_details`（通報者・被通報者のユーザー名を
+  結合した確認用ビュー。未対応`open`のものが上に並ぶ）
+- 同ダッシュボードのSQL Editorから直接クエリしてもよい:
+  ```sql
+  select * from public.reports_with_details where status = 'open';
+  ```
+
+対応したら、`reports`テーブルの該当行を直接編集して`status`を`resolved`（対応済み）または
+`dismissed`（対応不要と判断）に変更し、`resolved_at`・`resolved_note`に対応内容を記録する。
+アプリ側に管理画面は用意していない（通報件数が少ない前提でダッシュボード運用としている）。

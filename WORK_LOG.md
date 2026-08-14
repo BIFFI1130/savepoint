@@ -5,6 +5,36 @@
 
 ---
 
+## 2026-08-14（続き4）
+
+### 対応済み: 通報の運営側確認手段を整備（製品版リリース準備 #6）
+
+`reports`テーブルは以前から存在し「一般ユーザーはinsertのみ、運営はSupabase
+ダッシュボード（service role）から確認する」設計だったが、(1)対応状況を
+追跡する手段がなく、(2)reporter_id/reported_user_idが生のUUIDのままで
+ダッシュボードで見ても誰が誰を通報したのか分からない、という2点が未整備だった。
+
+- マイグレーション`20260814010000_add_report_status_and_admin_view.sql`:
+  `reports`に`status`（open/resolved/dismissed）・`resolved_at`・`resolved_note`
+  を追加し、`reports_with_details`ビュー（reporter/reportedのusername・
+  display_nameを結合、未対応が上に来るソート）を新設。
+- マイグレーション`20260814020000_grant_service_role_reports_view.sql`:
+  このプロジェクトはservice_roleへのGRANTが自動では付かない設計（既存の
+  games/igdb_tokensのGRANT漏れと同じ理由）のため、`reports`のselect/update
+  と`reports_with_details`のselectをservice_roleに明示的に付与。
+- 両マイグレーションをdev（lsitiazbafrgeyklcckc）・prod（hjqgeewbuwuxwyorceog）
+  両方に適用。
+- README「通報の確認方法（運営向け）」を新設し、Table Editor / SQL Editorでの
+  確認手順と、対応後のstatus更新方法を記載。アプリ内に管理画面は作らず、
+  ダッシュボード運用とする方針を明記。
+
+検証: devプロジェクトに実際に残っていた過去のテスト通報2件がservice_role経由で
+`reports_with_details`から正しく（ユーザー名付きで）取得できること、PATCHで
+status更新ができ、ビューの並び順が意図通り変わることを確認。確認後、テストで
+書き換えたstatusは`open`に戻した。
+
+---
+
 ## 2026-08-14（続き3）
 
 ### 対応済み: クラッシュレポート（Firebase Crashlytics）導入（製品版リリース準備 #5）
