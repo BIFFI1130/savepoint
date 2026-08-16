@@ -49,7 +49,7 @@ BIFFI（以下「当方」といいます）は、当方が提供するアプリ
 | Supabase | 認証・データベース・サーバー機能 | アカウント情報、投稿内容 |
 | Apple（Sign in with Apple） | ログイン認証 | Appleが発行する識別子、（同意時）メールアドレス |
 | IGDB / Twitch（Twitch Interactive, Inc.） | ゲーム情報（タイトル・画像・概要等）の取得 | 検索キーワード（ユーザーの個人情報は送信されません） |
-| MyMemory Translation API | ゲーム概要文の日本語自動翻訳 | ゲームの概要文（英語）のみ。ユーザーの個人情報は送信されません |
+| Google Cloud Translation API | ゲーム概要文の日本語自動翻訳 | ゲームの概要文（英語）のみ。ユーザーの個人情報は送信されません |
 
 ## 5. 情報の第三者提供
 
@@ -74,4 +74,4 @@ BIFFI（以下「当方」といいます）は、当方が提供するアプリ
 本ポリシーに関するお問い合わせは、下記までご連絡ください。
 
 - 運営者：BIFFI
-- 連絡先：yuichirobiffi@gmail.com
+- 連絡先：196482015+BIFFI1130@users.noreply.github.com

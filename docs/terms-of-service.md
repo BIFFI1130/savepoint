@@ -60,4 +60,4 @@
 ## 9. お問い合わせ
 
 - 運営者：BIFFI
-- 連絡先：yuichirobiffi@gmail.com
+- 連絡先：196482015+BIFFI1130@users.noreply.github.com
