@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
+import '../../../game_log/domain/game_log.dart';
+import '../../../game_log/presentation/providers/log_providers.dart';
 import '../../../game_search/domain/game.dart';
 import '../../../game_search/presentation/providers/game_search_providers.dart';
 import '../providers/favorite_providers.dart';
@@ -295,7 +297,9 @@ class _FavoriteGamesEditScreenState
   }
 }
 
-/// タイトル検索して推しゲーに追加するゲームを選ぶボトムシート。
+enum _PickerMode { myLogs, search }
+
+/// マイログの「遊んだ」またはタイトル検索から、推しゲーに追加するゲームを選ぶボトムシート。
 class _GameSearchSheet extends ConsumerStatefulWidget {
   const _GameSearchSheet({required this.excludeIds});
 
@@ -311,6 +315,7 @@ class _GameSearchSheetState extends ConsumerState<_GameSearchSheet> {
   List<Game> _results = [];
   bool _isLoading = false;
   String? _error;
+  _PickerMode _mode = _PickerMode.myLogs;
 
   @override
   void dispose() {
@@ -354,6 +359,12 @@ class _GameSearchSheetState extends ConsumerState<_GameSearchSheet> {
     }
   }
 
+  void _pick({required int gameId, required String name, String? coverUrl}) {
+    Navigator.of(
+      context,
+    ).pop(_FavoriteSlot(gameId: gameId, name: name, coverUrl: coverUrl));
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -371,18 +382,42 @@ class _GameSearchSheetState extends ConsumerState<_GameSearchSheet> {
             children: [
               Text('ゲームを追加', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
-              TextField(
-                controller: _controller,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  hintText: 'タイトルで検索',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: _onChanged,
+              SegmentedButton<_PickerMode>(
+                segments: const [
+                  ButtonSegment(
+                    value: _PickerMode.myLogs,
+                    label: Text('マイログから'),
+                    icon: Icon(Icons.videogame_asset),
+                  ),
+                  ButtonSegment(
+                    value: _PickerMode.search,
+                    label: Text('検索する'),
+                    icon: Icon(Icons.search),
+                  ),
+                ],
+                selected: {_mode},
+                onSelectionChanged: (selection) =>
+                    setState(() => _mode = selection.first),
               ),
               const SizedBox(height: 8),
-              Expanded(child: _buildResults()),
+              if (_mode == _PickerMode.search) ...[
+                TextField(
+                  controller: _controller,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    hintText: 'タイトルで検索',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: _onChanged,
+                ),
+                const SizedBox(height: 8),
+              ],
+              Expanded(
+                child: _mode == _PickerMode.myLogs
+                    ? _buildMyLogsResults()
+                    : _buildSearchResults(),
+              ),
             ],
           ),
         ),
@@ -390,7 +425,55 @@ class _GameSearchSheetState extends ConsumerState<_GameSearchSheet> {
     );
   }
 
-  Widget _buildResults() {
+  Widget _buildMyLogsResults() {
+    final logsAsync = ref.watch(myLogsProvider);
+    return logsAsync.when(
+      data: (logs) {
+        final played = logs
+            .where((l) => l.log.status == GameLogStatus.played)
+            .toList()
+          ..sort((a, b) => b.log.createdAt.compareTo(a.log.createdAt));
+        if (played.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'まだ「遊んだ」に登録されたゲームがありません。\n「検索する」から選んでください。',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+        return ListView.separated(
+          itemCount: played.length,
+          separatorBuilder: (context, index) => const Divider(height: 1),
+          itemBuilder: (context, index) {
+            final entry = played[index];
+            final game = entry.game;
+            final alreadyAdded = widget.excludeIds.contains(game.id);
+            return ListTile(
+              leading: CoverImage(url: game.coverUrl, width: 40, height: 56),
+              title: Text(game.displayName),
+              trailing: alreadyAdded
+                  ? const Icon(Icons.check, color: Colors.grey)
+                  : null,
+              onTap: alreadyAdded
+                  ? null
+                  : () => _pick(
+                      gameId: game.id,
+                      name: game.displayName,
+                      coverUrl: game.coverUrl,
+                    ),
+            );
+          },
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => const Center(child: Text('マイログの取得に失敗しました')),
+    );
+  }
+
+  Widget _buildSearchResults() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -414,12 +497,10 @@ class _GameSearchSheetState extends ConsumerState<_GameSearchSheet> {
               : null,
           onTap: alreadyAdded
               ? null
-              : () => Navigator.of(context).pop(
-                  _FavoriteSlot(
-                    gameId: game.id,
-                    name: game.displayName,
-                    coverUrl: game.coverUrl,
-                  ),
+              : () => _pick(
+                  gameId: game.id,
+                  name: game.displayName,
+                  coverUrl: game.coverUrl,
                 ),
         );
       },

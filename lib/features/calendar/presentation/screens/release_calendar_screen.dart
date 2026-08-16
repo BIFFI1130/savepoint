@@ -13,15 +13,12 @@ import '../providers/calendar_providers.dart';
 
 const _weekdayLabels = ['日', '月', '火', '水', '木', '金', '土'];
 
-enum _CalendarViewMode { daily, month }
-
 /// 時刻部分を切り捨て、年月日だけのDateTimeにする。
 DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
 
-/// 発売日をカレンダー形式（月表示）で見る画面。日付セルをタップすると、
-/// その日発売のゲーム一覧をボトムシートで表示する。
-/// 絞り込み条件はAppBarのアイコンから開くボトムシートに置き、本体はカレンダーが
-/// 開いた瞬間から画面いっぱいに見えるようにしている。
+/// 発売日をデイリーカルーセルで見る画面。日付ヘッダーをタップすると月間カレンダーで
+/// 日付にジャンプできる。カードをタップすると、その日発売のゲーム一覧をボトムシートで
+/// 表示する。絞り込み条件はAppBarのアイコンから開くボトムシートに置いている。
 class ReleaseCalendarScreen extends ConsumerStatefulWidget {
   const ReleaseCalendarScreen({super.key});
 
@@ -32,8 +29,6 @@ class ReleaseCalendarScreen extends ConsumerStatefulWidget {
 
 class _ReleaseCalendarScreenState
     extends ConsumerState<ReleaseCalendarScreen> {
-  _CalendarViewMode _viewMode = _CalendarViewMode.daily;
-  late DateTime _visibleMonth = DateTime(DateTime.now().year, DateTime.now().month);
   // Riverpodのfamilyプロバイダーの引数として使うため、Setは常に新しいインスタンスに
   // 差し替える（同一インスタンスをin-placeでadd/removeすると、DartのSetは値の等価性を
   // 持たないためProviderが「引数が変わっていない」と誤認し、再フェッチされなくなる）。
@@ -47,12 +42,6 @@ class _ReleaseCalendarScreenState
       _selectedGenres.isNotEmpty ||
       _includeAdult ||
       _includeIndie;
-
-  void _shiftMonth(int delta) {
-    setState(() {
-      _visibleMonth = DateTime(_visibleMonth.year, _visibleMonth.month + delta);
-    });
-  }
 
   void _openFilterSheet() {
     final isAdultUser = ref.read(isAdultUserProvider);
@@ -225,108 +214,10 @@ class _ReleaseCalendarScreenState
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: SegmentedButton<_CalendarViewMode>(
-              segments: const [
-                ButtonSegment(
-                  value: _CalendarViewMode.daily,
-                  label: Text('デイリー'),
-                  icon: Icon(Icons.view_carousel),
-                ),
-                ButtonSegment(
-                  value: _CalendarViewMode.month,
-                  label: Text('月間'),
-                  icon: Icon(Icons.calendar_view_month),
-                ),
-              ],
-              selected: {_viewMode},
-              onSelectionChanged: (selection) =>
-                  setState(() => _viewMode = selection.first),
-            ),
-          ),
-          Expanded(
-            child: _viewMode == _CalendarViewMode.daily
-                ? _DailyView(
-                    filter: filter,
-                    onDayTap: _showDayGames,
-                  )
-                : _MonthView(
-                    month: _visibleMonth,
-                    filter: filter,
-                    onShiftMonth: _shiftMonth,
-                    onDayTap: _showDayGames,
-                  ),
-          ),
-        ],
+      body: _DailyView(
+        filter: filter,
+        onDayTap: _showDayGames,
       ),
-    );
-  }
-}
-
-class _MonthView extends ConsumerWidget {
-  const _MonthView({
-    required this.month,
-    required this.filter,
-    required this.onShiftMonth,
-    required this.onDayTap,
-  });
-
-  final DateTime month;
-  final CalendarFilter filter;
-  final void Function(int delta) onShiftMonth;
-  final void Function(BuildContext context, DateTime date, List<Game> games) onDayTap;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final request = (year: month.year, month: month.month, filter: filter);
-    final releasesAsync = ref.watch(calendarReleasesProvider(request));
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                onPressed: () => onShiftMonth(-1),
-                icon: const Icon(Icons.chevron_left),
-                tooltip: '前の月',
-              ),
-              SizedBox(
-                width: 140,
-                child: Text(
-                  '${month.year}年${month.month}月',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              IconButton(
-                onPressed: () => onShiftMonth(1),
-                icon: const Icon(Icons.chevron_right),
-                tooltip: '次の月',
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: releasesAsync.when(
-            data: (games) => _MonthGrid(
-              month: month,
-              games: games,
-              onDayTap: onDayTap,
-            ),
-            loading: () => const LoadingView(),
-            error: (error, _) => ErrorView(
-              message: 'カレンダーの取得に失敗しました',
-              onRetry: () => ref.invalidate(calendarReleasesProvider(request)),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -346,10 +237,8 @@ class _DailyView extends ConsumerStatefulWidget {
 }
 
 class _DailyViewState extends ConsumerState<_DailyView> {
-  // 中央のカードに対して左右1枚ずつがほぼ全体、その外側が少し見えるようにする。
-  // カード間の隙間を詰めた分、この値を0.25よりわずかに大きくしてカバー画像自体を
-  // 大きく見せている。
-  static const _viewportFraction = 0.28;
+  // 中央のカードを大きく、その左右はカードの一部だけが覗く程度に留める。
+  static const _viewportFraction = 0.42;
   // 前後 約68年分。実質無制限に近い範囲を、負のインデックスを扱わずに済むよう
   // 大きな固定ページ数として確保する。
   static const _totalPages = 50000;
@@ -390,6 +279,30 @@ class _DailyViewState extends ConsumerState<_DailyView> {
     super.dispose();
   }
 
+  Future<void> _openMonthPicker() async {
+    final firstDate = _epoch;
+    final lastDate = _epoch.add(const Duration(days: _totalPages - 1));
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _centerDay,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      helpText: '日付を選択',
+    );
+    if (picked == null) return;
+    final page = _dateOnly(picked).difference(_epoch).inDays;
+    final currentPage = _controller.page?.round() ?? _todayPage;
+    if ((page - currentPage).abs() <= 14) {
+      _controller.animateToPage(
+        page,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    } else {
+      _controller.jumpToPage(page);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final request = (rangeStart: _windowStart, days: _windowDays, filter: widget.filter);
@@ -402,11 +315,29 @@ class _DailyViewState extends ConsumerState<_DailyView> {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Text(
-            '${_centerDay.year}年${_centerDay.month}月${_centerDay.day}日'
-            '（${_weekdayLabels[_centerDay.weekday % 7]}）',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleMedium,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: _openMonthPicker,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${_centerDay.year}年${_centerDay.month}月${_centerDay.day}日'
+                    '（${_weekdayLabels[_centerDay.weekday % 7]}）',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.calendar_month,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
         Expanded(
@@ -496,8 +427,8 @@ class _DailyCarouselItem extends StatelessWidget {
           final currentPage = controller.page;
           if (currentPage != null) distance = (currentPage - page).abs();
         }
-        final scale = (1 - distance * 0.22).clamp(0.55, 1.0);
-        final opacity = (1 - distance * 0.35).clamp(0.35, 1.0);
+        final scale = (1 - distance * 0.38).clamp(0.4, 1.0);
+        final opacity = (1 - distance * 0.5).clamp(0.25, 1.0);
         return Align(
           alignment: Alignment.topCenter,
           child: Opacity(
@@ -591,142 +522,3 @@ class _DailyCard extends StatelessWidget {
   }
 }
 
-/// 月表示のカレンダーグリッド（日曜始まり）。
-class _MonthGrid extends StatelessWidget {
-  const _MonthGrid({
-    required this.month,
-    required this.games,
-    required this.onDayTap,
-  });
-
-  final DateTime month;
-  final List<Game> games;
-  final void Function(BuildContext context, DateTime date, List<Game> games) onDayTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
-    // Dartのweekdayは月曜=1〜日曜=7。日曜始まりの週にするため%7で0〜6に変換する。
-    final leadingBlanks = DateTime(month.year, month.month, 1).weekday % 7;
-
-    final gamesByDay = <int, List<Game>>{};
-    for (final game in games) {
-      final date = game.firstReleaseDate;
-      if (date == null || date.year != month.year || date.month != month.month) {
-        continue;
-      }
-      gamesByDay.putIfAbsent(date.day, () => []).add(game);
-    }
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Row(
-            children: [
-              for (final label in _weekdayLabels)
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      label,
-                      style: Theme.of(context).textTheme.labelMedium,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: GridView.builder(
-            padding: const EdgeInsets.all(4),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              childAspectRatio: 0.72,
-              crossAxisSpacing: 2,
-              mainAxisSpacing: 2,
-            ),
-            itemCount: leadingBlanks + daysInMonth,
-            itemBuilder: (context, index) {
-              if (index < leadingBlanks) return const SizedBox.shrink();
-              final day = index - leadingBlanks + 1;
-              final dayGames = gamesByDay[day] ?? const [];
-              final today = DateTime.now();
-              final isToday = today.year == month.year &&
-                  today.month == month.month &&
-                  today.day == day;
-              return _DayCell(
-                day: day,
-                games: dayGames,
-                isToday: isToday,
-                onTap: dayGames.isEmpty
-                    ? null
-                    : () => onDayTap(
-                          context,
-                          DateTime(month.year, month.month, day),
-                          dayGames,
-                        ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _DayCell extends StatelessWidget {
-  const _DayCell({
-    required this.day,
-    required this.games,
-    required this.isToday,
-    this.onTap,
-  });
-
-  final int day;
-  final List<Game> games;
-  final bool isToday;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: Theme.of(context).dividerColor,
-          ),
-          color: isToday
-              ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4)
-              : null,
-        ),
-        padding: const EdgeInsets.all(2),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '$day',
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
-            if (games.isNotEmpty)
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: CoverImage(
-                    url: games.first.coverUrl,
-                    width: double.infinity,
-                    height: double.infinity,
-                  ),
-                ),
-              ),
-            if (games.length > 1)
-              Text(
-                '+${games.length - 1}',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(fontSize: 9),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}

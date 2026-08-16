@@ -65,6 +65,106 @@ class _ReleaseListScreenState extends ConsumerState<ReleaseListScreen> {
     });
   }
 
+  bool get _hasActiveFilter =>
+      _selectedPlatforms.isNotEmpty ||
+      _selectedGenres.isNotEmpty ||
+      _includeAdult ||
+      _includeIndie;
+
+  void _openFilterSheet() {
+    final isAdultUser = ref.read(isAdultUserProvider);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            void toggleGenre(String value) {
+              _onGenreTap(value);
+              setSheetState(() {});
+            }
+
+            void togglePlatform(String value) {
+              _onPlatformTap(value);
+              setSheetState(() {});
+            }
+
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.75,
+              minChildSize: 0.4,
+              maxChildSize: 0.95,
+              builder: (context, scrollController) {
+                return SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('絞り込み', style: Theme.of(context).textTheme.titleMedium),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _selectedGenres = {};
+                                _selectedPlatforms = {};
+                                _includeAdult = false;
+                                _includeIndie = false;
+                              });
+                              setSheetState(() {});
+                            },
+                            child: const Text('リセット'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text('ジャンルから探す', style: Theme.of(context).textTheme.labelMedium),
+                      const SizedBox(height: 8),
+                      GenreBadgeSelector(
+                        selectedGenres: _selectedGenres,
+                        onToggle: toggleGenre,
+                      ),
+                      const SizedBox(height: 16),
+                      Text('対応ハード', style: Theme.of(context).textTheme.labelMedium),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final option in platformOptions)
+                            FilterChip(
+                              label: Text(option.$1),
+                              selected: _selectedPlatforms.contains(option.$2),
+                              onSelected: (_) => togglePlatform(option.$2),
+                            ),
+                        ],
+                      ),
+                      AdvancedFiltersSection(
+                        includeAdult: _includeAdult,
+                        onIncludeAdultChanged: (value) {
+                          setState(() => _includeAdult = value);
+                          setSheetState(() {});
+                        },
+                        showAdultOption: isAdultUser,
+                        includeIndie: _includeIndie,
+                        onIncludeIndieChanged: (value) {
+                          setState(() => _includeIndie = value);
+                          setSheetState(() {});
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final filter = (
@@ -82,7 +182,19 @@ class _ReleaseListScreenState extends ConsumerState<ReleaseListScreen> {
     final showRank = widget.type == ReleaseListType.top100;
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.type.title)),
+      appBar: AppBar(
+        title: Text(widget.type.title),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _hasActiveFilter ? Icons.filter_alt : Icons.filter_alt_outlined,
+              color: _hasActiveFilter ? Theme.of(context).colorScheme.primary : null,
+            ),
+            tooltip: '絞り込み',
+            onPressed: _openFilterSheet,
+          ),
+        ],
+      ),
       body: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(child: _buildFilters(context)),
@@ -134,52 +246,7 @@ class _ReleaseListScreenState extends ConsumerState<ReleaseListScreen> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-          child: Text(
-            'ジャンルから探す',
-            style: Theme.of(context).textTheme.labelMedium,
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: GenreBadgeSelector(
-            selectedGenres: _selectedGenres,
-            onToggle: _onGenreTap,
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: Text('対応ハード', style: Theme.of(context).textTheme.labelMedium),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final option in platformOptions)
-                FilterChip(
-                  label: Text(option.$1),
-                  selected: _selectedPlatforms.contains(option.$2),
-                  onSelected: (_) => _onPlatformTap(option.$2),
-                ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: AdvancedFiltersSection(
-            includeAdult: _includeAdult,
-            onIncludeAdultChanged: (value) =>
-                setState(() => _includeAdult = value),
-            showAdultOption: ref.watch(isAdultUserProvider),
-            includeIndie: _includeIndie,
-            onIncludeIndieChanged: (value) =>
-                setState(() => _includeIndie = value),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 8, 8),
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
           child: Align(
             alignment: Alignment.centerRight,
             child: IconButton(
