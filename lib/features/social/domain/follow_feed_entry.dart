@@ -23,7 +23,6 @@ class FollowFeedEntry {
     this.reviewText,
     this.hasSpoiler = false,
     this.isCleared = false,
-    this.clearTimeMinutes,
   });
 
   final String userId;
@@ -41,7 +40,6 @@ class FollowFeedEntry {
   final String? reviewText;
   final bool hasSpoiler;
   final bool isCleared;
-  final int? clearTimeMinutes;
 
   String get userLabel {
     if (displayName != null && displayName!.isNotEmpty) return displayName!;
@@ -69,7 +67,6 @@ class FollowFeedEntry {
       reviewText: json['review_text'] as String?,
       hasSpoiler: json['has_spoiler'] as bool? ?? false,
       isCleared: json['is_cleared'] as bool? ?? false,
-      clearTimeMinutes: json['clear_time_minutes'] as int?,
     );
   }
 }

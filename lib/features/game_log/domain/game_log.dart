@@ -66,7 +66,6 @@ class GameLog {
     this.reviewText,
     this.hasSpoiler = false,
     this.isCleared = false,
-    this.clearTimeMinutes,
     this.priority,
     this.visibility = GameLogVisibility.public,
     required this.createdAt,
@@ -80,7 +79,6 @@ class GameLog {
   final String? reviewText;
   final bool hasSpoiler;
   final bool isCleared;
-  final int? clearTimeMinutes;
   final BacklogPriority? priority;
   final GameLogVisibility visibility;
   final DateTime createdAt;
@@ -95,7 +93,6 @@ class GameLog {
       reviewText: json['review_text'] as String?,
       hasSpoiler: json['has_spoiler'] as bool? ?? false,
       isCleared: json['is_cleared'] as bool? ?? false,
-      clearTimeMinutes: json['clear_time_minutes'] as int?,
       priority: BacklogPriority.fromDb(json['priority'] as int?),
       visibility: GameLogVisibility.fromDb(json['visibility'] as String?),
       createdAt: DateTime.parse(json['created_at'] as String),

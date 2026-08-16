@@ -52,6 +52,9 @@ class Game {
     this.similarGames = const [],
     this.igdbUrl,
     this.officialUrl,
+    this.timeToBeatHastilySeconds,
+    this.timeToBeatNormallySeconds,
+    this.timeToBeatCompletelySeconds,
   });
 
   final int id;
@@ -80,6 +83,18 @@ class Game {
 
   /// 公式サイトのURL（日本語ページらしいものがあれば優先）。
   final String? officialUrl;
+
+  /// IGDBの平均クリア時間（Time To Beat、秒単位）。データが無いゲームも多いため、
+  /// いずれもnullの場合は詳細画面でセクションごと非表示にする。
+  final int? timeToBeatHastilySeconds;
+  final int? timeToBeatNormallySeconds;
+  final int? timeToBeatCompletelySeconds;
+
+  /// 上記いずれか1つでもデータがあれば true。
+  bool get hasTimeToBeat =>
+      timeToBeatHastilySeconds != null ||
+      timeToBeatNormallySeconds != null ||
+      timeToBeatCompletelySeconds != null;
 
   int? get releaseYear => firstReleaseDate?.year;
 
@@ -113,6 +128,9 @@ class Game {
           const [],
       igdbUrl: json['igdb_url'] as String?,
       officialUrl: json['official_url'] as String?,
+      timeToBeatHastilySeconds: json['time_to_beat_hastily_seconds'] as int?,
+      timeToBeatNormallySeconds: json['time_to_beat_normally_seconds'] as int?,
+      timeToBeatCompletelySeconds: json['time_to_beat_completely_seconds'] as int?,
     );
   }
 }

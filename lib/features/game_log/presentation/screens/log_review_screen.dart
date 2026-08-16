@@ -19,7 +19,6 @@ class LogReviewScreen extends ConsumerStatefulWidget {
 
 class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
   final _reviewController = TextEditingController();
-  final _clearHoursController = TextEditingController();
   double _rating = 0;
   bool _hasSpoiler = false;
   bool _isCleared = false;
@@ -30,16 +29,7 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
   @override
   void dispose() {
     _reviewController.dispose();
-    _clearHoursController.dispose();
     super.dispose();
-  }
-
-  /// クリア時間はDB上では分単位（clear_time_minutes）で保持するが、
-  /// 入力・表示は時間単位（小数可）で行う。
-  int? get _clearTimeMinutes {
-    final hours = double.tryParse(_clearHoursController.text.trim());
-    if (hours == null || hours <= 0) return null;
-    return (hours * 60).round();
   }
 
   bool get _hasReview => _rating > 0 || _reviewController.text.trim().isNotEmpty;
@@ -75,7 +65,6 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
                 : _reviewController.text.trim(),
             hasSpoiler: _hasSpoiler,
             isCleared: _isCleared,
-            clearTimeMinutes: _clearTimeMinutes,
             visibility: _visibility,
           );
       ref.invalidate(myLogsProvider);
@@ -158,13 +147,6 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
         _hasSpoiler = existingLog.hasSpoiler;
         _isCleared = existingLog.isCleared;
         _visibility = existingLog.visibility;
-        final minutes = existingLog.clearTimeMinutes;
-        if (minutes != null) {
-          final fixed = (minutes / 60).toStringAsFixed(2);
-          _clearHoursController.text = fixed
-              .replaceFirst(RegExp(r'0+$'), '')
-              .replaceFirst(RegExp(r'\.$'), '');
-        }
       }
     });
 
@@ -194,18 +176,6 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
                   title: const Text('クリアした'),
                   subtitle: const Text('エンディングまで到達した場合はオンにしてください'),
                 ),
-                if (_isCleared) ...[
-                  const SizedBox(height: 4),
-                  TextField(
-                    controller: _clearHoursController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(
-                      labelText: 'クリアまでにかかった時間（時間・任意）',
-                      hintText: '例: 12.5',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ],
                 const SizedBox(height: 16),
                 Text('公開範囲', style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: 4),

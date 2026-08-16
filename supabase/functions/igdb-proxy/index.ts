@@ -425,6 +425,34 @@ async function fetchJapaneseLocalizedNames(
 }
 
 /**
+ * IGDBのgame_time_to_beatsエンドポイントから、指定ゲームの平均クリア時間
+ * （急ぎ/通常/完全、いずれも秒単位）を取得する。該当データが無いゲームも多いため、
+ * 見つからなければnullを返す（呼び出し側はゲーム詳細画面でセクションごと非表示にする）。
+ */
+async function fetchTimeToBeat(
+  accessToken: string,
+  gameId: number,
+): Promise<{ hastily: number | null; normally: number | null; completely: number | null } | null> {
+  const rows = await queryIgdbEndpoint<{
+    game_id: number;
+    hastily?: number;
+    normally?: number;
+    completely?: number;
+  }>(
+    accessToken,
+    'game_time_to_beats',
+    `fields game_id,hastily,normally,completely; where game_id = ${gameId}; limit 1;`,
+  );
+  if (rows.length === 0) return null;
+  const row = rows[0];
+  return {
+    hastily: row.hastily ?? null,
+    normally: row.normally ?? null,
+    completely: row.completely ?? null,
+  };
+}
+
+/**
  * 日本語クエリを英語に翻訳してのIGDB検索が0件だった場合のフォールバック。
  * 「ストッカーの中の死体っていくら？」（原題"How Much for the Body in the
  * Freezer"）のように、機械翻訳では原題から意味的にずれてしまい検索がヒットしない
@@ -792,9 +820,14 @@ Deno.serve(async (req) => {
       const summaryJa = existing?.summary_ja ??
         (row.summary ? await translateToJapanese(row.summary) : null);
 
+      const timeToBeat = await fetchTimeToBeat(accessToken, row.id);
+
       const fullRow = {
         ...row,
         summary_ja: summaryJa,
+        time_to_beat_hastily_seconds: timeToBeat?.hastily ?? null,
+        time_to_beat_normally_seconds: timeToBeat?.normally ?? null,
+        time_to_beat_completely_seconds: timeToBeat?.completely ?? null,
       };
       const { error: upsertError } = await db.from('games').upsert(fullRow);
       if (upsertError) {

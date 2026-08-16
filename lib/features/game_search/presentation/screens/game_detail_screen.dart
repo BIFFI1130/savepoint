@@ -192,6 +192,12 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                           : (game.displaySummary ?? ''),
                     ),
                   ],
+                  if (game.hasTimeToBeat) ...[
+                    const SizedBox(height: 16),
+                    Text('平均クリア時間', style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    _TimeToBeatRow(game: game),
+                  ],
                   const SizedBox(height: 24),
                   logAsync.when(
                     data: (log) => _StatusAndLogSection(
@@ -282,6 +288,48 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
       parts.add('発売: ${game.publishers.join(', ')}');
     }
     return parts.join(' / ');
+  }
+}
+
+/// IGDBの平均クリア時間（Time To Beat）を「急ぎ／通常／完全」の3列で表示する。
+/// データが無い列は「-」を表示し、3列のレイアウト自体は常に揃える。
+class _TimeToBeatRow extends StatelessWidget {
+  const _TimeToBeatRow({required this.game});
+
+  final Game game;
+
+  static String _formatHours(int? seconds) {
+    if (seconds == null) return '-';
+    final hours = (seconds / 3600).round();
+    return '${hours}H';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final labelStyle = Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: Theme.of(context).colorScheme.outline,
+        );
+    final valueStyle = Theme.of(context).textTheme.titleMedium;
+    Widget column(String label, int? seconds) {
+      return Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(label, style: labelStyle),
+            const SizedBox(height: 4),
+            Text(_formatHours(seconds), style: valueStyle),
+          ],
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        column('急ぎ', game.timeToBeatHastilySeconds),
+        column('通常', game.timeToBeatNormallySeconds),
+        column('完全', game.timeToBeatCompletelySeconds),
+      ],
+    );
   }
 }
 
