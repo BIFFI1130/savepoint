@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/preferences/content_filter_prefs.dart';
 import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
@@ -35,14 +36,22 @@ class _ReleaseCalendarScreenState
   // 持たないためProviderが「引数が変わっていない」と誤認し、再フェッチされなくなる）。
   Set<String> _selectedPlatforms = {};
   Set<String> _selectedGenres = {};
-  bool _includeAdult = false;
-  bool _includeIndie = true;
+  late bool _includeAdult;
+  late bool _includeIndie;
 
   bool get _hasActiveFilter =>
       _selectedPlatforms.isNotEmpty ||
       _selectedGenres.isNotEmpty ||
       _includeAdult ||
       !_includeIndie;
+
+  @override
+  void initState() {
+    super.initState();
+    final prefs = ref.read(contentFilterPrefsProvider);
+    _includeAdult = prefs.includeAdult;
+    _includeIndie = prefs.includeIndie;
+  }
 
   void _openFilterSheet() {
     final isAdultUser = ref.read(isAdultUserProvider);
@@ -94,6 +103,9 @@ class _ReleaseCalendarScreenState
                                 _includeAdult = false;
                                 _includeIndie = true;
                               });
+                              final prefs = ref.read(contentFilterPrefsProvider);
+                              prefs.setIncludeAdult(false);
+                              prefs.setIncludeIndie(true);
                               setSheetState(() {});
                             },
                             child: const Text('リセット'),
@@ -126,12 +138,14 @@ class _ReleaseCalendarScreenState
                         includeAdult: _includeAdult,
                         onIncludeAdultChanged: (value) {
                           setState(() => _includeAdult = value);
+                          ref.read(contentFilterPrefsProvider).setIncludeAdult(value);
                           setSheetState(() {});
                         },
                         showAdultOption: isAdultUser,
                         includeIndie: _includeIndie,
                         onIncludeIndieChanged: (value) {
                           setState(() => _includeIndie = value);
+                          ref.read(contentFilterPrefsProvider).setIncludeIndie(value);
                           setSheetState(() {});
                         },
                       ),

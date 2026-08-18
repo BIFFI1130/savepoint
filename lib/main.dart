@@ -3,8 +3,10 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'core/preferences/content_filter_prefs.dart';
 import 'core/supabase/supabase_client.dart';
 import 'firebase_options.dart';
 
@@ -32,7 +34,16 @@ Future<void> main() async {
     return true;
   };
 
-  runApp(const ProviderScope(child: SavePointApp()));
+  final sharedPreferences = await SharedPreferences.getInstance();
+
+  runApp(
+    ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+      ],
+      child: const SavePointApp(),
+    ),
+  );
 }
 
 class _StartupErrorApp extends StatelessWidget {

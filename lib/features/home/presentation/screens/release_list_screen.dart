@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/preferences/content_filter_prefs.dart';
 import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/game_sliver_grid.dart';
@@ -46,9 +47,17 @@ class _ReleaseListScreenState extends ConsumerState<ReleaseListScreen> {
   late Set<String> _selectedGenres = {
     ...?widget.initialFilter?.genres,
   };
-  late bool _includeAdult = widget.initialFilter?.includeAdult ?? false;
-  late bool _includeIndie = widget.initialFilter?.includeIndie ?? true;
+  late bool _includeAdult;
+  late bool _includeIndie;
   bool _isGridView = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final prefs = ref.read(contentFilterPrefsProvider);
+    _includeAdult = widget.initialFilter?.includeAdult ?? prefs.includeAdult;
+    _includeIndie = widget.initialFilter?.includeIndie ?? prefs.includeIndie;
+  }
 
   void _onPlatformTap(String value) {
     setState(() {
@@ -114,6 +123,9 @@ class _ReleaseListScreenState extends ConsumerState<ReleaseListScreen> {
                                 _includeAdult = false;
                                 _includeIndie = true;
                               });
+                              final prefs = ref.read(contentFilterPrefsProvider);
+                              prefs.setIncludeAdult(false);
+                              prefs.setIncludeIndie(true);
                               setSheetState(() {});
                             },
                             child: const Text('リセット'),
@@ -146,12 +158,14 @@ class _ReleaseListScreenState extends ConsumerState<ReleaseListScreen> {
                         includeAdult: _includeAdult,
                         onIncludeAdultChanged: (value) {
                           setState(() => _includeAdult = value);
+                          ref.read(contentFilterPrefsProvider).setIncludeAdult(value);
                           setSheetState(() {});
                         },
                         showAdultOption: isAdultUser,
                         includeIndie: _includeIndie,
                         onIncludeIndieChanged: (value) {
                           setState(() => _includeIndie = value);
+                          ref.read(contentFilterPrefsProvider).setIncludeIndie(value);
                           setSheetState(() {});
                         },
                       ),

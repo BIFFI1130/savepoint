@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/preferences/content_filter_prefs.dart';
 import '../../data/igdb_repository.dart';
 import '../../domain/game.dart';
 
@@ -63,11 +64,14 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
   Set<String> _genres = {};
   GameSortType _sort = GameSortType.popularity;
   bool _includeUpcoming = false;
-  bool _includeAdult = false;
-  bool _includeIndie = true;
+  late bool _includeAdult;
+  late bool _includeIndie;
 
   @override
   FutureOr<GameSearchResults> build() {
+    final prefs = ref.read(contentFilterPrefsProvider);
+    _includeAdult = prefs.includeAdult;
+    _includeIndie = prefs.includeIndie;
     ref.onDispose(() => _debounce?.cancel());
     return const GameSearchResults();
   }
@@ -108,14 +112,18 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
   }
 
   /// 成人向け作品も一覧に含めるかどうか（デフォルトfalse＝除外）。
+  /// 設定はSharedPreferencesに永続化し、アプリ再起動後も保持する。
   void setIncludeAdult(bool value) {
     _includeAdult = value;
+    ref.read(contentFilterPrefsProvider).setIncludeAdult(value);
     _schedule(immediate: true);
   }
 
   /// インディー作品を一覧から除外するかどうか（デフォルトtrue＝含める）。
+  /// 設定はSharedPreferencesに永続化し、アプリ再起動後も保持する。
   void setIncludeIndie(bool value) {
     _includeIndie = value;
+    ref.read(contentFilterPrefsProvider).setIncludeIndie(value);
     _schedule(immediate: true);
   }
 

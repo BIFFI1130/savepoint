@@ -2,29 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/preferences/content_filter_prefs.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/igdb_footer.dart';
 import '../../../game_search/domain/game.dart';
 import '../providers/home_providers.dart';
 
-/// ホーム画面自体では絞り込みは行わない（各セクションの見出し＞から遷移した先の
-/// 一覧画面でジャンル・対応ハード・詳しい条件を選べる）。
-const _noFilter = (
-  platforms: <String>{},
-  genres: <String>{},
-  includeAdult: false,
-  includeIndie: true,
-);
-
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final releasesAsync = ref.watch(weeklyReleasesProvider(_noFilter));
-    final monthlyReleasesAsync = ref.watch(monthlyReleasesProvider(_noFilter));
-    final top100Async = ref.watch(top100Provider(_noFilter));
+    // ホーム画面自体ではジャンル・対応ハードの絞り込みは行わない（各セクションの見出し
+    // ＞から遷移した先の一覧画面で選べる）。成人向け・インディー作品の表示設定のみ、
+    // 永続化された共通設定をそのまま反映する。
+    final contentFilterPrefs = ref.watch(contentFilterPrefsProvider);
+    final noFilter = (
+      platforms: <String>{},
+      genres: <String>{},
+      includeAdult: contentFilterPrefs.includeAdult,
+      includeIndie: contentFilterPrefs.includeIndie,
+    );
+    final releasesAsync = ref.watch(weeklyReleasesProvider(noFilter));
+    final monthlyReleasesAsync = ref.watch(monthlyReleasesProvider(noFilter));
+    final top100Async = ref.watch(top100Provider(noFilter));
 
     return Scaffold(
       appBar: AppBar(
@@ -44,7 +46,7 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             _SectionHeader(
               title: '今週発売のゲーム',
-              onTap: () => context.push('/home/weekly', extra: _noFilter),
+              onTap: () => context.push('/home/weekly', extra: noFilter),
             ),
             releasesAsync.when(
               data: (games) {
@@ -64,14 +66,14 @@ class HomeScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: ErrorView(
                   message: '今週発売のゲームの取得に失敗しました',
-                  onRetry: () => ref.invalidate(weeklyReleasesProvider(_noFilter)),
+                  onRetry: () => ref.invalidate(weeklyReleasesProvider(noFilter)),
                 ),
               ),
             ),
             const SizedBox(height: 24),
             _SectionHeader(
               title: '今月発売のゲーム',
-              onTap: () => context.push('/home/monthly', extra: _noFilter),
+              onTap: () => context.push('/home/monthly', extra: noFilter),
             ),
             monthlyReleasesAsync.when(
               data: (games) {
@@ -92,14 +94,14 @@ class HomeScreen extends ConsumerWidget {
                 child: ErrorView(
                   message: '今月発売のゲームの取得に失敗しました',
                   onRetry: () =>
-                      ref.invalidate(monthlyReleasesProvider(_noFilter)),
+                      ref.invalidate(monthlyReleasesProvider(noFilter)),
                 ),
               ),
             ),
             const SizedBox(height: 24),
             _SectionHeader(
               title: 'IGDB：TOP100',
-              onTap: () => context.push('/home/top100', extra: _noFilter),
+              onTap: () => context.push('/home/top100', extra: noFilter),
             ),
             top100Async.when(
               data: (games) {
@@ -119,7 +121,7 @@ class HomeScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: ErrorView(
                   message: 'IGDB TOP100の取得に失敗しました',
-                  onRetry: () => ref.invalidate(top100Provider(_noFilter)),
+                  onRetry: () => ref.invalidate(top100Provider(noFilter)),
                 ),
               ),
             ),

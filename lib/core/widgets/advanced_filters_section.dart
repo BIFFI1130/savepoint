@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 /// 一覧画面共通の「詳しい条件」折りたたみセクション（デフォルトで畳んだ状態）。
-/// [includeAdult]・[onIncludeAdultChanged] で成人向け作品表示チェックボックスを提供し、
-/// [includeIndie]・[onIncludeIndieChanged] を指定するとインディー作品表示チェックボックスも
-/// 併せて提供する（未指定の場合は表示しない）。
+/// [includeAdult]・[onIncludeAdultChanged] で「成人向け作品を表示しない」チェックボックスを
+/// 提供し、[includeIndie]・[onIncludeIndieChanged] を指定すると「インディー作品を表示しない」
+/// チェックボックスも併せて提供する（未指定の場合は表示しない）。
+/// いずれもチェックボックスの見た目は「表示しない」だが、渡す/受け取る値自体は
+/// 「表示する（true）／表示しない（false）」のまま（内部で反転して表示するだけ）。
 /// [showAdultOption] がfalseの場合、成人向け作品表示チェックボックス自体を表示しない
 /// （生年月から18歳未満と分かっているユーザーには選択肢そのものを見せない）。
 /// [children] で画面固有の追加フィルタ（開発元絞り込みなど）を並べられる。
@@ -54,13 +56,13 @@ class _AdvancedFiltersSectionState extends State<AdvancedFiltersSection> {
                     ...widget.children,
                     if (widget.showAdultOption)
                       CheckboxListTile(
-                        value: widget.includeAdult,
+                        value: !widget.includeAdult,
                         onChanged: (value) =>
-                            widget.onIncludeAdultChanged(value ?? false),
+                            widget.onIncludeAdultChanged(!(value ?? true)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                         controlAffinity: ListTileControlAffinity.leading,
                         dense: true,
-                        title: const Text('成人向け作品を表示する'),
+                        title: const Text('成人向け作品を表示しない'),
                       ),
                     if (widget.onIncludeIndieChanged != null)
                       CheckboxListTile(

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/analytics/analytics_service.dart';
+import '../../../../core/preferences/content_filter_prefs.dart';
 import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/game_sliver_grid.dart';
@@ -30,8 +31,8 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
   String _queryText = '';
   GameSortType _sort = GameSortType.popularity;
   bool _includeUpcoming = false;
-  bool _includeAdult = false;
-  bool _includeIndie = true;
+  late bool _includeAdult;
+  late bool _includeIndie;
   Timer? _developerDebounce;
   Timer? _searchAnalyticsDebounce;
   bool _isGridView = false;
@@ -46,6 +47,9 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
   @override
   void initState() {
     super.initState();
+    final prefs = ref.read(contentFilterPrefsProvider);
+    _includeAdult = prefs.includeAdult;
+    _includeIndie = prefs.includeIndie;
     _scrollController.addListener(_onScroll);
   }
 
