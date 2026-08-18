@@ -1,5 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 積みゲーリマインダー（ローカル通知）用。Android 13+では実行時許可が必要。 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- 端末再起動後もスケジュール済みのローカル通知を維持するために必要。 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <application
         android:label="savepoint"
         android:name="${applicationName}"

@@ -32,6 +32,9 @@ dependencies {
   // クラッシュレポート。-ndk側はJava/Kotlin層だけでなくネイティブ層のクラッシュも捕捉する。
   implementation("com.google.firebase:firebase-crashlytics")
   implementation("com.google.firebase:firebase-crashlytics-ndk")
+
+  // flutter_local_notificationsが要求するcore library desugaring用ランタイム。
+  coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 android {
@@ -42,6 +45,9 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // flutter_local_notifications（積みゲーリマインダー）が要求するJava 8+ API
+        // desugaringを有効化する。
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {

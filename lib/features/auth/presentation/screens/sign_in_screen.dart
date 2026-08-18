@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/analytics/analytics_service.dart';
 import '../providers/auth_providers.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
@@ -34,6 +35,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             email: _emailController.text.trim(),
             password: _passwordController.text,
           );
+      await ref.read(appAnalyticsProvider).logLogin('email');
     } on AuthException catch (e) {
       _showError(e.message);
     } catch (_) {
@@ -47,6 +49,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     setState(() => _isLoading = true);
     try {
       await ref.read(authRepositoryProvider).signInWithApple();
+      await ref.read(appAnalyticsProvider).logLogin('apple');
     } on SignInWithAppleAuthorizationException catch (e) {
       if (e.code != AuthorizationErrorCode.canceled) {
         _showError('Appleサインインに失敗しました。');

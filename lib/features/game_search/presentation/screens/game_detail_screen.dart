@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/star_rating.dart';
@@ -38,8 +40,14 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
     try {
       if (log != null && log.status == GameLogStatus.wantToPlay) {
         await ref.read(logRepositoryProvider).deleteLog(log.id);
+        await ref.read(appAnalyticsProvider).logRecordDeleted();
       } else {
         await ref.read(logRepositoryProvider).markWantToPlay(widget.gameId);
+        await ref.read(appAnalyticsProvider).logRecordCreated(
+              status: 'want_to_play',
+              hasRating: false,
+              hasReview: false,
+            );
       }
       ref.invalidate(existingLogProvider(widget.gameId));
       ref.invalidate(myLogsProvider);
@@ -76,6 +84,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
     setState(() => _isUpdatingStatus = true);
     try {
       await ref.read(logRepositoryProvider).deleteLog(log.id);
+      await ref.read(appAnalyticsProvider).logRecordDeleted();
       ref.invalidate(existingLogProvider(widget.gameId));
       ref.invalidate(myLogsProvider);
       if (mounted) {
@@ -92,6 +101,15 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
     } finally {
       if (mounted) setState(() => _isUpdatingStatus = false);
     }
+  }
+
+  Future<void> _shareGame(Game game) async {
+    final buffer = StringBuffer('SavePointで「${game.displayName}」を記録しました。\n');
+    if (game.igdbUrl != null) {
+      buffer.write(game.igdbUrl);
+    }
+    await SharePlus.instance.share(ShareParams(text: buffer.toString()));
+    await ref.read(appAnalyticsProvider).logShare(contentType: 'game');
   }
 
   @override
@@ -126,9 +144,21 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    game.displayName,
-                    style: Theme.of(context).textTheme.headlineSmall,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          game.displayName,
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.share_outlined),
+                        tooltip: '共有',
+                        onPressed: () => _shareGame(game),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 4),
                   if (game.developers.isNotEmpty || game.publishers.isNotEmpty)

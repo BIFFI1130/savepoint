@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/star_rating.dart';
 import '../../../game_search/presentation/providers/game_search_providers.dart';
@@ -66,6 +67,11 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
             hasSpoiler: _hasSpoiler,
             isCleared: _isCleared,
             visibility: _visibility,
+          );
+      await ref.read(appAnalyticsProvider).logRecordCreated(
+            status: 'played',
+            hasRating: _rating > 0,
+            hasReview: _reviewController.text.trim().isNotEmpty,
           );
       ref.invalidate(myLogsProvider);
       ref.invalidate(existingLogProvider(widget.gameId));

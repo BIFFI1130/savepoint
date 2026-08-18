@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../providers/collection_providers.dart';
 import 'collection_cover_collage.dart';
@@ -36,6 +37,7 @@ class CollectionsScreen extends ConsumerWidget {
 
     final id =
         await ref.read(collectionRepositoryProvider).createCollection(name);
+    await ref.read(appAnalyticsProvider).logCollectionCreated();
     ref.invalidate(myCollectionsProvider);
     if (context.mounted) context.push('/collections/$id');
   }

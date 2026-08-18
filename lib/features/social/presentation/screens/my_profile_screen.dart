@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/analytics/analytics_service.dart';
+import '../../../../core/notifications/backlog_reminder_service.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/avatar_image.dart';
 import '../../../../core/widgets/genre_badge_selector.dart';
@@ -137,6 +139,22 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _toggleBacklogReminder(bool value) async {
+    final service = ref.read(backlogReminderServiceProvider);
+    if (value) {
+      final granted = await service.enable();
+      if (!granted && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('通知の許可が必要です。端末の設定から許可してください')),
+        );
+      }
+    } else {
+      await service.disable();
+    }
+    await ref.read(appAnalyticsProvider).logBacklogReminderToggled(value);
+    ref.invalidate(backlogReminderEnabledProvider);
   }
 
   Future<void> _confirmSignOut() async {
@@ -382,6 +400,22 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
               ),
             ),
             const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 8),
+            Text('通知', style: Theme.of(context).textTheme.titleMedium),
+            Consumer(
+              builder: (context, ref, _) {
+                final enabledAsync = ref.watch(backlogReminderEnabledProvider);
+                return SwitchListTile(
+                  value: enabledAsync.value ?? false,
+                  onChanged: enabledAsync.isLoading ? null : _toggleBacklogReminder,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('積みゲーリマインダー'),
+                  subtitle: const Text('「遊びたい」の消化を週1回通知でお知らせします'),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 8),
             Text('アプリについて', style: Theme.of(context).textTheme.titleMedium),

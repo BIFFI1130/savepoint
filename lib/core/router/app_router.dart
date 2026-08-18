@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../analytics/analytics_service.dart';
 import '../../features/achievements/presentation/screens/achievements_screen.dart';
 import '../../features/auth/presentation/screens/sign_in_screen.dart';
 import '../../features/auth/presentation/screens/sign_up_screen.dart';
@@ -40,6 +41,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     initialLocation: '/home',
+    observers: [ref.read(analyticsRouteObserverProvider)],
     refreshListenable: Listenable.merge(
       [refreshStream, usernameGate, birthdateGate, updateGate],
     ),

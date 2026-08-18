@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/game_sliver_grid.dart';
@@ -31,6 +32,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
   bool _includeAdult = false;
   bool _includeIndie = false;
   Timer? _developerDebounce;
+  Timer? _searchAnalyticsDebounce;
   bool _isGridView = false;
 
   bool get _hasActiveFilter =>
@@ -51,6 +53,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
     _queryController.dispose();
     _developerController.dispose();
     _developerDebounce?.cancel();
+    _searchAnalyticsDebounce?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
@@ -77,6 +80,15 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
   void _onQueryChanged(String value) {
     setState(() => _queryText = value);
     ref.read(gameSearchProvider.notifier).search(value);
+
+    // 検索語のアナリティクス送信は、1文字ごとに送ると無意味にノイズが増えるため
+    // 入力が落ち着いてからまとめて1回だけ送る。
+    _searchAnalyticsDebounce?.cancel();
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return;
+    _searchAnalyticsDebounce = Timer(const Duration(milliseconds: 800), () {
+      ref.read(appAnalyticsProvider).logSearch(trimmed);
+    });
   }
 
   void _clearQuery() {

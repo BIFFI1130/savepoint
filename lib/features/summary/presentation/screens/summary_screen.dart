@@ -1,7 +1,14 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
+import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../game_log/presentation/providers/log_providers.dart';
@@ -18,6 +25,9 @@ class SummaryScreen extends ConsumerStatefulWidget {
 class _SummaryScreenState extends ConsumerState<SummaryScreen> {
   SummaryPeriodType _periodType = SummaryPeriodType.month;
   late DateTime _periodStart = _currentPeriodStart(_periodType);
+  final _shareCardKey = GlobalKey();
+  PeriodSummary? _lastSummary;
+  bool _isSharing = false;
 
   DateTime _currentPeriodStart(SummaryPeriodType type) {
     final now = DateTime.now();
@@ -46,65 +56,285 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen> {
     });
   }
 
+  String get _periodLabel => switch (_periodType) {
+        SummaryPeriodType.month => '${_periodStart.year}年${_periodStart.month}月',
+        SummaryPeriodType.year => '${_periodStart.year}年',
+        SummaryPeriodType.all => 'すべての記録',
+      };
+
+  Future<void> _shareSummary() async {
+    final summary = _lastSummary;
+    if (summary == null || _isSharing) return;
+    setState(() => _isSharing = true);
+    try {
+      final boundary = _shareCardKey.currentContext?.findRenderObject()
+          as RenderRepaintBoundary?;
+      if (boundary == null) return;
+      final image = await boundary.toImage(pixelRatio: 3);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return;
+      final dir = await getTemporaryDirectory();
+      final file = File(
+        '${dir.path}/savepoint_summary_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      await file.writeAsBytes(byteData.buffer.asUint8List());
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'SavePointでの記録をシェア（$_periodLabel）',
+        ),
+      );
+      await ref.read(appAnalyticsProvider).logShare(contentType: 'summary');
+    } finally {
+      if (mounted) setState(() => _isSharing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final logsAsync = ref.watch(myLogsProvider);
+    // ボタンの有効/無効判定には、このbuild内で確実に最新のlogsAsyncを使う。
+    // _lastSummaryはbody（下のlogsAsync.when内）で更新されるが、AppBarはbodyより
+    // 先に構築されるため、_lastSummaryだけで判定すると常に1フレーム古い値を見てしまい、
+    // かつ以降フィールド代入だけではrebuildが起きないため、ボタンが永久に無効化されたままになる。
+    final hasSummaryData = logsAsync.hasValue;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('まとめ')),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: SegmentedButton<SummaryPeriodType>(
-              segments: const [
-                ButtonSegment(value: SummaryPeriodType.month, label: Text('月間')),
-                ButtonSegment(value: SummaryPeriodType.year, label: Text('年間')),
-                ButtonSegment(value: SummaryPeriodType.all, label: Text('すべて')),
-              ],
-              selected: {_periodType},
-              onSelectionChanged: (selection) => _changePeriodType(selection.first),
-            ),
-          ),
-          if (_periodType != SummaryPeriodType.all)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.chevron_left),
-                  onPressed: () => _shiftPeriod(-1),
-                ),
-                Text(
-                  _periodType == SummaryPeriodType.month
-                      ? '${_periodStart.year}年${_periodStart.month}月'
-                      : '${_periodStart.year}年',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right),
-                  onPressed: _isAtCurrentPeriod ? null : () => _shiftPeriod(1),
-                ),
-              ],
-            ),
-          Expanded(
-            child: logsAsync.when(
-              data: (logs) {
-                final summary = summarizePeriod(
-                  logs,
-                  periodStart: _periodStart,
-                  periodType: _periodType,
-                );
-                return _SummaryBody(summary: summary);
-              },
-              loading: () => const LoadingView(),
-              error: (error, _) => ErrorView(
-                message: 'まとめの取得に失敗しました',
-                onRetry: () => ref.invalidate(myLogsProvider),
-              ),
-            ),
+      appBar: AppBar(
+        title: const Text('まとめ'),
+        actions: [
+          IconButton(
+            icon: _isSharing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.share_outlined),
+            tooltip: '振り返りをシェア',
+            onPressed: hasSummaryData ? _shareSummary : null,
           ),
         ],
       ),
+      body: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: [
+          Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: SegmentedButton<SummaryPeriodType>(
+                  segments: const [
+                    ButtonSegment(value: SummaryPeriodType.month, label: Text('月間')),
+                    ButtonSegment(value: SummaryPeriodType.year, label: Text('年間')),
+                    ButtonSegment(value: SummaryPeriodType.all, label: Text('すべて')),
+                  ],
+                  selected: {_periodType},
+                  onSelectionChanged: (selection) => _changePeriodType(selection.first),
+                ),
+              ),
+              if (_periodType != SummaryPeriodType.all)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left),
+                      onPressed: () => _shiftPeriod(-1),
+                    ),
+                    Text(
+                      _periodType == SummaryPeriodType.month
+                          ? '${_periodStart.year}年${_periodStart.month}月'
+                          : '${_periodStart.year}年',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right),
+                      onPressed: _isAtCurrentPeriod ? null : () => _shiftPeriod(1),
+                    ),
+                  ],
+                ),
+              Expanded(
+                child: logsAsync.when(
+                  data: (logs) {
+                    final summary = summarizePeriod(
+                      logs,
+                      periodStart: _periodStart,
+                      periodType: _periodType,
+                    );
+                    _lastSummary = summary;
+                    return _SummaryBody(summary: summary);
+                  },
+                  loading: () => const LoadingView(),
+                  error: (error, _) => ErrorView(
+                    message: 'まとめの取得に失敗しました',
+                    onRetry: () => ref.invalidate(myLogsProvider),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // シェア用の画像カード。画面の外（Stackのクリップ範囲外）に配置することで、
+          // ユーザーには見えないが実際にペイントはされる状態を保つ。
+          // OffstageやOpacity(0)は子を一切ペイントしないため、
+          // RepaintBoundary.toImage()が空/壊れた画像を返してしまうので使えない。
+          if (_lastSummary != null)
+            Positioned(
+              left: -9999,
+              top: 0,
+              child: RepaintBoundary(
+                key: _shareCardKey,
+                child: _ShareCard(
+                  periodLabel: _periodLabel,
+                  summary: _lastSummary!,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 「まとめ」画面の内容をSNS等に共有するための、ブランドカラーで統一した
+/// 縦長カード（9:16、Instagram Stories等にそのまま使えるサイズ感）。
+/// 画面表示用の[_SummaryBody]とは別に、共有専用に見た目を作り込んでいる。
+class _ShareCard extends StatelessWidget {
+  const _ShareCard({required this.periodLabel, required this.summary});
+
+  final String periodLabel;
+  final PeriodSummary summary;
+
+  static const _bgLight = Color(0xFF5A74FF);
+  static const _bgDark = Color(0xFF2836C8);
+
+  @override
+  Widget build(BuildContext context) {
+    final average = summary.averageRating;
+    final topGenres = summary.genreCounts.entries.take(4).toList();
+    final covers = summary.playedEntries.take(6).toList();
+
+    return Container(
+      width: 360,
+      height: 640,
+      padding: const EdgeInsets.fromLTRB(28, 40, 28, 32),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_bgLight, _bgDark],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'SavePoint',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            periodLabel,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: 28),
+          Row(
+            children: [
+              _ShareStat(value: '${summary.playedCount}', label: '記録した本数'),
+              const SizedBox(width: 20),
+              _ShareStat(
+                value: average != null ? average.toStringAsFixed(1) : '-',
+                label: '平均評価',
+              ),
+              const SizedBox(width: 20),
+              _ShareStat(
+                value: '${summary.wantToPlayAddedCount}',
+                label: '遊びたいに追加',
+              ),
+            ],
+          ),
+          if (covers.isNotEmpty) ...[
+            const SizedBox(height: 32),
+            Expanded(
+              child: GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  childAspectRatio: 0.7,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                itemCount: covers.length,
+                itemBuilder: (context, index) => ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: CoverImage(
+                    url: covers[index].game.coverUrl,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
+                ),
+              ),
+            ),
+          ] else
+            const Spacer(),
+          if (topGenres.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final entry in topGenres)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                    child: Text(
+                      entry.key,
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ShareStat extends StatelessWidget {
+  const _ShareStat({required this.value, required this.label});
+
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white70, fontSize: 11),
+        ),
+      ],
     );
   }
 }
