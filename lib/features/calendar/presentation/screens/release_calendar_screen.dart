@@ -237,8 +237,8 @@ class _DailyView extends ConsumerStatefulWidget {
 }
 
 class _DailyViewState extends ConsumerState<_DailyView> {
-  // 中央のカードを大きく、その左右はカードの一部だけが覗く程度に留める。
-  static const _viewportFraction = 0.42;
+  // 中央のカードを画面のほとんどを使うくらい大きく、その左右はごくわずかだけ覗く程度に留める。
+  static const _viewportFraction = 0.66;
   // 前後 約68年分。実質無制限に近い範囲を、負のインデックスを扱わずに済むよう
   // 大きな固定ページ数として確保する。
   static const _totalPages = 50000;
@@ -427,8 +427,8 @@ class _DailyCarouselItem extends StatelessWidget {
           final currentPage = controller.page;
           if (currentPage != null) distance = (currentPage - page).abs();
         }
-        final scale = (1 - distance * 0.38).clamp(0.4, 1.0);
-        final opacity = (1 - distance * 0.5).clamp(0.25, 1.0);
+        final scale = (1 - distance * 0.3).clamp(0.4, 1.0);
+        final opacity = (1 - distance * 0.5).clamp(0.2, 1.0);
         return Align(
           alignment: Alignment.topCenter,
           child: Opacity(
