@@ -1,6 +1,7 @@
 import Foundation
 import GoogleMobileAds
 import UIKit
+import google_mobile_ads
 
 /// ホームのゲームカバー横スクロール一覧に紛れ込ませるネイティブ広告カードを、
 /// プログラムから組み立てるファクトリ（Androidの native_ad_card.xml + GameCardNativeAdFactory.kt
