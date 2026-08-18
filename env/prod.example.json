@@ -1,4 +1,6 @@
 {
   "SUPABASE_URL": "https://<project-ref>.supabase.co",
-  "SUPABASE_ANON_KEY": "<anon-public-key>"
+  "SUPABASE_ANON_KEY": "<anon-public-key>",
+  "ADMOB_BANNER_AD_UNIT_ID": "<正式リリース前にAdMobで発行した本番用の広告ユニットIDに差し替える。未設定時はテスト広告ユニットIDが使われる>",
+  "ADMOB_NATIVE_AD_UNIT_ID": "<正式リリース前にAdMobで発行した本番用のネイティブ広告ユニットIDに差し替える。未設定時はテスト広告ユニットIDが使われる>"
 }

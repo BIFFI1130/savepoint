@@ -76,6 +76,9 @@ dependencies:
   timezone: ^0.11.1
   path_provider: ^2.1.6
 
+  # アプリ内バナー広告（AdMob）
+  google_mobile_ads: ^9.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

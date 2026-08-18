@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
@@ -6,8 +8,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'core/ads/ad_consent_service.dart';
+import 'core/notifications/release_reminder_service.dart';
 import 'core/preferences/content_filter_prefs.dart';
 import 'core/supabase/supabase_client.dart';
+import 'features/game_log/data/log_repository.dart';
+import 'features/game_log/domain/game_log.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -36,6 +42,15 @@ Future<void> main() async {
 
   final sharedPreferences = await SharedPreferences.getInstance();
 
+  // 広告配信の同意確認（UMP）が完了してからAdMob SDKを初期化する。
+  // 失敗しても（オフライン等）アプリの起動自体はブロックしない。
+  await const AdConsentService().requestConsentAndInitialize();
+
+  // 「遊びたい」の未発売ゲームの発売日通知は、端末側にしか予約情報が
+  // 残らない（再インストール・端末変更等で消える）ため起動のたびに予約し直す。
+  // 未ログイン・取得失敗時は何もせず、アプリの起動自体はブロックしない。
+  unawaited(_rescheduleReleaseReminders());
+
   runApp(
     ProviderScope(
       overrides: [
@@ -44,6 +59,26 @@ Future<void> main() async {
       child: const SavePointApp(),
     ),
   );
+}
+
+Future<void> _rescheduleReleaseReminders() async {
+  try {
+    final logs = await LogRepository().fetchMyLogs();
+    final releaseReminderService = ReleaseReminderService();
+    final now = DateTime.now();
+    for (final entry in logs) {
+      if (entry.log.status != GameLogStatus.wantToPlay) continue;
+      final releaseDate = entry.game.firstReleaseDate;
+      if (releaseDate == null || !releaseDate.isAfter(now)) continue;
+      await releaseReminderService.scheduleForGame(
+        gameId: entry.game.id,
+        title: entry.game.displayName,
+        releaseDate: releaseDate,
+      );
+    }
+  } catch (error, stackTrace) {
+    debugPrint('release reminder reschedule failed: $error\n$stackTrace');
+  }
 }
 
 class _StartupErrorApp extends StatelessWidget {

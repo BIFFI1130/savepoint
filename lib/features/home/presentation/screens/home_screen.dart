@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/ads/native_ad_card.dart';
 import '../../../../core/preferences/content_filter_prefs.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
@@ -56,7 +57,7 @@ class HomeScreen extends ConsumerWidget {
                     child: Text('今週発売予定のタイトルは見つかりませんでした'),
                   );
                 }
-                return _CoverCarousel(games: games);
+                return _CoverCarousel(games: games, showNativeAd: true);
               },
               loading: () => const SizedBox(
                 height: 160,
@@ -171,24 +172,41 @@ class _SectionHeader extends StatelessWidget {
 }
 
 /// ゲームカバーの横スクロール一覧。[showRank] を有効にすると各カードの左上に
-/// 順位（1始まり）バッジを重ねて表示する（IGDB TOP100用）。
+/// 順位（1始まり）バッジを重ねて表示する（IGDB TOP100用）。[showNativeAd] を有効にすると、
+/// 3枚目の位置にゲームカードと同じ寸法のネイティブ広告カードを差し込む
+/// （件数が少なく3枚目が存在しない場合は広告を出さない）。
 class _CoverCarousel extends StatelessWidget {
-  const _CoverCarousel({required this.games, this.showRank = false});
+  const _CoverCarousel({
+    required this.games,
+    this.showRank = false,
+    this.showNativeAd = false,
+  });
 
   final List<Game> games;
   final bool showRank;
+  final bool showNativeAd;
+
+  static const _nativeAdPosition = 2;
 
   @override
   Widget build(BuildContext context) {
+    final adIndex =
+        showNativeAd && games.length > _nativeAdPosition ? _nativeAdPosition : null;
+    final itemCount = games.length + (adIndex != null ? 1 : 0);
+
     return SizedBox(
       height: 160,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: games.length,
+        itemCount: itemCount,
         separatorBuilder: (context, index) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
-          final game = games[index];
+          if (adIndex != null && index == adIndex) {
+            return const NativeAdCard();
+          }
+          final gameIndex = adIndex != null && index > adIndex ? index - 1 : index;
+          final game = games[gameIndex];
           final cover = ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: CoverImage(url: game.coverUrl, width: 110, height: 160),
@@ -212,7 +230,7 @@ class _CoverCarousel extends StatelessWidget {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            '${index + 1}',
+                            '${gameIndex + 1}',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,

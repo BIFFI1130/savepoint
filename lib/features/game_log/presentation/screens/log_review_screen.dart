@@ -160,6 +160,18 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
       appBar: AppBar(title: const Text('記録・評価・レビュー')),
       body: gameAsync.when(
         data: (game) {
+          final releaseDate = game?.firstReleaseDate;
+          if (releaseDate != null && releaseDate.isAfter(DateTime.now())) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'このゲームはまだ発売されていないため記録できません。発売後に改めてお試しください。',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(

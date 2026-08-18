@@ -22,6 +22,13 @@ workflows:
         # service_role key）をこのグループに追加登録すること。未設定の場合、
         # app_versionsの更新はスキップされ、パブリッシュ自体は成功のまま完了する
         # （＝強制アップデート機能が動かないだけで、配信は今まで通り成功する）。
+        #
+        # AdMobの本番用バナー広告ユニットID（ADMOB_BANNER_AD_UNIT_ID）・ネイティブ広告
+        # ユニットID（ADMOB_NATIVE_AD_UNIT_ID）も、正式リリース時にこのグループへ追加
+        # 登録すること（新規グループをここに追加すると、Codemagic側でそのグループ自体が
+        # 未作成の場合にビルドが失敗するため、既存のこのグループに相乗りさせている）。
+        # 未設定の場合はGoogle公式のテスト広告ユニットIDにフォールバックする
+        # （ビルド自体は失敗しない）。
         - SUPABASE_VARIABLES
         # DISCORD_WEBHOOK_URL を含むCodemagic側の変数グループ（ダッシュボード名と完全一致させてください）
         - DISCORD_VARIABLES
@@ -122,7 +129,9 @@ workflows:
               --export-options-plist=/Users/builder/export_options.plist \
               --build-number=$APP_BUILD_NUMBER \
               --dart-define=SUPABASE_URL=$SUPABASE_URL \
-              --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+              --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
+              --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID:-} \
+              --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID:-}
 
             # クラッシュレポート（Crashlytics）のスタックトレースをシンボリケートできるよう、
             # dSYMをアップロードする。
@@ -148,7 +157,9 @@ workflows:
             flutter build apk --release \
               --target-platform=android-arm64 \
               --dart-define=SUPABASE_URL=$SUPABASE_URL \
-              --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+              --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
+              --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID:-} \
+              --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID:-}
           ) > /tmp/android_build.log 2>&1 &
           ANDROID_BUILD_PID=$!
 

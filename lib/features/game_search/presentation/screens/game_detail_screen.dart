@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/analytics/analytics_service.dart';
+import '../../../../core/notifications/release_reminder_service.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/star_rating.dart';
@@ -35,12 +36,13 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
   /// 「遊びたい」ボタンのトグル動作。既に「遊びたい」登録済みなら記録ごと削除して解除する
   /// （遊びたい記録は評価・レビューを持たないため、解除＝削除で問題ない）。
   /// それ以外（未登録・遊んだ済み）の場合は「遊びたい」として登録する。
-  Future<void> _toggleWantToPlay(GameLog? log) async {
+  Future<void> _toggleWantToPlay(GameLog? log, Game game) async {
     setState(() => _isUpdatingStatus = true);
     try {
       if (log != null && log.status == GameLogStatus.wantToPlay) {
         await ref.read(logRepositoryProvider).deleteLog(log.id);
         await ref.read(appAnalyticsProvider).logRecordDeleted();
+        await ref.read(releaseReminderServiceProvider).cancelForGame(widget.gameId);
       } else {
         await ref.read(logRepositoryProvider).markWantToPlay(widget.gameId);
         await ref.read(appAnalyticsProvider).logRecordCreated(
@@ -48,6 +50,14 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
               hasRating: false,
               hasReview: false,
             );
+        final releaseDate = game.firstReleaseDate;
+        if (releaseDate != null) {
+          await ref.read(releaseReminderServiceProvider).scheduleForGame(
+                gameId: widget.gameId,
+                title: game.displayName,
+                releaseDate: releaseDate,
+              );
+        }
       }
       ref.invalidate(existingLogProvider(widget.gameId));
       ref.invalidate(myLogsProvider);
@@ -85,6 +95,9 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
     try {
       await ref.read(logRepositoryProvider).deleteLog(log.id);
       await ref.read(appAnalyticsProvider).logRecordDeleted();
+      if (log.status == GameLogStatus.wantToPlay) {
+        await ref.read(releaseReminderServiceProvider).cancelForGame(widget.gameId);
+      }
       ref.invalidate(existingLogProvider(widget.gameId));
       ref.invalidate(myLogsProvider);
       if (mounted) {
@@ -233,8 +246,9 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                     data: (log) => _StatusAndLogSection(
                       gameId: widget.gameId,
                       log: log,
+                      releaseDate: game.firstReleaseDate,
                       isUpdatingStatus: _isUpdatingStatus,
-                      onMarkWantToPlay: () => _toggleWantToPlay(log),
+                      onMarkWantToPlay: () => _toggleWantToPlay(log, game),
                       onDelete: log == null ? null : () => _deleteLog(log),
                     ),
                     loading: () => const SizedBox(
@@ -577,6 +591,7 @@ class _StatusAndLogSection extends StatelessWidget {
   const _StatusAndLogSection({
     required this.gameId,
     required this.log,
+    required this.releaseDate,
     required this.isUpdatingStatus,
     required this.onMarkWantToPlay,
     required this.onDelete,
@@ -584,6 +599,7 @@ class _StatusAndLogSection extends StatelessWidget {
 
   final int gameId;
   final GameLog? log;
+  final DateTime? releaseDate;
   final bool isUpdatingStatus;
   final VoidCallback onMarkWantToPlay;
   final VoidCallback? onDelete;
@@ -592,6 +608,7 @@ class _StatusAndLogSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final isWantToPlay = log?.status == GameLogStatus.wantToPlay;
     final isPlayed = log?.status == GameLogStatus.played;
+    final isUnreleased = releaseDate != null && releaseDate!.isAfter(DateTime.now());
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -620,9 +637,11 @@ class _StatusAndLogSection extends StatelessWidget {
                       label: const Text('記録を編集する'),
                     )
                   : OutlinedButton.icon(
-                      onPressed: () => context.push('/games/$gameId/log'),
+                      onPressed: isUnreleased
+                          ? null
+                          : () => context.push('/games/$gameId/log'),
                       icon: const Icon(Icons.videogame_asset),
-                      label: const Text('遊んだ'),
+                      label: Text(isUnreleased ? '発売前です' : '遊んだ'),
                     ),
             ),
           ],

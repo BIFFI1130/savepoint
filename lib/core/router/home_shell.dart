@@ -7,6 +7,7 @@ import '../../features/game_search/presentation/screens/game_search_screen.dart'
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/social/presentation/screens/social_feed_screen.dart';
 import '../../features/trending/presentation/screens/trending_screen.dart';
+import '../ads/banner_ad_widget.dart';
 
 /// 「ホーム」「検索」「トレンド」「マイログ」「つながり」の5タブを切り替えるホーム画面。
 class HomeShell extends ConsumerStatefulWidget {
@@ -46,7 +47,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     });
 
     return Scaffold(
-      body: IndexedStack(index: _index, children: _screens),
+      body: Column(
+        children: [
+          Expanded(child: IndexedStack(index: _index, children: _screens)),
+          const BannerAdWidget(),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (value) => setState(() => _index = value),
