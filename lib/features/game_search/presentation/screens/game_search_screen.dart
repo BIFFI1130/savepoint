@@ -222,8 +222,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
                             child: TextField(
                               controller: _developerController,
                               decoration: const InputDecoration(
-                                labelText: '開発元で絞り込み（任意）',
-                                hintText: '例：Nintendo',
+                                labelText: '開発元で絞り込み',
                                 prefixIcon: Icon(Icons.apartment_outlined),
                                 border: OutlineInputBorder(),
                                 isDense: true,
