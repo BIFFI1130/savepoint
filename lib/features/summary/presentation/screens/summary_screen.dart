@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
+import '../../../../core/widgets/igdb_footer.dart';
 import '../../../game_log/presentation/providers/log_providers.dart';
 import '../../../game_search/domain/genre_options.dart';
 import '../../domain/period_summary.dart';
@@ -171,6 +172,7 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen> {
                   ),
                 ),
               ),
+              const IgdbFooter(),
             ],
           ),
           // シェア用の画像カード。画面の外（Stackのクリップ範囲外）に配置することで、

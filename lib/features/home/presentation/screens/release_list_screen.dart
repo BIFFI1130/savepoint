@@ -6,6 +6,7 @@ import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/game_sliver_grid.dart';
 import '../../../../core/widgets/game_sliver_list.dart';
 import '../../../../core/widgets/genre_badge_selector.dart';
+import '../../../../core/widgets/igdb_footer.dart';
 import '../../../game_search/domain/platform_options.dart';
 import '../../../social/presentation/providers/social_providers.dart';
 import '../providers/home_providers.dart';
@@ -193,11 +194,15 @@ class _ReleaseListScreenState extends ConsumerState<ReleaseListScreen> {
             tooltip: '絞り込み',
             onPressed: _openFilterSheet,
           ),
+          IconButton(
+            onPressed: () => setState(() => _isGridView = !_isGridView),
+            icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
+            tooltip: _isGridView ? 'リスト表示に切り替え' : 'グリッド表示に切り替え',
+          ),
         ],
       ),
       body: CustomScrollView(
         slivers: [
-          SliverToBoxAdapter(child: _buildFilters(context)),
           resultsAsync.when(
             data: (games) {
               if (games.isEmpty) {
@@ -225,39 +230,9 @@ class _ReleaseListScreenState extends ConsumerState<ReleaseListScreen> {
               ),
             ),
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Text(
-                'ゲーム情報提供: IGDB',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
-              ),
-            ),
-          ),
+          const IgdbFooterSliver(),
         ],
       ),
-    );
-  }
-
-  Widget _buildFilters(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: IconButton(
-              onPressed: () => setState(() => _isGridView = !_isGridView),
-              icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
-              tooltip: _isGridView ? 'リスト表示に切り替え' : 'グリッド表示に切り替え',
-            ),
-          ),
-        ),
-        const Divider(height: 1),
-      ],
     );
   }
 }

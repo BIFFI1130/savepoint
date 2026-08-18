@@ -9,6 +9,7 @@ import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/game_sliver_grid.dart';
 import '../../../../core/widgets/game_sliver_list.dart';
 import '../../../../core/widgets/genre_badge_selector.dart';
+import '../../../../core/widgets/igdb_footer.dart';
 import '../../../social/presentation/providers/social_providers.dart';
 import '../../domain/platform_options.dart';
 import '../providers/game_search_providers.dart';
@@ -302,18 +303,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
               ),
             ),
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Text(
-                'ゲーム情報提供: IGDB',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-              ),
-            ),
-          ),
+          const IgdbFooterSliver(),
         ],
       ),
     );

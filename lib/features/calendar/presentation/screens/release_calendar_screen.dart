@@ -6,6 +6,7 @@ import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/genre_badge_selector.dart';
+import '../../../../core/widgets/igdb_footer.dart';
 import '../../../game_search/domain/game.dart';
 import '../../../game_search/domain/platform_options.dart';
 import '../../../social/presentation/providers/social_providers.dart';
@@ -398,6 +399,7 @@ class _DailyViewState extends ConsumerState<_DailyView> {
             },
           ),
         ),
+        const IgdbFooter(),
       ],
     );
   }

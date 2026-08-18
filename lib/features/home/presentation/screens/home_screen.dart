@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
+import '../../../../core/widgets/igdb_footer.dart';
 import '../../../game_search/domain/game.dart';
 import '../providers/home_providers.dart';
 
@@ -123,14 +124,9 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 24),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              child: Text(
-                'ゲーム情報提供: IGDB',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.outline,
-                    ),
-              ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: IgdbFooter(padding: EdgeInsets.zero),
             ),
           ],
         ),

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
+import '../../../../core/widgets/igdb_footer.dart';
 import '../providers/collection_providers.dart';
 
 class CollectionDetailScreen extends ConsumerWidget {
@@ -93,37 +94,44 @@ class CollectionDetailScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: gamesAsync.when(
-        data: (games) {
-          if (games.isEmpty) {
-            return const EmptyView(
-              message: 'まだ作品が追加されていません\nゲーム詳細画面の「コレクションに追加」から登録できます',
-              icon: Icons.videogame_asset_outlined,
-            );
-          }
-          return ListView.separated(
-            itemCount: games.length,
-            separatorBuilder: (context, index) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final entry = games[index];
-              return ListTile(
-                leading: CoverImage(url: entry.game.coverUrl, width: 44, height: 60),
-                title: Text(entry.game.displayName),
-                trailing: IconButton(
-                  icon: const Icon(Icons.close),
-                  tooltip: 'コレクションから削除',
-                  onPressed: () => _removeGame(ref, entry.game.id),
-                ),
-                onTap: () => context.push('/games/${entry.game.id}'),
-              );
-            },
-          );
-        },
-        loading: () => const LoadingView(),
-        error: (error, _) => ErrorView(
-          message: '作品一覧の取得に失敗しました',
-          onRetry: () => ref.invalidate(collectionGamesProvider(collectionId)),
-        ),
+      body: Column(
+        children: [
+          Expanded(
+            child: gamesAsync.when(
+              data: (games) {
+                if (games.isEmpty) {
+                  return const EmptyView(
+                    message: 'まだ作品が追加されていません\nゲーム詳細画面の「コレクションに追加」から登録できます',
+                    icon: Icons.videogame_asset_outlined,
+                  );
+                }
+                return ListView.separated(
+                  itemCount: games.length,
+                  separatorBuilder: (context, index) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final entry = games[index];
+                    return ListTile(
+                      leading: CoverImage(url: entry.game.coverUrl, width: 44, height: 60),
+                      title: Text(entry.game.displayName),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.close),
+                        tooltip: 'コレクションから削除',
+                        onPressed: () => _removeGame(ref, entry.game.id),
+                      ),
+                      onTap: () => context.push('/games/${entry.game.id}'),
+                    );
+                  },
+                );
+              },
+              loading: () => const LoadingView(),
+              error: (error, _) => ErrorView(
+                message: '作品一覧の取得に失敗しました',
+                onRetry: () => ref.invalidate(collectionGamesProvider(collectionId)),
+              ),
+            ),
+          ),
+          const IgdbFooter(),
+        ],
       ),
     );
   }

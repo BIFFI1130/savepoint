@@ -6,6 +6,7 @@ import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/avatar_image.dart';
 import '../../../../core/widgets/cover_image.dart';
+import '../../../../core/widgets/igdb_footer.dart';
 import '../../../../core/widgets/star_rating.dart';
 import '../../../favorites/presentation/providers/favorite_providers.dart';
 import '../../../favorites/presentation/widgets/favorite_games_list.dart';
@@ -242,6 +243,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                       )
                     : _UserFeedTabs(userId: userId, isGridView: _isGridView),
               ),
+              const IgdbFooter(),
             ],
           );
         },

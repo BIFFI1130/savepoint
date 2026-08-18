@@ -6,6 +6,7 @@ import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/genre_badge_selector.dart';
+import '../../../../core/widgets/igdb_footer.dart';
 import '../../../../core/widgets/star_rating.dart';
 import '../../../favorites/presentation/providers/favorite_providers.dart';
 import '../../../favorites/presentation/widgets/favorite_games_list.dart';
@@ -289,6 +290,7 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
               ],
             ),
           ),
+          const IgdbFooter(),
         ],
       ),
     );

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
+import '../../../../core/widgets/igdb_footer.dart';
 import '../../../game_log/domain/game_log.dart';
 import '../../../game_log/presentation/providers/log_providers.dart';
 import '../../../game_search/domain/game.dart';
@@ -271,6 +272,7 @@ class _FavoriteGamesEditScreenState
                           },
                         ),
                 ),
+                const IgdbFooter(),
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: FilledButton.icon(
