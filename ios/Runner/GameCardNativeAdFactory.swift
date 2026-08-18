@@ -37,7 +37,7 @@ class GameCardNativeAdFactory: NSObject, FLTNativeAdFactory {
 
     let headlineLabel = UILabel()
     headlineLabel.translatesAutoresizingMaskIntoConstraints = false
-    headlineLabel.numberOfLines = 2
+    headlineLabel.numberOfLines = 1
     headlineLabel.font = UIFont.boldSystemFont(ofSize: 12)
     headlineLabel.textColor = .white
     headlineLabel.text = nativeAd.headline
@@ -46,7 +46,21 @@ class GameCardNativeAdFactory: NSObject, FLTNativeAdFactory {
     NSLayoutConstraint.activate([
       headlineLabel.leadingAnchor.constraint(equalTo: adView.leadingAnchor, constant: 8),
       headlineLabel.trailingAnchor.constraint(equalTo: adView.trailingAnchor, constant: -8),
-      headlineLabel.bottomAnchor.constraint(equalTo: adView.bottomAnchor, constant: -8),
+      headlineLabel.bottomAnchor.constraint(equalTo: adView.bottomAnchor, constant: -24),
+    ])
+
+    let callToActionLabel = UILabel()
+    callToActionLabel.translatesAutoresizingMaskIntoConstraints = false
+    callToActionLabel.numberOfLines = 1
+    callToActionLabel.font = UIFont.boldSystemFont(ofSize: 10)
+    callToActionLabel.textColor = .black
+    callToActionLabel.backgroundColor = .white
+    callToActionLabel.text = nativeAd.callToAction
+    adView.addSubview(callToActionLabel)
+    adView.callToActionView = callToActionLabel
+    NSLayoutConstraint.activate([
+      callToActionLabel.leadingAnchor.constraint(equalTo: adView.leadingAnchor, constant: 8),
+      callToActionLabel.bottomAnchor.constraint(equalTo: adView.bottomAnchor, constant: -6),
     ])
 
     let badgeLabel = UILabel()

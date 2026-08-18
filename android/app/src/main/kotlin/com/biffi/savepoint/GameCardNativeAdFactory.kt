@@ -30,6 +30,10 @@ class GameCardNativeAdFactory(private val context: Context) : NativeAdFactory {
         headlineView.text = nativeAd.headline
         adView.headlineView = headlineView
 
+        val callToActionView = adView.findViewById<TextView>(R.id.ad_call_to_action)
+        callToActionView.text = nativeAd.callToAction
+        adView.callToActionView = callToActionView
+
         adView.setNativeAd(nativeAd)
         return adView
     }

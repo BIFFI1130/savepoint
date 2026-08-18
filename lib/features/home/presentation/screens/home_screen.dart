@@ -19,9 +19,13 @@ class HomeScreen extends ConsumerWidget {
     // ＞から遷移した先の一覧画面で選べる）。成人向け・インディー作品の表示設定のみ、
     // 永続化された共通設定をそのまま反映する。
     final contentFilterPrefs = ref.watch(contentFilterPrefsProvider);
+    // platforms/genresはconstにして、build()のたびに新しいSetインスタンスが
+    // 生成されるのを防ぐ（Setは既定で参照比較のため、非constだと再ビルドのたびに
+    // familyプロバイダーが「別の条件」と誤認し、取得中のリクエストが完了する前に
+    // 何度も再スタートしてホーム画面が読み込み中のまま固まってしまう）。
     final noFilter = (
-      platforms: <String>{},
-      genres: <String>{},
+      platforms: const <String>{},
+      genres: const <String>{},
       includeAdult: contentFilterPrefs.includeAdult,
       includeIndie: contentFilterPrefs.includeIndie,
     );
