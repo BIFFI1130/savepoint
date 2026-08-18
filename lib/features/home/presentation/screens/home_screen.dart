@@ -14,7 +14,7 @@ const _noFilter = (
   platforms: <String>{},
   genres: <String>{},
   includeAdult: false,
-  includeIndie: false,
+  includeIndie: true,
 );
 
 class HomeScreen extends ConsumerWidget {

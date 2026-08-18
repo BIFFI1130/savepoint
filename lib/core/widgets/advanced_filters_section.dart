@@ -64,13 +64,13 @@ class _AdvancedFiltersSectionState extends State<AdvancedFiltersSection> {
                       ),
                     if (widget.onIncludeIndieChanged != null)
                       CheckboxListTile(
-                        value: widget.includeIndie ?? false,
+                        value: !(widget.includeIndie ?? true),
                         onChanged: (value) =>
-                            widget.onIncludeIndieChanged!(value ?? false),
+                            widget.onIncludeIndieChanged!(!(value ?? false)),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                         controlAffinity: ListTileControlAffinity.leading,
                         dense: true,
-                        title: const Text('インディー作品を表示する'),
+                        title: const Text('インディー作品を表示しない'),
                       ),
                   ],
                 )

@@ -64,7 +64,7 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
   GameSortType _sort = GameSortType.popularity;
   bool _includeUpcoming = false;
   bool _includeAdult = false;
-  bool _includeIndie = false;
+  bool _includeIndie = true;
 
   @override
   FutureOr<GameSearchResults> build() {
@@ -113,7 +113,7 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
     _schedule(immediate: true);
   }
 
-  /// インディー作品も一覧に含めるかどうか（デフォルトfalse＝除外）。
+  /// インディー作品を一覧から除外するかどうか（デフォルトtrue＝含める）。
   void setIncludeIndie(bool value) {
     _includeIndie = value;
     _schedule(immediate: true);

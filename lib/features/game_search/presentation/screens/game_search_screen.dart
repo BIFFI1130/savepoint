@@ -31,7 +31,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
   GameSortType _sort = GameSortType.popularity;
   bool _includeUpcoming = false;
   bool _includeAdult = false;
-  bool _includeIndie = false;
+  bool _includeIndie = true;
   Timer? _developerDebounce;
   Timer? _searchAnalyticsDebounce;
   bool _isGridView = false;
@@ -40,7 +40,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
       _selectedPlatforms.isNotEmpty ||
       _selectedGenres.isNotEmpty ||
       _includeAdult ||
-      _includeIndie ||
+      !_includeIndie ||
       _developerController.text.trim().isNotEmpty;
 
   @override
@@ -161,14 +161,14 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
                                 _selectedGenres.clear();
                                 _selectedPlatforms.clear();
                                 _includeAdult = false;
-                                _includeIndie = false;
+                                _includeIndie = true;
                                 _developerController.clear();
                               });
                               ref.read(gameSearchProvider.notifier)
                                 ..setGenres(_selectedGenres)
                                 ..setPlatforms(_selectedPlatforms)
                                 ..setIncludeAdult(false)
-                                ..setIncludeIndie(false)
+                                ..setIncludeIndie(true)
                                 ..setDeveloper('');
                               setSheetState(() {});
                             },

@@ -47,7 +47,7 @@ class _ReleaseListScreenState extends ConsumerState<ReleaseListScreen> {
     ...?widget.initialFilter?.genres,
   };
   late bool _includeAdult = widget.initialFilter?.includeAdult ?? false;
-  late bool _includeIndie = widget.initialFilter?.includeIndie ?? false;
+  late bool _includeIndie = widget.initialFilter?.includeIndie ?? true;
   bool _isGridView = false;
 
   void _onPlatformTap(String value) {
@@ -70,7 +70,7 @@ class _ReleaseListScreenState extends ConsumerState<ReleaseListScreen> {
       _selectedPlatforms.isNotEmpty ||
       _selectedGenres.isNotEmpty ||
       _includeAdult ||
-      _includeIndie;
+      !_includeIndie;
 
   void _openFilterSheet() {
     final isAdultUser = ref.read(isAdultUserProvider);
@@ -112,7 +112,7 @@ class _ReleaseListScreenState extends ConsumerState<ReleaseListScreen> {
                                 _selectedGenres = {};
                                 _selectedPlatforms = {};
                                 _includeAdult = false;
-                                _includeIndie = false;
+                                _includeIndie = true;
                               });
                               setSheetState(() {});
                             },

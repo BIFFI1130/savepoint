@@ -36,13 +36,13 @@ class _ReleaseCalendarScreenState
   Set<String> _selectedPlatforms = {};
   Set<String> _selectedGenres = {};
   bool _includeAdult = false;
-  bool _includeIndie = false;
+  bool _includeIndie = true;
 
   bool get _hasActiveFilter =>
       _selectedPlatforms.isNotEmpty ||
       _selectedGenres.isNotEmpty ||
       _includeAdult ||
-      _includeIndie;
+      !_includeIndie;
 
   void _openFilterSheet() {
     final isAdultUser = ref.read(isAdultUserProvider);
@@ -92,7 +92,7 @@ class _ReleaseCalendarScreenState
                                 _selectedGenres = {};
                                 _selectedPlatforms = {};
                                 _includeAdult = false;
-                                _includeIndie = false;
+                                _includeIndie = true;
                               });
                               setSheetState(() {});
                             },
