@@ -79,6 +79,12 @@ workflows:
         script: |
           set -euo pipefail
 
+          # 一時的な確認用ログ。SUPABASE_VARIABLESグループのSUPABASE_URLが
+          # dev/どちらのSupabaseプロジェクトを指しているか判別できないため、
+          # 確認でき次第この行は削除する。SUPABASE_URL自体はクライアントアプリに
+          # 埋め込まれる前提の値で機密情報ではないため、ログに出しても問題ない。
+          echo "[確認用] SUPABASE_URL=${SUPABASE_URL:-未設定}"
+
           # pubspec.yaml からバージョン名 (例: 1.0.0) を抽出
           APP_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d '+' -f 1 | tr -d '[:space:]')
           echo "APP_VERSION=$APP_VERSION" >> $CM_ENV
