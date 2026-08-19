@@ -61,3 +61,6 @@ app.*.map.json
 /window_dump.xml
 /window_screenshot.png
 /screenshots/
+
+# SavePoint: Node製ツール（tools/配下）の依存パッケージ
+/tools/**/node_modules/

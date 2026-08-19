@@ -1,0 +1,14 @@
+{
+  "name": "igdb-dump-ingest",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "IGDB Data Dumps(games/covers/platforms/genres/game_localizations/regions)をSupabaseのステージングテーブルへ取り込み、igdb_apply_staged_dump()でgamesへアトミックにマージする。ステージング投入はsupabase CLIの`db query --linked`（Management API経由、DBパスワード不要）、最後のマージ処理だけは生のPostgres直接接続（pg、タイムアウト無制限）を使う。",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "csv-parse": "^5.6.0",
+    "pg": "^8.13.1"
+  }
+}
