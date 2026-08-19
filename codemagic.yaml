@@ -223,17 +223,23 @@ workflows:
                 # 実際にはTestFlightへのアップロードが成功しているのに「スキップ」と誤報される
                 # 事態を防ぐため、この更新はベストエフォート（失敗してもパブリッシュ成功として扱う）にする。
                 if [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+                  set +e
                   HTTP_STATUS=$(curl -sS -o /tmp/app_versions_ios_response.json -w '%{http_code}' -X POST "$SUPABASE_URL/rest/v1/app_versions" \
                     -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
                     -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
                     -H "Content-Type: application/json" \
                     -H "Prefer: resolution=merge-duplicates" \
-                    -d "$(jq -n --arg build "$APP_BUILD_NUMBER" '{platform:"ios", latest_build: ($build|tonumber), update_url: "itms-beta://"}')") || HTTP_STATUS="curl自体が失敗"
-                  case "$HTTP_STATUS" in
+                    -d "$(jq -n --arg build "$APP_BUILD_NUMBER" '{platform:"ios", latest_build: ($build|tonumber), update_url: "itms-beta://"}')")
+                  CURL_EXIT=$?
+                  set -e
+                  if [ "$CURL_EXIT" -ne 0 ]; then
+                    HTTP_STATUS="curl失敗(exit=$CURL_EXIT)"
+                  fi
+                  case "${HTTP_STATUS:-}" in
                     200|201|204)
                       echo "app_versions（ios）を更新しました: build=$APP_BUILD_NUMBER" ;;
                     *)
-                      echo "app_versions（ios）の更新に失敗しました（HTTP $HTTP_STATUS）。TestFlightへのパブリッシュ自体は成功として扱います。"
+                      echo "app_versions（ios）の更新に失敗しました（HTTP ${HTTP_STATUS:-不明}）。TestFlightへのパブリッシュ自体は成功として扱います。"
                       cat /tmp/app_versions_ios_response.json 2>/dev/null || true ;;
                   esac
                 else
@@ -277,18 +283,24 @@ workflows:
                 # 実際にはFirebaseへの配布が成功しているのに「スキップ」と誤報される事態を
                 # 防ぐため、この更新はベストエフォート（失敗してもパブリッシュ成功として扱う）にする。
                 if [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+                  set +e
                   HTTP_STATUS=$(curl -sS -o /tmp/app_versions_android_response.json -w '%{http_code}' -X POST "$SUPABASE_URL/rest/v1/app_versions" \
                     -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
                     -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
                     -H "Content-Type: application/json" \
                     -H "Prefer: resolution=merge-duplicates" \
                     -d "$(jq -n --arg build "$ANDROID_BUILD_NUMBER" --arg url "$TESTING_URI" \
-                      '{platform:"android", latest_build: ($build|tonumber), update_url: $url}')") || HTTP_STATUS="curl自体が失敗"
-                  case "$HTTP_STATUS" in
+                      '{platform:"android", latest_build: ($build|tonumber), update_url: $url}')")
+                  CURL_EXIT=$?
+                  set -e
+                  if [ "$CURL_EXIT" -ne 0 ]; then
+                    HTTP_STATUS="curl失敗(exit=$CURL_EXIT)"
+                  fi
+                  case "${HTTP_STATUS:-}" in
                     200|201|204)
                       echo "app_versions（android）を更新しました: build=$ANDROID_BUILD_NUMBER" ;;
                     *)
-                      echo "app_versions（android）の更新に失敗しました（HTTP $HTTP_STATUS）。Firebaseへのパブリッシュ自体は成功として扱います。"
+                      echo "app_versions（android）の更新に失敗しました（HTTP ${HTTP_STATUS:-不明}）。Firebaseへのパブリッシュ自体は成功として扱います。"
                       cat /tmp/app_versions_android_response.json 2>/dev/null || true ;;
                   esac
                 else
