@@ -218,14 +218,23 @@ workflows:
                 # app_versionsテーブルに最新ビルド番号を反映し、アプリ側で古いビルドを
                 # 検知して強制アップデート画面を出せるようにする（SUPABASE_SERVICE_ROLE_KEYが
                 # 未設定の場合はスキップし、TestFlightへのパブリッシュ自体は成功のまま完了させる）。
+                # curlの失敗（-fで非2xx時に非ゼロ終了）がset -eでサブシェル全体を道連れにし、
+                # 実際にはTestFlightへのアップロードが成功しているのに「スキップ」と誤報される
+                # 事態を防ぐため、この更新はベストエフォート（失敗してもパブリッシュ成功として扱う）にする。
                 if [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
-                  curl -sf -X POST "$SUPABASE_URL/rest/v1/app_versions" \
+                  HTTP_STATUS=$(curl -sS -o /tmp/app_versions_ios_response.json -w '%{http_code}' -X POST "$SUPABASE_URL/rest/v1/app_versions" \
                     -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
                     -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
                     -H "Content-Type: application/json" \
                     -H "Prefer: resolution=merge-duplicates" \
-                    -d "$(jq -n --arg build "$APP_BUILD_NUMBER" '{platform:"ios", latest_build: ($build|tonumber), update_url: "itms-beta://"}')"
-                  echo "app_versions（ios）を更新しました: build=$APP_BUILD_NUMBER"
+                    -d "$(jq -n --arg build "$APP_BUILD_NUMBER" '{platform:"ios", latest_build: ($build|tonumber), update_url: "itms-beta://"}')") || HTTP_STATUS="curl自体が失敗"
+                  case "$HTTP_STATUS" in
+                    200|201|204)
+                      echo "app_versions（ios）を更新しました: build=$APP_BUILD_NUMBER" ;;
+                    *)
+                      echo "app_versions（ios）の更新に失敗しました（HTTP $HTTP_STATUS）。TestFlightへのパブリッシュ自体は成功として扱います。"
+                      cat /tmp/app_versions_ios_response.json 2>/dev/null || true ;;
+                  esac
                 else
                   echo "SUPABASE_SERVICE_ROLE_KEYが未設定のため、app_versionsの更新をスキップしました。"
                 fi
@@ -254,21 +263,32 @@ workflows:
                   --token "$FIREBASE_TOKEN" \
                   --json)
                 echo "$FIREBASE_OUTPUT"
-                TESTING_URI=$(echo "$FIREBASE_OUTPUT" | jq -r '.result.testingUri // empty')
+                # firebase-toolsのバージョンによって--json出力のトップレベル形が変わる
+                # ことがあるため、想定されるいくつかの場所を順に試す。
+                TESTING_URI=$(echo "$FIREBASE_OUTPUT" | jq -r '.result.testingUri // .testingUri // .release.testingUri // empty')
                 echo "テスター向けダウンロードリンク: ${TESTING_URI:-取得できませんでした}"
 
                 # app_versionsテーブルに最新ビルド番号とダウンロードリンクを反映する
                 # （SUPABASE_SERVICE_ROLE_KEYが未設定の場合はスキップし、Firebaseへの
                 # パブリッシュ自体は成功のまま完了させる）。
+                # curlの失敗（-fで非2xx時に非ゼロ終了）がset -eでサブシェル全体を道連れにし、
+                # 実際にはFirebaseへの配布が成功しているのに「スキップ」と誤報される事態を
+                # 防ぐため、この更新はベストエフォート（失敗してもパブリッシュ成功として扱う）にする。
                 if [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
-                  curl -sf -X POST "$SUPABASE_URL/rest/v1/app_versions" \
+                  HTTP_STATUS=$(curl -sS -o /tmp/app_versions_android_response.json -w '%{http_code}' -X POST "$SUPABASE_URL/rest/v1/app_versions" \
                     -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
                     -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
                     -H "Content-Type: application/json" \
                     -H "Prefer: resolution=merge-duplicates" \
                     -d "$(jq -n --arg build "$ANDROID_BUILD_NUMBER" --arg url "$TESTING_URI" \
-                      '{platform:"android", latest_build: ($build|tonumber), update_url: $url}')"
-                  echo "app_versions（android）を更新しました: build=$ANDROID_BUILD_NUMBER"
+                      '{platform:"android", latest_build: ($build|tonumber), update_url: $url}')") || HTTP_STATUS="curl自体が失敗"
+                  case "$HTTP_STATUS" in
+                    200|201|204)
+                      echo "app_versions（android）を更新しました: build=$ANDROID_BUILD_NUMBER" ;;
+                    *)
+                      echo "app_versions（android）の更新に失敗しました（HTTP $HTTP_STATUS）。Firebaseへのパブリッシュ自体は成功として扱います。"
+                      cat /tmp/app_versions_android_response.json 2>/dev/null || true ;;
+                  esac
                 else
                   echo "SUPABASE_SERVICE_ROLE_KEYが未設定のため、app_versionsの更新をスキップしました。"
                 fi
