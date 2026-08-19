@@ -16,9 +16,8 @@ import google_mobile_ads
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
 
     // ホーム画面のゲームカバー一覧に紛れ込ませるネイティブ広告のファクトリを登録する。
-    let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "GameCardNativeAdFactory")
     FLTGoogleMobileAdsPlugin.registerNativeAdFactory(
-      registrar,
+      engineBridge.pluginRegistry,
       factoryId: "gameCard",
       nativeAdFactory: GameCardNativeAdFactory()
     )

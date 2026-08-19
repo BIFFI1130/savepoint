@@ -8,13 +8,13 @@ import google_mobile_ads
 /// に相当。iOS側はXIBを使わずコードでビューを構築している）。
 class GameCardNativeAdFactory: NSObject, FLTNativeAdFactory {
   func createNativeAd(
-    _ nativeAd: GADNativeAd,
+    _ nativeAd: NativeAd,
     customOptions: [AnyHashable: Any]? = nil
-  ) -> GADNativeAdView? {
-    let adView = GADNativeAdView()
+  ) -> NativeAdView? {
+    let adView = NativeAdView()
     adView.translatesAutoresizingMaskIntoConstraints = false
 
-    let mediaView = GADMediaView()
+    let mediaView = MediaView()
     mediaView.translatesAutoresizingMaskIntoConstraints = false
     adView.addSubview(mediaView)
     adView.mediaView = mediaView
