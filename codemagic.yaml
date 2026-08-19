@@ -79,14 +79,6 @@ workflows:
         script: |
           set -euo pipefail
 
-          # 一時的な確認用ログ。SUPABASE_VARIABLESグループのSUPABASE_URLが
-          # dev/どちらのSupabaseプロジェクトを指しているか判別できないため、
-          # 確認でき次第この行は削除する。生の値はCodemagicにマスキングされて
-          # ログに出ないため、代わりにSHA-256ハッシュ値を出す
-          # （dev: 08fc3bcc81ae496ab9b98d16fcdf5e915777b59855347718ecfe65903ab362ab /
-          #  本番用: d8abb1445de309e2f37275ee0f1424a6990e5e77dff7eb7301059577bf85cfa8 と比較する）。
-          echo "[確認用] SUPABASE_URL sha256=$(printf '%s' "${SUPABASE_URL:-}" | shasum -a 256 | cut -d' ' -f1)"
-
           # pubspec.yaml からバージョン名 (例: 1.0.0) を抽出
           APP_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d '+' -f 1 | tr -d '[:space:]')
           echo "APP_VERSION=$APP_VERSION" >> $CM_ENV
