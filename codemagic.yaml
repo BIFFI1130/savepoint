@@ -210,6 +210,7 @@ workflows:
 
             (
               set -euo pipefail
+              HTTP_STATUS=""
               if [ -f /tmp/build_success ]; then
                 IPA_PATH=$(find build/ios/ipa -name '*.ipa' | head -n 1)
                 app-store-connect publish --path "$IPA_PATH"
@@ -247,6 +248,7 @@ workflows:
 
             (
               set -euo pipefail
+              HTTP_STATUS=""
               if [ -f /tmp/android_build_success ]; then
                 # Codemagicのmacイメージにはfirebase-toolsがプリインストール済みのため、
                 # 既にある場合はグローバルインストールをスキップする（EEXISTで失敗するのを防ぐ）。
