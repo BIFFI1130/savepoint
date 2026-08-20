@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/notifications/release_reminder_service.dart';
+import '../../../../core/utils/release_countdown.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/star_rating.dart';
@@ -144,6 +145,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
             if (game == null) {
               return const ErrorView(message: 'ゲーム情報が見つかりませんでした');
             }
+            final countdownLabel = releaseCountdownLabel(game.firstReleaseDate);
             return SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -192,6 +194,27 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                         Chip(label: Text(platform)),
                     ],
                   ),
+                  if (countdownLabel != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.event_outlined,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          countdownLabel,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   if (game.genres.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Wrap(

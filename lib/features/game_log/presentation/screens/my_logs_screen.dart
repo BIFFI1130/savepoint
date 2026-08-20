@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/utils/release_countdown.dart';
 import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
@@ -35,18 +36,8 @@ String _backlogDaysLabel(DateTime createdAt) {
 /// 残り日数を優先して表示し（積みゲー扱いされると紛らわしいため）、発売済み・
 /// 発売日不明の作品は従来通り登録からの経過日数を表示する。
 String _wantToPlayStatusLabel(GameLog log, Game game) {
-  final releaseDate = game.firstReleaseDate;
-  if (releaseDate != null) {
-    final today = DateTime.now();
-    final daysUntilRelease = DateTime(
-      releaseDate.year,
-      releaseDate.month,
-      releaseDate.day,
-    ).difference(DateTime(today.year, today.month, today.day)).inDays;
-    if (daysUntilRelease == 0) return '本日発売';
-    if (daysUntilRelease > 0) return '発売まであと$daysUntilRelease日';
-  }
-  return _backlogDaysLabel(log.createdAt);
+  return releaseCountdownLabel(game.firstReleaseDate) ??
+      _backlogDaysLabel(log.createdAt);
 }
 
 class MyLogsScreen extends ConsumerStatefulWidget {
