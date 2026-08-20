@@ -10,6 +10,7 @@ import '../../../../core/widgets/igdb_footer.dart';
 import '../../../../core/widgets/star_rating.dart';
 import '../../../favorites/presentation/providers/favorite_providers.dart';
 import '../../../favorites/presentation/widgets/favorite_games_list.dart';
+import '../../../game_search/domain/game.dart';
 import '../../../social/presentation/providers/social_providers.dart';
 import '../../domain/game_log.dart';
 import '../providers/log_providers.dart';
@@ -28,6 +29,24 @@ enum MyLogSortType {
 String _backlogDaysLabel(DateTime createdAt) {
   final days = DateTime.now().difference(createdAt).inDays;
   return days <= 0 ? '今日追加' : '$days日間 積んでいます';
+}
+
+/// 「遊びたい」リストの1件に表示するステータス文言。未発売作品は発売日までの
+/// 残り日数を優先して表示し（積みゲー扱いされると紛らわしいため）、発売済み・
+/// 発売日不明の作品は従来通り登録からの経過日数を表示する。
+String _wantToPlayStatusLabel(GameLog log, Game game) {
+  final releaseDate = game.firstReleaseDate;
+  if (releaseDate != null) {
+    final today = DateTime.now();
+    final daysUntilRelease = DateTime(
+      releaseDate.year,
+      releaseDate.month,
+      releaseDate.day,
+    ).difference(DateTime(today.year, today.month, today.day)).inDays;
+    if (daysUntilRelease == 0) return '本日発売';
+    if (daysUntilRelease > 0) return '発売まであと$daysUntilRelease日';
+  }
+  return _backlogDaysLabel(log.createdAt);
 }
 
 class MyLogsScreen extends ConsumerStatefulWidget {
@@ -604,7 +623,7 @@ class _LogList extends StatelessWidget {
                 _PriorityChip(log: entry.log),
                 const SizedBox(width: 8),
                 Text(
-                  _backlogDaysLabel(entry.log.createdAt),
+                  _wantToPlayStatusLabel(entry.log, entry.game),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
