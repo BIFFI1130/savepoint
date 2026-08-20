@@ -135,6 +135,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     onPressed: _isLoading ? null : () => context.push('/sign-up'),
                     child: const Text('アカウントをお持ちでない方はこちら'),
                   ),
+                  TextButton(
+                    onPressed: _isLoading
+                        ? null
+                        : () => context.push('/forgot-password'),
+                    child: const Text('パスワードをお忘れですか？'),
+                  ),
                   const SizedBox(height: 8),
                   const Row(
                     children: [

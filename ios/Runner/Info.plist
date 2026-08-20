@@ -73,6 +73,18 @@
 		<!-- 強制アップデート画面からTestFlightアプリを直接開くために使用 -->
 		<string>itms-beta</string>
 	</array>
+	<!-- パスワード再設定メールのリンク（savepoint://reset-password）を受け取るためのカスタムURLスキーム。 -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.biffi.savepoint.resetpassword</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>savepoint</string>
+			</array>
+		</dict>
+	</array>
 	<!-- AdMob（アプリ内バナー広告）。現在はGoogle公式のテスト用App IDを設定している。
 	     TODO(BIFFI): 正式リリース前に、AdMobで発行した本番用のApp IDへ差し替えること。 -->
 	<key>GADApplicationIdentifier</key>

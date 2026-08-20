@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 
 import '../analytics/analytics_service.dart';
 import '../../features/achievements/presentation/screens/achievements_screen.dart';
+import '../../features/auth/presentation/screens/forgot_password_screen.dart';
+import '../../features/auth/presentation/screens/reset_password_screen.dart';
 import '../../features/auth/presentation/screens/sign_in_screen.dart';
 import '../../features/auth/presentation/screens/sign_up_screen.dart';
 import '../../features/collections/presentation/screens/collection_detail_screen.dart';
@@ -60,7 +62,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isLoggedIn = supabase.auth.currentSession != null;
       final isAuthRoute =
           state.matchedLocation == '/sign-in' ||
-          state.matchedLocation == '/sign-up';
+          state.matchedLocation == '/sign-up' ||
+          state.matchedLocation == '/forgot-password';
       final isOnboardingRoute = state.matchedLocation == '/onboarding/username';
 
       if (!isLoggedIn && !isAuthRoute) return '/sign-in';
@@ -110,6 +113,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/sign-up',
         builder: (context, state) => const SignUpScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) => const ResetPasswordScreen(),
       ),
       GoRoute(
         path: '/home',

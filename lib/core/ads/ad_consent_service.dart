@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -8,6 +10,11 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 /// （SDKが位置情報から自動判定する）が、AdMobの規約上すべてのパブリッシャーに実装が
 /// 求められているため対応する。同意情報の取得に失敗した場合（オフライン等）も、
 /// アプリの起動自体はブロックしない。
+///
+/// iOSでは併せてApp Tracking Transparency（ATT）の許諾ダイアログも表示する。UMPは
+/// EEA/UK向けの同意管理、ATTは（EEA/UK含む）全地域でiOS 14.5以降パーソナライズ広告に
+/// トラッキングを使う場合に必須のOS標準ダイアログで、役割が異なるため両方が必要。
+/// AdMob初期化より前に呼ぶことが推奨されているため、UMP同意解決後・AdMob初期化前に行う。
 class AdConsentService {
   const AdConsentService();
 
@@ -21,18 +28,29 @@ class AdConsentService {
           if (formError != null) {
             debugPrint('UMP consent form error: ${formError.message}');
           }
+          await _requestTrackingAuthorizationIfNeeded();
           await _initializeIfAllowed();
           if (!completer.isCompleted) completer.complete();
         });
       },
       (FormError error) async {
         debugPrint('UMP consent info update error: ${error.message}');
+        await _requestTrackingAuthorizationIfNeeded();
         await _initializeIfAllowed();
         if (!completer.isCompleted) completer.complete();
       },
     );
 
     return completer.future;
+  }
+
+  Future<void> _requestTrackingAuthorizationIfNeeded() async {
+    if (!Platform.isIOS) return;
+    try {
+      await AppTrackingTransparency.requestTrackingAuthorization();
+    } catch (error, stackTrace) {
+      debugPrint('ATT request failed: $error\n$stackTrace');
+    }
   }
 
   Future<void> _initializeIfAllowed() async {

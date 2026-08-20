@@ -28,6 +28,20 @@ class AuthRepository {
     await _auth.signInWithPassword(email: email, password: password);
   }
 
+  /// パスワード再設定メールを送信する。メール内のリンクはディープリンク
+  /// （`savepoint://reset-password`）でアプリに戻り、[updatePassword]で
+  /// 新しいパスワードを設定する画面に遷移する。
+  Future<void> resetPasswordForEmail(String email) async {
+    await _auth.resetPasswordForEmail(email, redirectTo: _resetPasswordUrl);
+  }
+
+  /// パスワード再設定リンク経由で確立されたセッションを使って、新しいパスワードを設定する。
+  Future<void> updatePassword(String newPassword) async {
+    await _auth.updateUser(UserAttributes(password: newPassword));
+  }
+
+  static const _resetPasswordUrl = 'savepoint://reset-password';
+
   /// Apple のネイティブサインインシートを表示し、取得した ID トークンで Supabase にサインインする。
   Future<void> signInWithApple() async {
     final rawNonce = _generateRawNonce();

@@ -79,6 +79,8 @@ dependencies:
   # アプリ内バナー広告（AdMob）
   google_mobile_ads: ^9.1.0
   purchases_flutter: ^10.9.1
+  app_links: ^7.2.1
+  app_tracking_transparency: ^2.0.7
 
 dev_dependencies:
   flutter_test:
