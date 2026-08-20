@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 積みゲー（「遊びたい」）の中で発売が一番近い作品を表示するウィジェット。
+     RemoteViewsではConstraintLayout等が使えないため、LinearLayoutのみで構成する。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/backlog_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_vertical"
+    android:background="@drawable/backlog_widget_background"
+    android:paddingLeft="16dp"
+    android:paddingRight="16dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp">
+
+    <TextView
+        android:id="@+id/backlog_widget_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="積みゲーの発売予定はありません"
+        android:textColor="#1A1A2E"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+    <TextView
+        android:id="@+id/backlog_widget_countdown"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="SavePoint"
+        android:textColor="#3D5AFE"
+        android:textSize="13sp"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+</LinearLayout>

@@ -1,13 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:home_widget/home_widget.dart';
 
 import 'core/deep_links/deep_link_service.dart';
+import 'core/home_widget/backlog_widget_service.dart';
 import 'core/router/app_router.dart';
 import 'core/subscription/subscription_service.dart';
 import 'core/supabase/supabase_client.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/providers/auth_providers.dart';
+import 'features/game_log/presentation/providers/log_providers.dart';
 
 class SavePointApp extends ConsumerStatefulWidget {
   const SavePointApp({super.key});
@@ -17,10 +22,22 @@ class SavePointApp extends ConsumerStatefulWidget {
 }
 
 class _SavePointAppState extends ConsumerState<SavePointApp> {
+  StreamSubscription<Uri?>? _widgetClickSubscription;
+
   @override
   void initState() {
     super.initState();
     DeepLinkService(_handleDeepLink).init();
+    _widgetClickSubscription = HomeWidget.widgetClicked.listen(
+      _handleWidgetTap,
+    );
+    HomeWidget.initiallyLaunchedFromHomeWidget().then(_handleWidgetTap);
+  }
+
+  @override
+  void dispose() {
+    _widgetClickSubscription?.cancel();
+    super.dispose();
   }
 
   /// パスワード再設定メールのリンク（`savepoint://reset-password?code=...`）を受け取り、
@@ -32,6 +49,21 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
       ref.read(routerProvider).go('/reset-password');
     } catch (error, stackTrace) {
       debugPrint('パスワード再設定リンクの処理に失敗しました: $error\n$stackTrace');
+    }
+  }
+
+  /// ホーム画面ウィジェット（積みゲーの発売日カウントダウン）のタップを受け取り、
+  /// 該当ゲームの詳細画面へ遷移する。ゲームが無い状態でのタップは`savepoint://home`。
+  void _handleWidgetTap(Uri? uri) {
+    if (uri == null || uri.scheme != 'savepoint') return;
+    try {
+      if (uri.host == 'game' && uri.pathSegments.isNotEmpty) {
+        ref.read(routerProvider).go('/games/${uri.pathSegments.first}');
+      } else if (uri.host == 'home') {
+        ref.read(routerProvider).go('/home');
+      }
+    } catch (error, stackTrace) {
+      debugPrint('ウィジェットタップの処理に失敗しました: $error\n$stackTrace');
     }
   }
 
@@ -47,6 +79,13 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
       } else if (previous != null) {
         SubscriptionService.logOut();
       }
+    });
+
+    // 積みゲーの中で発売が一番近い作品を、Androidのホーム画面ウィジェットに同期する。
+    // myLogsProviderはHomeShellのIndexedStack上で常に監視され続けるため、
+    // 更新箇所ごとに個別に呼び出す必要がなく、ここ1箇所で全ての変更を捕捉できる。
+    ref.listen(myLogsProvider, (previous, next) {
+      next.whenData((logs) => const BacklogWidgetService().sync(logs));
     });
 
     return MaterialApp.router(
