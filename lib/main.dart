@@ -11,6 +11,7 @@ import 'app.dart';
 import 'core/ads/ad_consent_service.dart';
 import 'core/notifications/release_reminder_service.dart';
 import 'core/preferences/content_filter_prefs.dart';
+import 'core/subscription/subscription_service.dart';
 import 'core/supabase/supabase_client.dart';
 import 'features/game_log/data/log_repository.dart';
 import 'features/game_log/domain/game_log.dart';
@@ -45,6 +46,10 @@ Future<void> main() async {
   // 広告配信の同意確認（UMP）が完了してからAdMob SDKを初期化する。
   // 失敗しても（オフライン等）アプリの起動自体はブロックしない。
   await const AdConsentService().requestConsentAndInitialize();
+
+  // RevenueCat SDKの初期化。APIキー未設定時は内部でスキップされ、
+  // 課金機能全体が「未購入」として安全に無効化される。
+  await SubscriptionService.configure();
 
   // 「遊びたい」の未発売ゲームの発売日通知は、端末側にしか予約情報が
   // 残らない（再インストール・端末変更等で消える）ため起動のたびに予約し直す。

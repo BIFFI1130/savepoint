@@ -29,6 +29,15 @@ class Env {
     return Platform.isIOS ? _testNativeAdUnitIdIOS : _testNativeAdUnitIdAndroid;
   }
 
+  // RevenueCatの公開SDKキーもAdMobの広告ユニットIDと同じく非機密情報だが、
+  // AdMobと違い「未設定でも動くGoogle公式テストID」に相当するものが無いため、
+  // フォールバックはしない。空文字のままならSubscriptionService側でconfigure自体を
+  // スキップし、課金機能全体を「準備中」として無効化する。
+  static String get revenueCatIosApiKey =>
+      const String.fromEnvironment('REVENUECAT_IOS_API_KEY');
+  static String get revenueCatAndroidApiKey =>
+      const String.fromEnvironment('REVENUECAT_ANDROID_API_KEY');
+
   static void assertConfigured() {
     if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
       throw StateError(

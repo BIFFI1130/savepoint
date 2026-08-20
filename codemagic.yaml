@@ -24,11 +24,13 @@ workflows:
         # （＝強制アップデート機能が動かないだけで、配信は今まで通り成功する）。
         #
         # AdMobの本番用バナー広告ユニットID（ADMOB_BANNER_AD_UNIT_ID）・ネイティブ広告
-        # ユニットID（ADMOB_NATIVE_AD_UNIT_ID）も、正式リリース時にこのグループへ追加
-        # 登録すること（新規グループをここに追加すると、Codemagic側でそのグループ自体が
-        # 未作成の場合にビルドが失敗するため、既存のこのグループに相乗りさせている）。
-        # 未設定の場合はGoogle公式のテスト広告ユニットIDにフォールバックする
-        # （ビルド自体は失敗しない）。
+        # ユニットID（ADMOB_NATIVE_AD_UNIT_ID）、RevenueCatの公開SDKキー
+        # （REVENUECAT_IOS_API_KEY / REVENUECAT_ANDROID_API_KEY）も、正式リリース時に
+        # このグループへ追加登録すること（新規グループをここに追加すると、Codemagic側で
+        # そのグループ自体が未作成の場合にビルドが失敗するため、既存のこのグループに
+        # 相乗りさせている）。未設定の場合、AdMobはGoogle公式のテスト広告ユニットIDに
+        # フォールバックし、RevenueCatは課金機能全体が無効化される（いずれもビルド自体は
+        # 失敗しない）。
         - SUPABASE_VARIABLES
         # DISCORD_WEBHOOK_URL を含むCodemagic側の変数グループ（ダッシュボード名と完全一致させてください）
         - DISCORD_VARIABLES
@@ -131,7 +133,8 @@ workflows:
               --dart-define=SUPABASE_URL=$SUPABASE_URL \
               --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
               --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID:-} \
-              --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID:-}
+              --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID:-} \
+              --dart-define=REVENUECAT_IOS_API_KEY=${REVENUECAT_IOS_API_KEY:-}
 
             # クラッシュレポート（Crashlytics）のスタックトレースをシンボリケートできるよう、
             # dSYMをアップロードする。
@@ -169,7 +172,8 @@ workflows:
               --dart-define=SUPABASE_URL=$SUPABASE_URL \
               --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
               --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID:-} \
-              --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID:-}
+              --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID:-} \
+              --dart-define=REVENUECAT_ANDROID_API_KEY=${REVENUECAT_ANDROID_API_KEY:-}
           ) > /tmp/android_build.log 2>&1 &
           ANDROID_BUILD_PID=$!
 

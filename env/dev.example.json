@@ -2,5 +2,7 @@
   "SUPABASE_URL": "https://<project-ref>.supabase.co",
   "SUPABASE_ANON_KEY": "<anon-public-key>",
   "ADMOB_BANNER_AD_UNIT_ID": "<省略可。未設定時はGoogleのテスト広告ユニットIDが自動で使われる>",
-  "ADMOB_NATIVE_AD_UNIT_ID": "<省略可。未設定時はGoogleのテストネイティブ広告ユニットIDが自動で使われる>"
+  "ADMOB_NATIVE_AD_UNIT_ID": "<省略可。未設定時はGoogleのテストネイティブ広告ユニットIDが自動で使われる>",
+  "REVENUECAT_IOS_API_KEY": "<省略可。未設定時は課金機能全体が無効化され、常に未購入として扱われる>",
+  "REVENUECAT_ANDROID_API_KEY": "<省略可。未設定時は課金機能全体が無効化され、常に未購入として扱われる>"
 }

@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/notifications/backlog_reminder_service.dart';
+import '../../../../core/subscription/subscription_providers.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/avatar_image.dart';
 import '../../../../core/widgets/genre_badge_selector.dart';
@@ -139,6 +140,13 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  /// ストア（App Store/Play）のサブスクリプション管理画面を開く。
+  Future<void> _openManagementUrl(WidgetRef ref) async {
+    final url = ref.read(customerInfoProvider).valueOrNull?.managementURL;
+    if (url == null) return;
+    await _openUrl(url);
   }
 
   Future<void> _toggleBacklogReminder(bool value) async {
@@ -412,6 +420,30 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   contentPadding: EdgeInsets.zero,
                   title: const Text('積みゲーリマインダー'),
                   subtitle: const Text('「遊びたい」の消化を週1回通知でお知らせします'),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+            Text('広告', style: Theme.of(context).textTheme.titleMedium),
+            Consumer(
+              builder: (context, ref, _) {
+                final isAdFree = ref.watch(isAdFreeProvider);
+                if (isAdFree) {
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.check_circle_outline),
+                    title: const Text('ご契約中'),
+                    subtitle: const Text('広告は表示されません。タップで契約内容を確認できます'),
+                    onTap: () => _openManagementUrl(ref),
+                  );
+                }
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.block),
+                  title: const Text('広告を非表示にする'),
+                  onTap: () => context.push('/subscription/paywall'),
                 );
               },
             ),

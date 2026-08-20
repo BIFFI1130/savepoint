@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/ads/native_ad_card.dart';
 import '../../../../core/preferences/content_filter_prefs.dart';
+import '../../../../core/subscription/subscription_providers.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/igdb_footer.dart';
@@ -61,7 +62,10 @@ class HomeScreen extends ConsumerWidget {
                     child: Text('今週発売予定のタイトルは見つかりませんでした'),
                   );
                 }
-                return _CoverCarousel(games: games, showNativeAd: true);
+                return _CoverCarousel(
+                  games: games,
+                  showNativeAd: !ref.watch(isAdFreeProvider),
+                );
               },
               loading: () => const SizedBox(
                 height: 160,

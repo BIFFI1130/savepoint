@@ -22,6 +22,7 @@ import '../../features/social/presentation/screens/user_list_screen.dart';
 import '../../features/social/presentation/screens/user_profile_screen.dart';
 import '../../features/social/presentation/screens/user_search_screen.dart';
 import '../../features/social/presentation/screens/username_onboarding_screen.dart';
+import '../../features/subscription/presentation/screens/paywall_screen.dart';
 import '../../features/summary/presentation/screens/summary_screen.dart';
 import '../../features/timeline/presentation/screens/timeline_screen.dart';
 import '../../features/update/presentation/screens/update_required_screen.dart';
@@ -184,6 +185,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/achievements',
         builder: (context, state) => const AchievementsScreen(),
+      ),
+      GoRoute(
+        path: '/subscription/paywall',
+        builder: (context, state) => const PaywallScreen(),
       ),
       GoRoute(
         path: '/timeline',
