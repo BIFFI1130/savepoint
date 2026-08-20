@@ -55,6 +55,18 @@
             android:textSize="10sp"
             android:textStyle="bold" />
 
+        <!-- 広告主アイコン。素材が提供されているのにViewが未設定だと実装不備として
+             検証ツールに指摘されるため、CTAボタンの反対側に小さく表示する。 -->
+        <ImageView
+            android:id="@+id/ad_icon"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="bottom|right"
+            android:layout_marginRight="8dp"
+            android:layout_marginBottom="7dp"
+            android:background="@android:color/transparent"
+            android:scaleType="fitCenter" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

@@ -2,6 +2,8 @@ package com.biffi.savepoint
 
 import android.content.Context
 import android.view.LayoutInflater
+import android.view.View
+import android.widget.ImageView
 import android.widget.TextView
 import com.google.android.gms.ads.nativead.AdChoicesView
 import com.google.android.gms.ads.nativead.MediaView
@@ -36,6 +38,16 @@ class GameCardNativeAdFactory(private val context: Context) : NativeAdFactory {
         adView.callToActionView = callToActionView
 
         adView.adChoicesView = adView.findViewById<AdChoicesView>(R.id.ad_choices)
+
+        val iconView = adView.findViewById<ImageView>(R.id.ad_icon)
+        val icon = nativeAd.icon
+        if (icon != null) {
+            iconView.setImageDrawable(icon.drawable)
+            iconView.visibility = View.VISIBLE
+        } else {
+            iconView.visibility = View.GONE
+        }
+        adView.iconView = iconView
 
         adView.setNativeAd(nativeAd)
         return adView

@@ -64,6 +64,22 @@ class GameCardNativeAdFactory: NSObject, FLTNativeAdFactory {
       callToActionLabel.bottomAnchor.constraint(equalTo: adView.bottomAnchor, constant: -6),
     ])
 
+    // 広告主アイコン。素材が提供されているのにViewが未設定だと実装不備として
+    // 検証ツールに指摘されるため、CTAボタンの反対側に小さく表示する。
+    if let icon = nativeAd.icon {
+      let iconImageView = UIImageView(image: icon.image)
+      iconImageView.translatesAutoresizingMaskIntoConstraints = false
+      iconImageView.contentMode = .scaleAspectFit
+      adView.addSubview(iconImageView)
+      adView.iconView = iconImageView
+      NSLayoutConstraint.activate([
+        iconImageView.trailingAnchor.constraint(equalTo: adView.trailingAnchor, constant: -8),
+        iconImageView.bottomAnchor.constraint(equalTo: adView.bottomAnchor, constant: -7),
+        iconImageView.widthAnchor.constraint(equalToConstant: 20),
+        iconImageView.heightAnchor.constraint(equalToConstant: 20),
+      ])
+    }
+
     let badgeLabel = UILabel()
     badgeLabel.translatesAutoresizingMaskIntoConstraints = false
     badgeLabel.text = "広告"
