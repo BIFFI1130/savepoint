@@ -81,6 +81,17 @@ class GameCardNativeAdFactory: NSObject, FLTNativeAdFactory {
       badgeLabel.heightAnchor.constraint(equalToConstant: 16),
     ])
 
+    // AdMobのポリシーで表示が必須の「広告に関する選択肢」アイコン。
+    // 左上の「広告」バッジと重ならないよう右上に配置する。
+    let adChoicesView = AdChoicesView()
+    adChoicesView.translatesAutoresizingMaskIntoConstraints = false
+    adView.addSubview(adChoicesView)
+    adView.adChoicesView = adChoicesView
+    NSLayoutConstraint.activate([
+      adChoicesView.trailingAnchor.constraint(equalTo: adView.trailingAnchor, constant: -4),
+      adChoicesView.topAnchor.constraint(equalTo: adView.topAnchor, constant: 4),
+    ])
+
     adView.nativeAd = nativeAd
 
     return adView

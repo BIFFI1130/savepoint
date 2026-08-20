@@ -3,6 +3,7 @@ package com.biffi.savepoint
 import android.content.Context
 import android.view.LayoutInflater
 import android.widget.TextView
+import com.google.android.gms.ads.nativead.AdChoicesView
 import com.google.android.gms.ads.nativead.MediaView
 import com.google.android.gms.ads.nativead.NativeAd
 import com.google.android.gms.ads.nativead.NativeAdView
@@ -33,6 +34,8 @@ class GameCardNativeAdFactory(private val context: Context) : NativeAdFactory {
         val callToActionView = adView.findViewById<TextView>(R.id.ad_call_to_action)
         callToActionView.text = nativeAd.callToAction
         adView.callToActionView = callToActionView
+
+        adView.adChoicesView = adView.findViewById<AdChoicesView>(R.id.ad_choices)
 
         adView.setNativeAd(nativeAd)
         return adView

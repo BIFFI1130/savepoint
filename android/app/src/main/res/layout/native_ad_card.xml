@@ -69,5 +69,14 @@
             android:textColor="#FFFFFF"
             android:textSize="10sp" />
 
+        <!-- AdMobのポリシーで表示が必須の「広告に関する選択肢」アイコン。
+             左上の「広告」バッジと重ならないよう右上に配置する。 -->
+        <com.google.android.gms.ads.nativead.AdChoicesView
+            android:id="@+id/ad_choices"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|right"
+            android:layout_margin="4dp" />
+
     </FrameLayout>
 </com.google.android.gms.ads.nativead.NativeAdView>

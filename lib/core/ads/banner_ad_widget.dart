@@ -60,13 +60,12 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
   Widget build(BuildContext context) {
     final ad = _bannerAd;
     if (ad == null) return const SizedBox.shrink();
-    return SafeArea(
-      top: false,
-      child: SizedBox(
-        width: ad.size.width.toDouble(),
-        height: ad.size.height.toDouble(),
-        child: AdWidget(ad: ad),
-      ),
+    // 直下に必ずNavigationBar（自身で下端のセーフエリアを確保する）が続くため、
+    // ここでSafeAreaを重ねると余計な空白ができてしまう。
+    return SizedBox(
+      width: ad.size.width.toDouble(),
+      height: ad.size.height.toDouble(),
+      child: AdWidget(ad: ad),
     );
   }
 }
