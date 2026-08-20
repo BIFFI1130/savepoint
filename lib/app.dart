@@ -32,6 +32,16 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
       _handleWidgetTap,
     );
     HomeWidget.initiallyLaunchedFromHomeWidget().then(_handleWidgetTap);
+
+    // 積みゲーの中で発売が一番近い作品を、Androidのホーム画面ウィジェットに同期する。
+    // myLogsProviderはHomeShellのIndexedStack上で常に監視され続けるため、
+    // 更新箇所ごとに個別に呼び出す必要がなく、ここ1箇所で全ての変更を捕捉できる。
+    // build()内のref.listenはfireImmediatelyに対応していないため、
+    // 登録前に確定していた（＝アプリ起動直後の）データを取りこぼさないよう
+    // initStateでlistenManual(fireImmediately: true)を使う。
+    ref.listenManual(myLogsProvider, (previous, next) {
+      next.whenData((logs) => const BacklogWidgetService().sync(logs));
+    }, fireImmediately: true);
   }
 
   @override
@@ -79,13 +89,6 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
       } else if (previous != null) {
         SubscriptionService.logOut();
       }
-    });
-
-    // 積みゲーの中で発売が一番近い作品を、Androidのホーム画面ウィジェットに同期する。
-    // myLogsProviderはHomeShellのIndexedStack上で常に監視され続けるため、
-    // 更新箇所ごとに個別に呼び出す必要がなく、ここ1箇所で全ての変更を捕捉できる。
-    ref.listen(myLogsProvider, (previous, next) {
-      next.whenData((logs) => const BacklogWidgetService().sync(logs));
     });
 
     return MaterialApp.router(

@@ -49,6 +49,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       [refreshStream, usernameGate, birthdateGate, updateGate],
     ),
     redirect: (context, state) {
+      // ホーム画面ウィジェットのタップ等で、Androidがコールドスタート時の
+      // Intentデータ（savepoint://...）をFlutterエンジンの初期ルートとして
+      // そのままgo_routerに渡してしまうことがあるため、先頭で正規のアプリ内
+      // パスに変換する（変換しないと「no routes for location」で落ちる）。
+      final uri = state.uri;
+      if (uri.scheme == 'savepoint') {
+        if (uri.host == 'game' && uri.pathSegments.isNotEmpty) {
+          return '/games/${uri.pathSegments.first}';
+        }
+        return '/home';
+      }
+
       final isUpdateRoute = state.matchedLocation == '/update-required';
 
       // 古いビルドは、ログイン状態に関わらず一切使わせない（サインイン画面より優先）。
