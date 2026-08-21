@@ -132,7 +132,23 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
     final logAsync = ref.watch(existingLogProvider(widget.gameId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('ゲーム詳細')),
+      appBar: AppBar(
+        title: const Text('ゲーム詳細'),
+        // ホーム画面ウィジェットのタップ等、遷移スタックを持たずにこの画面へ
+        // 直接遷移してきた場合（context.canPop()がfalse）は戻る先が無いため、
+        // マイログのタブへ移動するボタンを代わりに出す。
+        leading: context.canPop()
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: '戻る',
+                onPressed: () => context.pop(),
+              )
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'マイログに戻る',
+                onPressed: () => context.go('/home', extra: 3),
+              ),
+      ),
       body: Listener(
         // ジャンルバッジのラベル表示中に、画面上のどこか（別のバッジ含む）を
         // 操作したら閉じる。Listenerはジェスチャーアリーナに参加しないため、
