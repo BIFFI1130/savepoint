@@ -5,6 +5,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
@@ -42,6 +43,10 @@ Future<void> main() async {
   };
 
   final sharedPreferences = await SharedPreferences.getInstance();
+
+  // iOSのホーム画面ウィジェット（BacklogWidgetExtension）とApp Group経由で
+  // データを共有するために必要（Androidでは無視されるだけなので分岐不要）。
+  await HomeWidget.setAppGroupId('group.com.biffi.savepoint');
 
   // 広告配信の同意確認（UMP）が完了してからAdMob SDKを初期化する。
   // 失敗しても（オフライン等）アプリの起動自体はブロックしない。

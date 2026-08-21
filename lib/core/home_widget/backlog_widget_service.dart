@@ -11,6 +11,7 @@ class BacklogWidgetService {
   const BacklogWidgetService();
 
   static const _androidProviderName = 'BacklogWidgetProvider';
+  static const _iosWidgetName = 'BacklogWidget';
 
   Future<void> sync(List<GameLogWithGame> logs) async {
     try {
@@ -36,7 +37,10 @@ class BacklogWidgetService {
           nearest.game.id.toString(),
         );
       }
-      await HomeWidget.updateWidget(androidName: _androidProviderName);
+      await HomeWidget.updateWidget(
+        androidName: _androidProviderName,
+        iOSName: _iosWidgetName,
+      );
     } catch (error, stackTrace) {
       debugPrint('BacklogWidgetService.sync failed: $error\n$stackTrace');
     }

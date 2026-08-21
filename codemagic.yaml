@@ -15,6 +15,20 @@ workflows:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.biffi.savepoint
+        # iOSホーム画面ウィジェット（BacklogWidgetExtension、ios/BacklogWidgetExtension/）
+        # 追加に伴い、以下の作業がApple Developer Portal / Codemagic側で別途必要:
+        #   1. Apple Developer PortalでApp ID「com.biffi.savepoint.BacklogWidgetExtension」を
+        #      新規登録し、App Groups capability（group.com.biffi.savepoint）を有効化する。
+        #      本体App ID（com.biffi.savepoint）側にもApp Groups capabilityを追加し、
+        #      同じグループを紐付ける。
+        #   2. 本体・拡張の両方でApp Groupsを有効化したプロビジョニングプロファイルを
+        #      再作成（または自動管理）する必要がある。このbundle_identifierは現状
+        #      本体アプリの1つのみを指しており、Codemagicの自動署名が拡張ターゲット分の
+        #      プロファイルも自動取得できるかは未検証。`xcode-project use-profiles`が
+        #      拡張ターゲットの署名エラーで失敗する場合は、bundle_identifierをリスト化
+        #      （[com.biffi.savepoint, com.biffi.savepoint.BacklogWidgetExtension]）するか、
+        #      `app-store-connect fetch-signing-files`で拡張分のプロファイルを明示的に
+        #      取得するステップの追加を検討すること。
       groups:
         # SUPABASE_URL / SUPABASE_ANON_KEY を含むCodemagic側の変数グループ。
         # app_versionsテーブルへの更新チェック用書き込みには、加えて
