@@ -168,14 +168,25 @@ workflows:
                   "$HOME/Library/Caches/org.swift.swiftpm" \
                   ios \
                   -type f -name upload-symbols 2>/dev/null | head -n 1)
+            # 上記の既知パスで見つからない場合、SPMのキャッシュ先がXcodeバージョンや
+            # ビルド設定によって変わることがあるため、$HOME全体に検索範囲を広げる
+            # （それでも見つからない場合は、次回の原因調査用にFirebaseCrashlytics関連
+            # ディレクトリの一覧をログに残す）。
+            if [ -z "$UPLOAD_SYMBOLS" ]; then
+              echo "既知のパスでupload-symbolsが見つからなかったため、\$HOME全体を再検索します。"
+              UPLOAD_SYMBOLS=$(find "$HOME" -type f -name upload-symbols 2>/dev/null | head -n 1)
+            fi
             if [ -n "$UPLOAD_SYMBOLS" ]; then
+              echo "upload-symbolsが見つかりました: $UPLOAD_SYMBOLS"
               find build/ios/archive/Runner.xcarchive/dSYMs -name '*.dSYM' -print0 2>/dev/null \
                 | xargs -0 -I{} "$UPLOAD_SYMBOLS" \
                     -gsp ios/Runner/GoogleService-Info.plist \
                     -p ios \
                     {} || echo "dSYMのアップロードに失敗しましたが、ビルド自体は継続します。"
             else
-              echo "upload-symbolsが見つからなかったため、dSYMのアップロードをスキップします。"
+              echo "upload-symbolsが\$HOME全体を探しても見つかりませんでした。調査用にFirebaseCrashlytics関連ディレクトリを一覧表示します:"
+              find "$HOME/Library/Developer/Xcode/DerivedData" -iname '*firebasecrashlytics*' 2>/dev/null | head -n 30
+              echo "dSYMのアップロードをスキップします。"
             fi
           ) > /tmp/ios_build.log 2>&1 &
           IOS_BUILD_PID=$!
