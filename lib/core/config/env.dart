@@ -29,6 +29,17 @@ class Env {
     return Platform.isIOS ? _testNativeAdUnitIdIOS : _testNativeAdUnitIdAndroid;
   }
 
+  static const _testInterstitialAdUnitIdAndroid = 'ca-app-pub-3940256099942544/1033173712';
+  static const _testInterstitialAdUnitIdIOS = 'ca-app-pub-3940256099942544/4411468910';
+
+  static String get admobInterstitialAdUnitId {
+    const configured = String.fromEnvironment('ADMOB_INTERSTITIAL_AD_UNIT_ID');
+    if (configured.isNotEmpty) return configured;
+    return Platform.isIOS
+        ? _testInterstitialAdUnitIdIOS
+        : _testInterstitialAdUnitIdAndroid;
+  }
+
   // GoogleサインインのクライアントID（iOS用・ウェブ用）も非機密情報（Google Cloud
   // Consoleで公開されるOAuthクライアントIDのため）。未設定時はmain.dartで
   // GoogleSignIn.instance.initialize自体をスキップし、Googleサインインボタンの

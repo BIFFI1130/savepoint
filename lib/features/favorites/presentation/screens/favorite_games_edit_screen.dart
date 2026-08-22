@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/subscription/subscription_providers.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/igdb_footer.dart';
@@ -41,6 +42,13 @@ class _FavoriteGamesEditScreenState
   bool _isSaving = false;
   List<int>? _initialGameIds;
   bool _initialRanked = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // 編集中に読み込ませておき、保存時にはすぐ表示できるようにする。
+    ref.read(favoriteSaveAdProvider).preload();
+  }
 
   void _hydrate(List<_FavoriteSlot> slots, bool ranked) {
     if (_slots != null) return;
@@ -127,6 +135,11 @@ class _FavoriteGamesEditScreenState
       ref.invalidate(myFavoritesProvider);
       _initialGameIds = _slots!.map((s) => s.gameId).toList();
       _initialRanked = _ranked;
+      // サブスク未加入の場合のみ、保存の区切りとして全画面広告を挟む。
+      // 広告が未読み込みの場合はshow()が即座に返るため、保存自体はブロックしない。
+      if (!ref.read(isAdFreeProvider)) {
+        await ref.read(favoriteSaveAdProvider).show();
+      }
       if (mounted) {
         ScaffoldMessenger.of(
           context,
