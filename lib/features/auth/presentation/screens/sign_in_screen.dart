@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -58,6 +59,24 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       _showError(e.message);
     } catch (_) {
       _showError('Appleサインインに失敗しました。');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+    try {
+      await ref.read(authRepositoryProvider).signInWithGoogle();
+      await ref.read(appAnalyticsProvider).logLogin('google');
+    } on GoogleSignInException catch (e) {
+      if (e.code != GoogleSignInExceptionCode.canceled) {
+        _showError('Googleサインインに失敗しました。');
+      }
+    } on AuthException catch (e) {
+      _showError(e.message);
+    } catch (_) {
+      _showError('Googleサインインに失敗しました。');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -155,6 +174,15 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   const SizedBox(height: 8),
                   SignInWithAppleButton(
                     onPressed: _isLoading ? () {} : _signInWithApple,
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _signInWithGoogle,
+                    icon: const Icon(Icons.g_mobiledata, size: 28),
+                    label: const Text('Googleでサインイン'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(44),
+                    ),
                   ),
                 ],
               ),

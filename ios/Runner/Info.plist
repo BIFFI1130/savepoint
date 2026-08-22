@@ -84,6 +84,14 @@
 				<string>savepoint</string>
 			</array>
 		</dict>
+		<!-- Googleサインイン（ネイティブサインインシートからのコールバック受け取り用）。
+		     スキームはGoogle Cloud ConsoleのiOSクライアントIDを逆順にした値。 -->
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.763009686501-hl7sjse7u55jr69dr0t4qpr23fi4rg0v</string>
+			</array>
+		</dict>
 	</array>
 	<!-- AdMob（アプリ内バナー広告）。現在はGoogle公式のテスト用App IDを設定している。
 	     TODO(BIFFI): 正式リリース前に、AdMobで発行した本番用のApp IDへ差し替えること。 -->

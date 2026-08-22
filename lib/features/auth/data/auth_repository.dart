@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -67,8 +69,37 @@ class AuthRepository {
     );
   }
 
+  /// Googleのネイティブサインインシートを表示し、取得した ID トークンで Supabase にサインインする。
+  Future<void> signInWithGoogle() async {
+    final googleUser = await GoogleSignIn.instance.authenticate();
+
+    final authorization =
+        await googleUser.authorizationClient.authorizationForScopes([
+          'email',
+        ]) ??
+        await googleUser.authorizationClient.authorizeScopes(['email']);
+
+    final idToken = googleUser.authentication.idToken;
+    if (idToken == null) {
+      throw const AuthException('Googleからのサインインに失敗しました（IDトークンが取得できません）。');
+    }
+
+    await _auth.signInWithIdToken(
+      provider: OAuthProvider.google,
+      idToken: idToken,
+      accessToken: authorization.accessToken,
+    );
+  }
+
   Future<void> signOut() async {
     await _auth.signOut();
+    try {
+      await GoogleSignIn.instance.signOut();
+    } catch (error, stackTrace) {
+      // Google側のローカルセッションクリアに失敗しても、Supabase側のサインアウトは
+      // 既に完了しているため握りつぶす（次回サインイン時にアカウント選択し直せば良い）。
+      debugPrint('GoogleSignIn.signOut failed: $error\n$stackTrace');
+    }
   }
 
   /// ログイン中の自分のアカウントを完全に削除する（Edge Function `delete-account`

@@ -5,11 +5,13 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
 import 'core/ads/ad_consent_service.dart';
+import 'core/config/env.dart';
 import 'core/notifications/release_reminder_service.dart';
 import 'core/preferences/content_filter_prefs.dart';
 import 'core/subscription/subscription_service.dart';
@@ -47,6 +49,22 @@ Future<void> main() async {
   // iOSのホーム画面ウィジェット（BacklogWidgetExtension）とApp Group経由で
   // データを共有するために必要（Androidでは無視されるだけなので分岐不要）。
   await HomeWidget.setAppGroupId('group.com.biffi.savepoint');
+
+  // Googleサインインの初期化は起動時に一度だけ行う必要がある。クライアントID
+  // 未設定（ローカル開発でenv/dev.jsonに追加していない等）の場合はスキップし、
+  // Googleサインインボタン自体がエラーを返すだけでアプリの起動はブロックしない。
+  if (Env.googleWebClientId.isNotEmpty) {
+    try {
+      await GoogleSignIn.instance.initialize(
+        clientId: Env.googleIosClientId.isNotEmpty
+            ? Env.googleIosClientId
+            : null,
+        serverClientId: Env.googleWebClientId,
+      );
+    } catch (error, stackTrace) {
+      debugPrint('GoogleSignIn initialize failed: $error\n$stackTrace');
+    }
+  }
 
   // 広告配信の同意確認（UMP）が完了してからAdMob SDKを初期化する。
   // 失敗しても（オフライン等）アプリの起動自体はブロックしない。

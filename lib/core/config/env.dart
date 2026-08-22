@@ -29,6 +29,15 @@ class Env {
     return Platform.isIOS ? _testNativeAdUnitIdIOS : _testNativeAdUnitIdAndroid;
   }
 
+  // GoogleサインインのクライアントID（iOS用・ウェブ用）も非機密情報（Google Cloud
+  // Consoleで公開されるOAuthクライアントIDのため）。未設定時はmain.dartで
+  // GoogleSignIn.instance.initialize自体をスキップし、Googleサインインボタンの
+  // 動作は無効のままアプリは通常通り起動する。
+  static String get googleIosClientId =>
+      const String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
+  static String get googleWebClientId =>
+      const String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
+
   // RevenueCatの公開SDKキーもAdMobの広告ユニットIDと同じく非機密情報だが、
   // AdMobと違い「未設定でも動くGoogle公式テストID」に相当するものが無いため、
   // フォールバックはしない。空文字のままならSubscriptionService側でconfigure自体を
