@@ -9,7 +9,9 @@ import '../config/env.dart';
 /// 読み込み中・失敗時も同じ幅を確保し、横スクロール一覧のレイアウトが
 /// ガタつかないようにする。
 class NativeAdCard extends StatefulWidget {
-  const NativeAdCard({super.key, this.width = 110, this.height = 160});
+  // 幅はAdMobのMediaViewの最小サイズ要件（動画クリエイティブの場合120x120dp以上）を
+  // 満たすため、隣接するゲームカバー（110dp）よりわずかに広くしている。
+  const NativeAdCard({super.key, this.width = 120, this.height = 160});
 
   final double width;
   final double height;
