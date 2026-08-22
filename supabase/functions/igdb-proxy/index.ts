@@ -743,6 +743,24 @@ Deno.serve(async (req) => {
         }
       }
 
+      // クエリと完全一致するタイトルがあれば先頭に引き上げる。IGDBの検索は関連度順
+      // （評価数・フォロー数などのエンゲージメントを加味）のため、発売直後でまだ
+      // 実績が無い作品は、タイトルを一字一句正確に入力しても取得件数の下の方に
+      // 埋もれてしまうことがある（例:「How to Fish」がFish関連の他作品に埋もれて
+      // 24件中20番目付近になる）。ページ内に完全一致があるなら、それだけは
+      // 関連度に関わらず先頭に出す。pageOffset > 0では実行しない（Japanese
+      // Localized Titleのブロックと同じ理由で、毎ページ同じ作品が再挿入されるのを防ぐ）。
+      if (pageOffset === 0 && hasQuery) {
+        const normalizedQuery = translatedQuery.trim().toLowerCase();
+        const exactIndex = raws.findIndex(
+          (r) => typeof r.name === 'string' && r.name.trim().toLowerCase() === normalizedQuery,
+        );
+        if (exactIndex > 0) {
+          const [exact] = raws.splice(exactIndex, 1);
+          raws.unshift(exact);
+        }
+      }
+
       // 日本語クエリの場合、機械翻訳した英語での検索は「0件」だけが問題とは限らない。
       // 翻訳がニュアンスから外れている場合、探している作品とは無関係な作品が
       // それなりの件数ヒットしてしまうことがあり（例:「素晴らしき日々」の翻訳結果に
