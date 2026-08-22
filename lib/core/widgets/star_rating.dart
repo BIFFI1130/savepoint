@@ -23,7 +23,7 @@ class StarRating extends StatelessWidget {
       minRating: 0,
       itemCount: 5,
       itemSize: size,
-      allowHalfRating: false,
+      allowHalfRating: true,
       ignoreGestures: onChanged == null,
       itemBuilder: (context, _) => const Icon(Icons.star, color: Colors.amber),
       onRatingUpdate: (value) => onChanged?.call(value),

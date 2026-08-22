@@ -31,7 +31,7 @@ class LogRepository {
   /// 評価は任意（未評価はratingにnullを保存し、星の統計には含めない）。
   Future<void> upsertPlayedLog({
     required int gameId,
-    int? rating,
+    double? rating,
     String? reviewText,
     bool hasSpoiler = false,
     bool isCleared = false,

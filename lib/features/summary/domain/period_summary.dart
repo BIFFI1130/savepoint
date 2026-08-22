@@ -35,7 +35,7 @@ class PeriodSummary {
   double? get averageRating {
     final rated = playedEntries
         .map((e) => e.log.rating)
-        .whereType<int>()
+        .whereType<double>()
         .toList(growable: false);
     if (rated.isEmpty) return null;
     return rated.reduce((a, b) => a + b) / rated.length;
@@ -85,7 +85,9 @@ PeriodSummary summarizePeriod(
   for (final entry in played) {
     final rating = entry.log.rating;
     if (rating != null) {
-      ratingCounts[rating] = (ratingCounts[rating] ?? 0) + 1;
+      // 星の内訳グラフは整数刻みのまま。0.5刻みの評価は最も近い整数に丸めて集計する。
+      final bucket = rating.round().clamp(1, 5);
+      ratingCounts[bucket] = (ratingCounts[bucket] ?? 0) + 1;
     }
     for (final genre in entry.game.genres) {
       final label = genreLabel(genre);

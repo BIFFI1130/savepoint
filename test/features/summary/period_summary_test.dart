@@ -7,7 +7,7 @@ GameLogWithGame _entry({
   required int id,
   required GameLogStatus status,
   required DateTime createdAt,
-  int? rating,
+  double? rating,
   List<String> genres = const [],
 }) {
   return GameLogWithGame(

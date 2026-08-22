@@ -75,7 +75,7 @@ class GameLog {
   final String id;
   final int gameId;
   final GameLogStatus status;
-  final int? rating;
+  final double? rating;
   final String? reviewText;
   final bool hasSpoiler;
   final bool isCleared;
@@ -89,7 +89,7 @@ class GameLog {
       id: json['id'] as String,
       gameId: json['game_id'] as int,
       status: GameLogStatus.fromDb(json['status'] as String? ?? 'played'),
-      rating: json['rating'] as int?,
+      rating: (json['rating'] as num?)?.toDouble(),
       reviewText: json['review_text'] as String?,
       hasSpoiler: json['has_spoiler'] as bool? ?? false,
       isCleared: json['is_cleared'] as bool? ?? false,

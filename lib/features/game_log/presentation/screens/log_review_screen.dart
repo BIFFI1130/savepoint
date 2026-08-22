@@ -60,7 +60,7 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
     try {
       await ref.read(logRepositoryProvider).upsertPlayedLog(
             gameId: widget.gameId,
-            rating: _rating == 0 ? null : _rating.round(),
+            rating: _rating == 0 ? null : _rating,
             reviewText: _reviewController.text.trim().isEmpty
                 ? null
                 : _reviewController.text.trim(),

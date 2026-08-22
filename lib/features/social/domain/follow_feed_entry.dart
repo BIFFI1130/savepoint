@@ -36,7 +36,7 @@ class FollowFeedEntry {
   final GameLogStatus status;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final int? rating;
+  final double? rating;
   final String? reviewText;
   final bool hasSpoiler;
   final bool isCleared;
@@ -63,7 +63,7 @@ class FollowFeedEntry {
       status: GameLogStatus.fromDb(json['status'] as String? ?? 'played'),
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
-      rating: json['rating'] as int?,
+      rating: (json['rating'] as num?)?.toDouble(),
       reviewText: json['review_text'] as String?,
       hasSpoiler: json['has_spoiler'] as bool? ?? false,
       isCleared: json['is_cleared'] as bool? ?? false,

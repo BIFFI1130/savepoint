@@ -7,7 +7,7 @@ import 'package:savepoint/features/game_search/domain/game.dart';
 GameLogWithGame _played({
   required int id,
   required DateTime createdAt,
-  int? rating,
+  double? rating,
   String? reviewText,
   List<String> platforms = const [],
 }) {
