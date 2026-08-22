@@ -137,7 +137,7 @@ struct BacklogWidget: Widget {
 // MARK: - 本日発売ギャラリーウィジェット
 
 /// Flutter側（BacklogWidgetService）がJSON配列として保存する1件分のデータ。
-private struct ReleaseItem: Codable {
+struct ReleaseItem: Codable {
   let id: String
   let title: String
   let image: String?
