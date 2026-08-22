@@ -77,7 +77,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     final offeringsAsync = ref.watch(offeringsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('広告を非表示にする')),
+      appBar: AppBar(title: const Text('プレミアムプラン')),
       body: !SubscriptionService.isConfigured
           ? const EmptyView(
               message: '準備中です。もうしばらくお待ちください。',
@@ -97,7 +97,20 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 return ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
-                    const Text('購入すると、アプリ内の広告がすべて非表示になります。'),
+                    const Text('購入すると、次の特典が使えるようになります。'),
+                    const SizedBox(height: 12),
+                    const ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.block),
+                      title: Text('アプリ内の広告がすべて非表示になる'),
+                      dense: true,
+                    ),
+                    const ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.rate_review_outlined),
+                      title: Text('ゲームごとに「みんなのレビュー」が見られる'),
+                      dense: true,
+                    ),
                     const SizedBox(height: 16),
                     for (final package in packages) ...[
                       Card(

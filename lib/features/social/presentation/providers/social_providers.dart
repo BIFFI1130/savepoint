@@ -49,6 +49,13 @@ final followingListProvider = FutureProvider<List<SocialProfile>>((ref) async {
   return ref.read(socialRepositoryProvider).fetchFollowing();
 });
 
+/// 指定ゲームの公開レビュー一覧（フォロー関係を問わず、公開設定の全ユーザーが対象）。
+/// サブスク特典「みんなのレビュー」用。
+final gamePublicReviewsProvider =
+    FutureProvider.family<List<FollowFeedEntry>, int>((ref, gameId) async {
+  return ref.read(socialRepositoryProvider).fetchPublicReviewsForGame(gameId);
+});
+
 final followersListProvider = FutureProvider<List<SocialProfile>>((ref) async {
   return ref.read(socialRepositoryProvider).fetchFollowers();
 });

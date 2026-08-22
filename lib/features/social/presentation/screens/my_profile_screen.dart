@@ -426,7 +426,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 8),
-            Text('広告', style: Theme.of(context).textTheme.titleMedium),
+            Text('プレミアム', style: Theme.of(context).textTheme.titleMedium),
             Consumer(
               builder: (context, ref, _) {
                 final isAdFree = ref.watch(isAdFreeProvider);
@@ -435,14 +435,15 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.check_circle_outline),
                     title: const Text('ご契約中'),
-                    subtitle: const Text('広告は表示されません。タップで契約内容を確認できます'),
+                    subtitle: const Text('広告非表示・みんなのレビュー閲覧が使えます。タップで契約内容を確認できます'),
                     onTap: () => _openManagementUrl(ref),
                   );
                 }
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.block),
-                  title: const Text('広告を非表示にする'),
+                  leading: const Icon(Icons.workspace_premium_outlined),
+                  title: const Text('プレミアムプランについて見る'),
+                  subtitle: const Text('広告非表示・みんなのレビュー閲覧'),
                   onTap: () => context.push('/subscription/paywall'),
                 );
               },

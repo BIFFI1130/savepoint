@@ -205,6 +205,20 @@ class SocialRepository {
         .toList(growable: false);
   }
 
+  /// 特定ゲームの公開レビュー一覧（フォロー関係を問わず、公開設定の全ユーザーが対象）。
+  /// サブスク特典「みんなのレビュー」用。
+  Future<List<FollowFeedEntry>> fetchPublicReviewsForGame(int gameId) async {
+    final rows = await supabase
+        .from('game_public_reviews')
+        .select()
+        .eq('game_id', gameId)
+        .order('updated_at', ascending: false);
+    return (rows as List)
+        .cast<Map<String, dynamic>>()
+        .map(FollowFeedEntry.fromJson)
+        .toList(growable: false);
+  }
+
   Future<List<SocialProfile>> _fetchProfilesByIds(List<String> ids) async {
     if (ids.isEmpty) return [];
     final rows =
