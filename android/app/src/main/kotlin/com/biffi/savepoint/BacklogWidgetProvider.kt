@@ -3,7 +3,9 @@ package com.biffi.savepoint
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.SharedPreferences
+import android.graphics.BitmapFactory
 import android.net.Uri
+import android.view.View
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import es.antonborri.home_widget.HomeWidgetProvider
@@ -28,6 +30,7 @@ class BacklogWidgetProvider : HomeWidgetProvider() {
             val title = widgetData.getString("backlog_title", null)
             val releaseDateIso = widgetData.getString("backlog_release_date", null)
             val gameId = widgetData.getString("backlog_game_id", null)
+            val coverImagePath = widgetData.getString("backlog_cover_image", null)
             val countdown = releaseDateIso?.let { computeCountdownLabel(it) }
             val hasEntry = title != null && countdown != null
 
@@ -38,6 +41,14 @@ class BacklogWidgetProvider : HomeWidgetProvider() {
                 } else {
                     setTextViewText(R.id.backlog_widget_title, "積みゲーの発売予定はありません")
                     setTextViewText(R.id.backlog_widget_countdown, "SavePoint")
+                }
+
+                val cover = if (hasEntry) coverImagePath?.let { BitmapFactory.decodeFile(it) } else null
+                if (cover != null) {
+                    setImageViewBitmap(R.id.backlog_widget_cover, cover)
+                    setViewVisibility(R.id.backlog_widget_cover, View.VISIBLE)
+                } else {
+                    setViewVisibility(R.id.backlog_widget_cover, View.GONE)
                 }
 
                 val uri = if (hasEntry && gameId != null) {
