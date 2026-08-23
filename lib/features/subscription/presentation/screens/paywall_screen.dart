@@ -111,6 +111,12 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       title: Text('ゲームごとに「みんなのレビュー」が見られる'),
                       dense: true,
                     ),
+                    const ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.category_outlined),
+                      title: Text('「ジャンルから探す」で絞り込み検索ができる'),
+                      dense: true,
+                    ),
                     const SizedBox(height: 16),
                     for (final package in packages) ...[
                       Card(

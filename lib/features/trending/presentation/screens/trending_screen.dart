@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
-import '../../../../core/widgets/genre_badge_selector.dart';
+import '../../../../core/widgets/genre_filter_section.dart';
 import '../../../../core/widgets/igdb_footer.dart';
 import '../../../../core/widgets/star_rating.dart';
 import '../../../game_log/domain/game_log_stats.dart';
@@ -75,9 +75,7 @@ class _TrendingScreenState extends ConsumerState<TrendingScreen> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text('ジャンルから探す', style: Theme.of(context).textTheme.labelMedium),
-                      const SizedBox(height: 8),
-                      GenreBadgeSelector(
+                      GenreFilterSection(
                         selectedGenres: _selectedGenres,
                         onToggle: toggleGenre,
                       ),

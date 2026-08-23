@@ -6,7 +6,7 @@ import '../../../../core/preferences/content_filter_prefs.dart';
 import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
-import '../../../../core/widgets/genre_badge_selector.dart';
+import '../../../../core/widgets/genre_filter_section.dart';
 import '../../../../core/widgets/igdb_footer.dart';
 import '../../../../core/widgets/marquee_text.dart';
 import '../../../game_search/domain/game.dart';
@@ -114,9 +114,7 @@ class _ReleaseCalendarScreenState
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text('ジャンルから探す', style: Theme.of(context).textTheme.labelMedium),
-                      const SizedBox(height: 8),
-                      GenreBadgeSelector(
+                      GenreFilterSection(
                         selectedGenres: _selectedGenres,
                         onToggle: toggleGenre,
                       ),
