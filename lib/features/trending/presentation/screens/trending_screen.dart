@@ -7,6 +7,7 @@ import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/genre_badge_selector.dart';
 import '../../../../core/widgets/igdb_footer.dart';
+import '../../../../core/widgets/marquee_text.dart';
 import '../../../game_log/domain/game_log_stats.dart';
 import '../../../social/presentation/providers/social_providers.dart';
 import '../providers/trending_providers.dart';
@@ -237,7 +238,10 @@ class _RankingList extends ConsumerWidget {
                         CoverImage(url: stat.coverUrl, width: 40, height: 54),
                       ],
                     ),
-                    title: Text(stat.displayName),
+                    title: MarqueeText(
+                      key: ValueKey(stat.gameId),
+                      text: stat.displayName,
+                    ),
                     trailing: Text('${countSelector(stat)}$countSuffix'),
                     onTap: () => context.push('/games/${stat.gameId}'),
                   );

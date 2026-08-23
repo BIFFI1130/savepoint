@@ -8,6 +8,7 @@ import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/genre_badge_selector.dart';
 import '../../../../core/widgets/igdb_footer.dart';
+import '../../../../core/widgets/marquee_text.dart';
 import '../../../../core/widgets/star_rating.dart';
 import '../../../favorites/presentation/providers/favorite_providers.dart';
 import '../../../favorites/presentation/widgets/favorite_games_list.dart';
@@ -604,7 +605,10 @@ class _LogList extends StatelessWidget {
     final isWantToPlay = entry.log.status == GameLogStatus.wantToPlay;
     return ListTile(
       leading: CoverImage(url: entry.game.coverUrl, width: 44, height: 60),
-      title: Text(entry.game.displayName),
+      title: MarqueeText(
+        key: ValueKey(entry.game.id),
+        text: entry.game.displayName,
+      ),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

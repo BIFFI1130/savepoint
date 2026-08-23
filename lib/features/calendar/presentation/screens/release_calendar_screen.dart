@@ -8,6 +8,7 @@ import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/genre_badge_selector.dart';
 import '../../../../core/widgets/igdb_footer.dart';
+import '../../../../core/widgets/marquee_text.dart';
 import '../../../game_search/domain/game.dart';
 import '../../../game_search/domain/platform_options.dart';
 import '../../../social/presentation/providers/social_providers.dart';
@@ -189,7 +190,10 @@ class _ReleaseCalendarScreenState
                       final game = games[index];
                       return ListTile(
                         leading: CoverImage(url: game.coverUrl, width: 44, height: 60),
-                        title: Text(game.displayName),
+                        title: MarqueeText(
+                          key: ValueKey(game.id),
+                          text: game.displayName,
+                        ),
                         onTap: () {
                           Navigator.of(context).pop();
                           context.push('/games/${game.id}');

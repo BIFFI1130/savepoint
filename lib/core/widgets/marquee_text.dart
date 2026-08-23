@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 /// 1行で表示するテキスト。折り返さず、指定された幅に収まらない場合のみ
-/// 左右に往復スクロールするアニメーション（ビルボード表示）で全文を見せる。
+/// 右から左へスクロールするアニメーション（ビルボード表示）で全文を見せる。
+/// 末尾まで達したら先頭に戻り、同じ方向へのスクロールを繰り返す。
 /// 収まる場合は普通に静止表示する。
 class MarqueeText extends StatefulWidget {
   const MarqueeText({
@@ -59,6 +60,7 @@ class _MarqueeTextState extends State<MarqueeText> {
     while (mounted && _loopStarted) {
       await Future.delayed(widget.pauseDuration);
       if (!mounted || !_scrollController.hasClients) return;
+      // 右から左へ末尾まで一方向にスクロールする。
       await _scrollController.animateTo(
         overflow,
         duration: duration,
@@ -67,11 +69,8 @@ class _MarqueeTextState extends State<MarqueeText> {
       if (!mounted || !_scrollController.hasClients) return;
       await Future.delayed(widget.pauseDuration);
       if (!mounted || !_scrollController.hasClients) return;
-      await _scrollController.animateTo(
-        0,
-        duration: duration,
-        curve: Curves.linear,
-      );
+      // 逆再生ではなく、先頭へ瞬時に戻して同じ方向のスクロールを繰り返す。
+      _scrollController.jumpTo(0);
     }
   }
 
