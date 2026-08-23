@@ -99,7 +99,7 @@ struct BacklogWidgetEntryView: View {
           .clipShape(RoundedRectangle(cornerRadius: 4))
       }
       VStack(alignment: .leading, spacing: 4) {
-        Text(hasEntry ? entry.title! : "積みゲーの発売予定はありません")
+        Text(hasEntry ? entry.title! : "もうすぐ発売の遊びたいゲームはありません")
           .font(.system(size: 14, weight: .bold))
           .foregroundColor(Color(red: 0.10, green: 0.10, blue: 0.18))
           .lineLimit(1)
@@ -128,7 +128,7 @@ struct BacklogWidget: Widget {
           .background(Color.white)
       }
     }
-    .configurationDisplayName("積みゲー")
+    .configurationDisplayName("もうすぐ発売の遊びたいゲーム")
     .description("発売が一番近い「遊びたい」作品を表示します。")
     .supportedFamilies([.systemSmall, .systemMedium])
   }

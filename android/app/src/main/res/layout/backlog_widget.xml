@@ -32,7 +32,7 @@
             android:id="@+id/backlog_widget_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="積みゲーの発売予定はありません"
+            android:text="もうすぐ発売の遊びたいゲームはありません"
             android:textColor="#1A1A2E"
             android:textSize="14sp"
             android:textStyle="bold"

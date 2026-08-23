@@ -39,7 +39,7 @@ class BacklogWidgetProvider : HomeWidgetProvider() {
                     setTextViewText(R.id.backlog_widget_title, title)
                     setTextViewText(R.id.backlog_widget_countdown, countdown)
                 } else {
-                    setTextViewText(R.id.backlog_widget_title, "積みゲーの発売予定はありません")
+                    setTextViewText(R.id.backlog_widget_title, "もうすぐ発売の遊びたいゲームはありません")
                     setTextViewText(R.id.backlog_widget_countdown, "SavePoint")
                 }
 
