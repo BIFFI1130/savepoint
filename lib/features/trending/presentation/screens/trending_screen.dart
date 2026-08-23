@@ -7,7 +7,7 @@ import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/genre_badge_selector.dart';
 import '../../../../core/widgets/igdb_footer.dart';
-import '../../../../core/widgets/marquee_text.dart';
+import '../../../../core/widgets/star_rating.dart';
 import '../../../game_log/domain/game_log_stats.dart';
 import '../../../social/presentation/providers/social_providers.dart';
 import '../providers/trending_providers.dart';
@@ -139,7 +139,6 @@ class _TrendingScreenState extends ConsumerState<TrendingScreen> {
                   _RankingList(
                     provider: trendingWantToPlayProvider,
                     filter: filter,
-                    countSuffix: '人が遊びたい',
                     countSelector: _wantToPlayCount,
                     emptyMessage: 'まだ「遊びたい」の記録がありません',
                     isGridView: _isGridView,
@@ -147,7 +146,6 @@ class _TrendingScreenState extends ConsumerState<TrendingScreen> {
                   _RankingList(
                     provider: trendingPlayedProvider,
                     filter: filter,
-                    countSuffix: '人が遊んだ',
                     countSelector: _playedCount,
                     emptyMessage: 'まだ「遊んだ」の記録がありません',
                     isGridView: _isGridView,
@@ -177,7 +175,6 @@ class _RankingList extends ConsumerWidget {
   const _RankingList({
     required this.provider,
     required this.filter,
-    required this.countSuffix,
     required this.countSelector,
     required this.emptyMessage,
     required this.isGridView,
@@ -185,7 +182,6 @@ class _RankingList extends ConsumerWidget {
 
   final FutureProviderFamily<List<GameLogStats>, TrendingFilter> provider;
   final TrendingFilter filter;
-  final String countSuffix;
   final int Function(GameLogStats) countSelector;
   final String emptyMessage;
   final bool isGridView;
@@ -204,13 +200,16 @@ class _RankingList extends ConsumerWidget {
                 padding: const EdgeInsets.all(8),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 3,
-                  childAspectRatio: 0.7,
+                  childAspectRatio: 0.6,
                   crossAxisSpacing: 6,
                   mainAxisSpacing: 6,
                 ),
                 itemCount: stats.length,
-                itemBuilder: (context, index) =>
-                    _RankingGridItem(stat: stats[index], rank: index + 1),
+                itemBuilder: (context, index) => _RankingGridItem(
+                  stat: stats[index],
+                  rank: index + 1,
+                  count: countSelector(stats[index]),
+                ),
               )
             : ListView.separated(
                 itemCount: stats.length,
@@ -238,11 +237,11 @@ class _RankingList extends ConsumerWidget {
                         CoverImage(url: stat.coverUrl, width: 40, height: 54),
                       ],
                     ),
-                    title: MarqueeText(
-                      key: ValueKey(stat.gameId),
-                      text: stat.displayName,
+                    title: Text(
+                      stat.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    trailing: Text('${countSelector(stat)}$countSuffix'),
                     onTap: () => context.push('/games/${stat.gameId}'),
                   );
                 },
@@ -257,45 +256,70 @@ class _RankingList extends ConsumerWidget {
   }
 }
 
-/// グリッド表示用の1件分（カバー画像に順位バッジを重ねる）。
+/// グリッド表示用の1件分（カバー画像に順位バッジを重ね、下部に件数と評価の星を表示する）。
 class _RankingGridItem extends StatelessWidget {
-  const _RankingGridItem({required this.stat, required this.rank});
+  const _RankingGridItem({
+    required this.stat,
+    required this.rank,
+    required this.count,
+  });
 
   final GameLogStats stat;
   final int rank;
+  final int count;
 
   @override
   Widget build(BuildContext context) {
     final medalColor = _medalColors[rank];
     return GestureDetector(
       onTap: () => context.push('/games/${stat.gameId}'),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(6),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            CoverImage(url: stat.coverUrl, width: double.infinity, height: double.infinity),
-            Positioned(
-              top: 4,
-              left: 4,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: medalColor ?? Colors.black.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  '$rank',
-                  style: TextStyle(
-                    color: medalColor != null ? Colors.black : Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CoverImage(
+                    url: stat.coverUrl,
+                    width: double.infinity,
+                    height: double.infinity,
                   ),
-                ),
+                  Positioned(
+                    top: 4,
+                    left: 4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: medalColor ?? Colors.black.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '$rank',
+                        style: TextStyle(
+                          color: medalColor != null ? Colors.black : Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('$count', style: Theme.of(context).textTheme.labelSmall),
+              if (stat.avgRating != null)
+                StarRating(rating: stat.avgRating!, size: 12),
+            ],
+          ),
+        ],
       ),
     );
   }
