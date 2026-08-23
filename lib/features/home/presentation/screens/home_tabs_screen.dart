@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../../../calendar/presentation/screens/release_calendar_screen.dart';
 import '../../../timeline/presentation/screens/timeline_screen.dart';
 import 'home_screen.dart';
 
-/// ホーム画面上部のタブバー。「ホーム」（従来のホーム内容）と「タイムライン」
-/// （自分とフォロー中ユーザーのマイログ追加を時系列で確認できる）を切り替える。
+const _tabTitles = ['ホーム', 'タイムライン', 'カレンダー'];
+
+/// ホーム画面上部のタブバー。「ホーム」（従来のホーム内容）・「タイムライン」
+/// （自分とフォロー中ユーザーのマイログ追加を時系列で確認できる）・「カレンダー」
+/// （発売日カレンダー）を切り替える。
 class HomeTabsScreen extends StatefulWidget {
   const HomeTabsScreen({super.key});
 
@@ -14,7 +18,7 @@ class HomeTabsScreen extends StatefulWidget {
 
 class _HomeTabsScreenState extends State<HomeTabsScreen>
     with SingleTickerProviderStateMixin {
-  late final _controller = TabController(length: 2, vsync: this)
+  late final _controller = TabController(length: _tabTitles.length, vsync: this)
     ..addListener(() => setState(() {}));
 
   @override
@@ -27,12 +31,13 @@ class _HomeTabsScreenState extends State<HomeTabsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_controller.index == 0 ? 'ホーム' : 'タイムライン'),
+        title: Text(_tabTitles[_controller.index]),
         bottom: TabBar(
           controller: _controller,
           tabs: const [
             Tab(text: 'ホーム'),
             Tab(text: 'タイムライン'),
+            Tab(text: 'カレンダー'),
           ],
         ),
       ),
@@ -41,6 +46,7 @@ class _HomeTabsScreenState extends State<HomeTabsScreen>
         children: const [
           HomeScreen(),
           TimelineScreen(),
+          ReleaseCalendarScreen(),
         ],
       ),
     );

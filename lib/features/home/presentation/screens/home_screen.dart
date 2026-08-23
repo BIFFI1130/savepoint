@@ -39,14 +39,7 @@ class HomeScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: IconButton(
-              icon: const Icon(Icons.calendar_month_outlined),
-              tooltip: '発売日カレンダー',
-              onPressed: () => context.push('/calendar'),
-            ),
-          ),
+          const SizedBox(height: 8),
           recommendedAsync.when(
             data: (games) {
               if (games.isEmpty) return const SizedBox.shrink();

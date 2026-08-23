@@ -217,11 +217,11 @@ class _ReleaseCalendarScreenState
       includeIndie: _includeIndie,
     );
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('発売日カレンダー'),
-        actions: [
-          IconButton(
+    return Column(
+      children: [
+        Align(
+          alignment: Alignment.centerRight,
+          child: IconButton(
             icon: Icon(
               _hasActiveFilter ? Icons.filter_alt : Icons.filter_alt_outlined,
               color: _hasActiveFilter ? Theme.of(context).colorScheme.primary : null,
@@ -229,12 +229,14 @@ class _ReleaseCalendarScreenState
             tooltip: '絞り込み',
             onPressed: _openFilterSheet,
           ),
-        ],
-      ),
-      body: _DailyView(
-        filter: filter,
-        onDayTap: _showDayGames,
-      ),
+        ),
+        Expanded(
+          child: _DailyView(
+            filter: filter,
+            onDayTap: _showDayGames,
+          ),
+        ),
+      ],
     );
   }
 }
