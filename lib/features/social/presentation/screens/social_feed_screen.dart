@@ -6,9 +6,8 @@ import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/avatar_image.dart';
 import '../providers/social_providers.dart';
 
-/// 「つながり」タブのトップ画面。フォロー中ユーザーの一覧と、
-/// ユーザー検索・フォロワー・ブロック中一覧への入り口。
-/// プロフィール設定はマイログ画面の歯車アイコンから行う。
+/// フォロー中ユーザーの一覧画面。マイログの「フォロー」人数タップから遷移する。
+/// ユーザー検索・フォロワー・ブロック中一覧への入り口も兼ねる。
 class SocialFeedScreen extends ConsumerWidget {
   const SocialFeedScreen({super.key});
 

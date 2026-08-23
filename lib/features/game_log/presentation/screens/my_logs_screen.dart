@@ -184,7 +184,7 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
     final logsAsync = ref.watch(myLogsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('マイページ')),
+      appBar: AppBar(title: const Text('マイログ')),
       body: Column(
         children: [
           const Padding(
@@ -352,7 +352,7 @@ class _MyFavoritesTab extends ConsumerWidget {
   }
 }
 
-/// マイページ最上部のユーザーアイコン・ユーザー名。タップでプロフィール編集画面へ。
+/// マイログ最上部のユーザーアイコン・ユーザー名。タップでプロフィール編集画面へ。
 class _ProfileHeader extends ConsumerWidget {
   const _ProfileHeader();
 
