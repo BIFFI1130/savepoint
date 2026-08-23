@@ -15,6 +15,7 @@ import '../../features/collections/presentation/screens/collections_screen.dart'
 import '../../features/favorites/presentation/screens/favorite_games_edit_screen.dart';
 import '../../features/game_log/presentation/screens/log_review_screen.dart';
 import '../../features/home/presentation/providers/home_providers.dart';
+import '../../features/home/presentation/screens/recommended_games_screen.dart';
 import '../../features/home/presentation/screens/release_list_screen.dart';
 import '../../features/social/presentation/screens/birthdate_onboarding_screen.dart';
 import '../../features/social/presentation/screens/my_profile_screen.dart';
@@ -138,6 +139,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           final initialIndex = state.extra is int ? state.extra as int : 0;
           return HomeShell(initialIndex: initialIndex);
         },
+      ),
+      GoRoute(
+        path: '/home/recommended',
+        builder: (context, state) => const RecommendedGamesScreen(),
       ),
       GoRoute(
         path: '/home/weekly',

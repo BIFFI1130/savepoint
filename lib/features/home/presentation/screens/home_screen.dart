@@ -46,7 +46,10 @@ class HomeScreen extends ConsumerWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const _SectionHeader(title: 'あなたへのおすすめ'),
+                  _SectionHeader(
+                    title: 'あなたへのおすすめ',
+                    onTap: () => context.push('/home/recommended'),
+                  ),
                   _RecommendedCarousel(games: games),
                   const SizedBox(height: 24),
                 ],

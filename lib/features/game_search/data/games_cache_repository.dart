@@ -78,6 +78,16 @@ class GamesCacheRepository {
     return _toGames(data);
   }
 
+  /// 指定したIDのゲームをまとめて取得する（「あなたへのおすすめ」全件一覧画面の
+  /// 絞り込み用）。他のメソッドと違いRPCを経由せず`games`テーブルを直接SELECTするが、
+  /// IDを明示指定した範囲に限られる（一覧的な自由取得ではない）ため、
+  /// `games_select_all`ポリシーの下で安全に利用できる。
+  Future<List<Game>> gamesByIds(List<int> ids) async {
+    if (ids.isEmpty) return [];
+    final data = await supabase.from('games').select().inFilter('id', ids);
+    return _toGames(data);
+  }
+
   /// 取り込みが正常に稼働しているかの鮮度確認。最後に成功した取り込み時刻
   /// （なければnull）を返す。呼び出し側がこれを見て、古すぎる/取得できない
   /// 場合はライブ経路（[IgdbRepository]）にフォールバックする。
