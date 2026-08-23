@@ -203,7 +203,10 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                         color: Theme.of(context).colorScheme.outline,
                       ),
                     ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
+                  _OfficialSiteLink(url: game.officialUrl),
+                  _IgdbAttribution(igdbUrl: game.igdbUrl),
+                  const SizedBox(height: 4),
                   Wrap(
                     spacing: 8,
                     runSpacing: 4,
@@ -308,9 +311,6 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                     ),
                     error: (error, stackTrace) => const SizedBox.shrink(),
                   ),
-                  const SizedBox(height: 24),
-                  _OfficialSiteLink(url: game.officialUrl),
-                  _IgdbAttribution(igdbUrl: game.igdbUrl),
                   if (game.similarGames.isNotEmpty) ...[
                     const SizedBox(height: 24),
                     Text(
