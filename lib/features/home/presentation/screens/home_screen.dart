@@ -33,6 +33,7 @@ class HomeScreen extends ConsumerWidget {
     final releasesAsync = ref.watch(weeklyReleasesProvider(noFilter));
     final monthlyReleasesAsync = ref.watch(monthlyReleasesProvider(noFilter));
     final top100Async = ref.watch(top100Provider(noFilter));
+    final recommendedAsync = ref.watch(recommendedGamesProvider);
 
     return SingleChildScrollView(
       child: Column(
@@ -45,6 +46,24 @@ class HomeScreen extends ConsumerWidget {
               tooltip: '発売日カレンダー',
               onPressed: () => context.push('/calendar'),
             ),
+          ),
+          recommendedAsync.when(
+            data: (games) {
+              if (games.isEmpty) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _SectionHeader(title: 'あなたへのおすすめ'),
+                  _RecommendedCarousel(games: games),
+                  const SizedBox(height: 24),
+                ],
+              );
+            },
+            loading: () => const SizedBox(
+              height: 160,
+              child: LoadingView(),
+            ),
+            error: (error, _) => const SizedBox.shrink(),
           ),
           _SectionHeader(
             title: '今週発売のゲーム',
@@ -142,33 +161,66 @@ class HomeScreen extends ConsumerWidget {
 }
 
 /// セクション見出し。タップ（見出しテキストまたは＞アイコン）すると、そのセクションを
-/// 全件一覧できる画面（[ReleaseListScreen]）に遷移する。
+/// 全件一覧できる画面（[ReleaseListScreen]）に遷移する。[onTap] を渡さない場合は
+/// ＞アイコンを表示しないただの見出しになる（「あなたへのおすすめ」など全件一覧を
+/// 持たないセクション用）。
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.onTap});
+  const _SectionHeader({required this.title, this.onTap});
 
   final String title;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 12, 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+    final content = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 12, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium,
             ),
+          ),
+          if (onTap != null)
             Icon(
               Icons.chevron_right,
               color: Theme.of(context).colorScheme.outline,
             ),
-          ],
-        ),
+        ],
+      ),
+    );
+    if (onTap == null) return content;
+    return InkWell(onTap: onTap, child: content);
+  }
+}
+
+/// 「あなたへのおすすめ」用の横スクロール一覧。[Game]一覧の[_CoverCarousel]と違い、
+/// 順位バッジ・広告差し込みは行わない、関連作品（[SimilarGame]）のカバー画像のみの表示。
+class _RecommendedCarousel extends StatelessWidget {
+  const _RecommendedCarousel({required this.games});
+
+  final List<SimilarGame> games;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 160,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: games.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final game = games[index];
+          return GestureDetector(
+            onTap: () => context.push('/games/${game.id}'),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: CoverImage(url: game.coverUrl, width: 110, height: 160),
+            ),
+          );
+        },
       ),
     );
   }
