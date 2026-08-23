@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../timeline/presentation/screens/timeline_screen.dart';
 import 'home_screen.dart';
@@ -29,14 +28,6 @@ class _HomeTabsScreenState extends State<HomeTabsScreen>
     return Scaffold(
       appBar: AppBar(
         title: Text(_controller.index == 0 ? 'ホーム' : 'タイムライン'),
-        actions: [
-          if (_controller.index == 0)
-            IconButton(
-              icon: const Icon(Icons.calendar_month_outlined),
-              tooltip: '発売日カレンダー',
-              onPressed: () => context.push('/calendar'),
-            ),
-        ],
         bottom: TabBar(
           controller: _controller,
           tabs: const [

@@ -38,7 +38,14 @@ class HomeScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: IconButton(
+              icon: const Icon(Icons.calendar_month_outlined),
+              tooltip: '発売日カレンダー',
+              onPressed: () => context.push('/calendar'),
+            ),
+          ),
           _SectionHeader(
             title: '今週発売のゲーム',
             onTap: () => context.push('/home/weekly', extra: noFilter),
