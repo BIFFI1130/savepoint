@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/widgets/cover_image.dart';
-import '../../../../core/widgets/marquee_text.dart';
 import '../../domain/favorite_game.dart';
 
 /// 推しゲー一覧の表示（リスト／グリッド切り替え対応）。
@@ -85,9 +84,10 @@ class _FavoriteListTile extends StatelessWidget {
             ),
           ],
         ),
-        title: MarqueeText(
-          key: ValueKey(entry.gameId),
-          text: entry.displayGameName,
+        title: Text(
+          entry.displayGameName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         onTap: () => context.push('/games/${entry.gameId}'),
       ),

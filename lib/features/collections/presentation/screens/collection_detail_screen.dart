@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/igdb_footer.dart';
-import '../../../../core/widgets/marquee_text.dart';
 import '../providers/collection_providers.dart';
 
 class CollectionDetailScreen extends ConsumerWidget {
@@ -113,9 +112,10 @@ class CollectionDetailScreen extends ConsumerWidget {
                     final entry = games[index];
                     return ListTile(
                       leading: CoverImage(url: entry.game.coverUrl, width: 44, height: 60),
-                      title: MarqueeText(
-                        key: ValueKey(entry.game.id),
-                        text: entry.game.displayName,
+                      title: Text(
+                        entry.game.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       trailing: IconButton(
                         icon: const Icon(Icons.close),

@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/igdb_footer.dart';
-import '../../../../core/widgets/marquee_text.dart';
 import '../../../../core/widgets/star_rating.dart';
 import '../../../game_log/domain/game_log.dart';
 import '../../../game_log/presentation/providers/log_providers.dart';
@@ -153,10 +152,11 @@ class _TimelineEntry extends StatelessWidget {
                             '${date.month}月${date.day}日',
                             style: Theme.of(context).textTheme.labelSmall,
                           ),
-                          MarqueeText(
-                            key: ValueKey(entry.game.id),
-                            text: entry.game.displayName,
+                          Text(
+                            entry.game.displayName,
                             style: Theme.of(context).textTheme.titleSmall,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
                           Row(

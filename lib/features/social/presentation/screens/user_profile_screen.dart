@@ -7,7 +7,6 @@ import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/avatar_image.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/igdb_footer.dart';
-import '../../../../core/widgets/marquee_text.dart';
 import '../../../../core/widgets/star_rating.dart';
 import '../../../favorites/presentation/providers/favorite_providers.dart';
 import '../../../favorites/presentation/widgets/favorite_games_list.dart';
@@ -393,9 +392,10 @@ class _UserGameList extends StatelessWidget {
             entry.reviewText != null && entry.reviewText!.isNotEmpty;
         return ListTile(
           leading: CoverImage(url: entry.gameCoverUrl, width: 44, height: 60),
-          title: MarqueeText(
-            key: ValueKey(entry.gameId),
-            text: entry.displayGameName,
+          title: Text(
+            entry.displayGameName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           subtitle: entry.rating != null
               ? Padding(
