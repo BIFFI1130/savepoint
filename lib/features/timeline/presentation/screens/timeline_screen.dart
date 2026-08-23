@@ -13,55 +13,119 @@ import '../../../social/presentation/providers/social_providers.dart';
 
 /// 自分とフォロー中ユーザーの「遊んだ／遊びたい」への追加を、追加日時の新しい順に
 /// 年ごとに区切って表示するタイムライン。ホーム画面の「タイムライン」タブの中身。
-class TimelineScreen extends ConsumerWidget {
+/// 「自分」「フォロー」のタブで表示を切り替える。
+class TimelineScreen extends StatelessWidget {
   const TimelineScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final myLogsAsync = ref.watch(myLogsProvider);
-    final followingFeedAsync = ref.watch(followingFeedProvider);
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        children: [
+          const TabBar(
+            tabs: [
+              Tab(text: '自分'),
+              Tab(text: 'フォロー'),
+            ],
+          ),
+          const Expanded(
+            child: TabBarView(
+              children: [
+                _MyTimelineTab(),
+                _FollowingTimelineTab(),
+              ],
+            ),
+          ),
+          const IgdbFooter(),
+        ],
+      ),
+    );
+  }
+}
 
-    if (myLogsAsync.isLoading || followingFeedAsync.isLoading) {
-      return const LoadingView();
-    }
-    if (myLogsAsync.hasError) {
-      return ErrorView(
+/// 「自分」タブ。自分の「遊んだ／遊びたい」への追加のみを表示する。
+class _MyTimelineTab extends ConsumerWidget {
+  const _MyTimelineTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final logsAsync = ref.watch(myLogsProvider);
+    return logsAsync.when(
+      data: (logs) => _TimelineList(
+        entries: [for (final entry in logs) _TimelineFeedEntry.mine(entry)],
+        onRefresh: () => ref.refresh(myLogsProvider.future),
+        emptyMessage: '「遊んだ」「遊びたい」に追加すると、\nここに記録が並びます',
+      ),
+      loading: () => const LoadingView(),
+      error: (error, _) => ErrorView(
         message: 'タイムラインの取得に失敗しました',
         onRetry: () => ref.invalidate(myLogsProvider),
-      );
-    }
-    if (followingFeedAsync.hasError) {
-      return ErrorView(
+      ),
+    );
+  }
+}
+
+/// 「フォロー」タブ。フォロー中ユーザーの「遊んだ／遊びたい」への追加のみを表示する。
+class _FollowingTimelineTab extends ConsumerWidget {
+  const _FollowingTimelineTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final feedAsync = ref.watch(followingFeedProvider);
+    return feedAsync.when(
+      data: (feed) => _TimelineList(
+        entries: [
+          for (final entry in feed) _TimelineFeedEntry.following(entry),
+        ],
+        onRefresh: () => ref.refresh(followingFeedProvider.future),
+        emptyMessage: 'フォロー中のユーザーが「遊んだ」「遊びたい」に追加すると、\nここに並びます',
+      ),
+      loading: () => const LoadingView(),
+      error: (error, _) => ErrorView(
         message: 'タイムラインの取得に失敗しました',
         onRetry: () => ref.invalidate(followingFeedProvider),
-      );
-    }
+      ),
+    );
+  }
+}
 
-    final entries = <_TimelineFeedEntry>[
-      for (final entry in myLogsAsync.value ?? [])
-        _TimelineFeedEntry.mine(entry),
-      for (final entry in followingFeedAsync.value ?? [])
-        _TimelineFeedEntry.following(entry),
-    ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+/// 年ごとに区切った縦のタイムライン表示。[_MyTimelineTab]・[_FollowingTimelineTab]で共通利用する。
+class _TimelineList extends StatelessWidget {
+  const _TimelineList({
+    required this.entries,
+    required this.onRefresh,
+    required this.emptyMessage,
+  });
 
+  final List<_TimelineFeedEntry> entries;
+  final Future<void> Function() onRefresh;
+  final String emptyMessage;
+
+  @override
+  Widget build(BuildContext context) {
     if (entries.isEmpty) {
-      return const EmptyView(
-        message: '「遊んだ」「遊びたい」に追加すると、\nここに自分とフォロー中ユーザーの記録が並びます',
-        icon: Icons.timeline,
+      return RefreshIndicator(
+        onRefresh: onRefresh,
+        child: ListView(
+          children: [
+            const SizedBox(height: 120),
+            EmptyView(message: emptyMessage, icon: Icons.timeline),
+          ],
+        ),
       );
     }
 
+    final sorted = [...entries]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final groups = <int, List<_TimelineFeedEntry>>{};
-    for (final entry in entries) {
+    for (final entry in sorted) {
       (groups[entry.createdAt.year] ??= []).add(entry);
     }
     final years = groups.keys.toList()..sort((a, b) => b.compareTo(a));
 
     return RefreshIndicator(
-      onRefresh: () => Future.wait([
-        ref.refresh(myLogsProvider.future),
-        ref.refresh(followingFeedProvider.future),
-      ]),
+      onRefresh: onRefresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
@@ -75,7 +139,6 @@ class TimelineScreen extends ConsumerWidget {
               ),
             const SizedBox(height: 12),
           ],
-          const IgdbFooter(),
         ],
       ),
     );
