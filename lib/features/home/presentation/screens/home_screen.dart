@@ -34,113 +34,101 @@ class HomeScreen extends ConsumerWidget {
     final monthlyReleasesAsync = ref.watch(monthlyReleasesProvider(noFilter));
     final top100Async = ref.watch(top100Provider(noFilter));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('ホーム'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.calendar_month_outlined),
-            tooltip: '発売日カレンダー',
-            onPressed: () => context.push('/calendar'),
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 8),
+          _SectionHeader(
+            title: '今週発売のゲーム',
+            onTap: () => context.push('/home/weekly', extra: noFilter),
+          ),
+          releasesAsync.when(
+            data: (games) {
+              if (games.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                  child: Text('今週発売予定のタイトルは見つかりませんでした'),
+                );
+              }
+              return _CoverCarousel(
+                games: games,
+                showNativeAd: !ref.watch(isAdFreeProvider),
+              );
+            },
+            loading: () => const SizedBox(
+              height: 160,
+              child: LoadingView(),
+            ),
+            error: (error, _) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ErrorView(
+                message: '今週発売のゲームの取得に失敗しました',
+                onRetry: () => ref.invalidate(weeklyReleasesProvider(noFilter)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          _SectionHeader(
+            title: '今月発売のゲーム',
+            onTap: () => context.push('/home/monthly', extra: noFilter),
+          ),
+          monthlyReleasesAsync.when(
+            data: (games) {
+              if (games.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                  child: Text('今月発売予定のタイトルは見つかりませんでした'),
+                );
+              }
+              return _CoverCarousel(games: games);
+            },
+            loading: () => const SizedBox(
+              height: 160,
+              child: LoadingView(),
+            ),
+            error: (error, _) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ErrorView(
+                message: '今月発売のゲームの取得に失敗しました',
+                onRetry: () =>
+                    ref.invalidate(monthlyReleasesProvider(noFilter)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          _SectionHeader(
+            title: 'IGDB：TOP100',
+            onTap: () => context.push('/home/top100', extra: noFilter),
+          ),
+          top100Async.when(
+            data: (games) {
+              if (games.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                  child: Text('該当するタイトルは見つかりませんでした'),
+                );
+              }
+              return _CoverCarousel(games: games, showRank: true);
+            },
+            loading: () => const SizedBox(
+              height: 160,
+              child: LoadingView(),
+            ),
+            error: (error, _) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ErrorView(
+                message: 'IGDB TOP100の取得に失敗しました',
+                onRetry: () => ref.invalidate(top100Provider(noFilter)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: IgdbFooter(padding: EdgeInsets.zero),
           ),
         ],
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8),
-            _SectionHeader(
-              title: '今週発売のゲーム',
-              onTap: () => context.push('/home/weekly', extra: noFilter),
-            ),
-            releasesAsync.when(
-              data: (games) {
-                if (games.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-                    child: Text('今週発売予定のタイトルは見つかりませんでした'),
-                  );
-                }
-                return _CoverCarousel(
-                  games: games,
-                  showNativeAd: !ref.watch(isAdFreeProvider),
-                );
-              },
-              loading: () => const SizedBox(
-                height: 160,
-                child: LoadingView(),
-              ),
-              error: (error, _) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: ErrorView(
-                  message: '今週発売のゲームの取得に失敗しました',
-                  onRetry: () => ref.invalidate(weeklyReleasesProvider(noFilter)),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            _SectionHeader(
-              title: '今月発売のゲーム',
-              onTap: () => context.push('/home/monthly', extra: noFilter),
-            ),
-            monthlyReleasesAsync.when(
-              data: (games) {
-                if (games.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-                    child: Text('今月発売予定のタイトルは見つかりませんでした'),
-                  );
-                }
-                return _CoverCarousel(games: games);
-              },
-              loading: () => const SizedBox(
-                height: 160,
-                child: LoadingView(),
-              ),
-              error: (error, _) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: ErrorView(
-                  message: '今月発売のゲームの取得に失敗しました',
-                  onRetry: () =>
-                      ref.invalidate(monthlyReleasesProvider(noFilter)),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            _SectionHeader(
-              title: 'IGDB：TOP100',
-              onTap: () => context.push('/home/top100', extra: noFilter),
-            ),
-            top100Async.when(
-              data: (games) {
-                if (games.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-                    child: Text('該当するタイトルは見つかりませんでした'),
-                  );
-                }
-                return _CoverCarousel(games: games, showRank: true);
-              },
-              loading: () => const SizedBox(
-                height: 160,
-                child: LoadingView(),
-              ),
-              error: (error, _) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: ErrorView(
-                  message: 'IGDB TOP100の取得に失敗しました',
-                  onRetry: () => ref.invalidate(top100Provider(noFilter)),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: IgdbFooter(padding: EdgeInsets.zero),
-            ),
-          ],
-        ),
       ),
     );
   }

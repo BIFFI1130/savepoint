@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/achievements/presentation/providers/achievement_tracker_provider.dart';
 import '../../features/game_log/presentation/screens/my_logs_screen.dart';
 import '../../features/game_search/presentation/screens/game_search_screen.dart';
-import '../../features/home/presentation/screens/home_screen.dart';
+import '../../features/home/presentation/screens/home_tabs_screen.dart';
 import '../../features/social/presentation/screens/social_feed_screen.dart';
 import '../../features/trending/presentation/screens/trending_screen.dart';
 
@@ -22,7 +22,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   late int _index = widget.initialIndex;
 
   static const _screens = [
-    HomeScreen(),
+    HomeTabsScreen(),
     GameSearchScreen(),
     TrendingScreen(),
     MyLogsScreen(),

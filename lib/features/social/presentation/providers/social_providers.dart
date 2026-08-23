@@ -49,6 +49,12 @@ final followingListProvider = FutureProvider<List<SocialProfile>>((ref) async {
   return ref.read(socialRepositoryProvider).fetchFollowing();
 });
 
+/// フォロー中の全ユーザーの活動（「遊んだ／遊びたい」への追加）。ホームの
+/// 「タイムライン」タブで自分の記録と合わせて表示する。
+final followingFeedProvider = FutureProvider<List<FollowFeedEntry>>((ref) async {
+  return ref.read(socialRepositoryProvider).fetchFollowingFeed();
+});
+
 /// 指定ゲームの公開レビュー一覧（フォロー関係を問わず、公開設定の全ユーザーが対象）。
 /// サブスク特典「みんなのレビュー」用。
 final gamePublicReviewsProvider =

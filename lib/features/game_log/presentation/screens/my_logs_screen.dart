@@ -382,14 +382,6 @@ class _HubRow extends StatelessWidget {
             onTap: () => context.push('/achievements'),
           ),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _HubCard(
-            icon: Icons.timeline,
-            label: 'タイムライン',
-            onTap: () => context.push('/timeline'),
-          ),
-        ),
       ],
     );
   }

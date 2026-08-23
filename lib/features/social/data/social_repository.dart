@@ -205,6 +205,19 @@ class SocialRepository {
         .toList(growable: false);
   }
 
+  /// フォロー中の全ユーザーの「遊んだ／遊びたい」追加を、追加日時（created_at）の
+  /// 新しい順に返す。ホームの「タイムライン」タブで自分の記録と合わせて表示する。
+  Future<List<FollowFeedEntry>> fetchFollowingFeed() async {
+    final rows = await supabase
+        .from('follow_feed')
+        .select()
+        .order('created_at', ascending: false);
+    return (rows as List)
+        .cast<Map<String, dynamic>>()
+        .map(FollowFeedEntry.fromJson)
+        .toList(growable: false);
+  }
+
   /// 特定ゲームの公開レビュー一覧（フォロー関係を問わず、公開設定の全ユーザーが対象）。
   /// サブスク特典「みんなのレビュー」用。
   Future<List<FollowFeedEntry>> fetchPublicReviewsForGame(int gameId) async {

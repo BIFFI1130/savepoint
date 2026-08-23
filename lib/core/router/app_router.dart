@@ -26,7 +26,6 @@ import '../../features/social/presentation/screens/user_search_screen.dart';
 import '../../features/social/presentation/screens/username_onboarding_screen.dart';
 import '../../features/subscription/presentation/screens/paywall_screen.dart';
 import '../../features/summary/presentation/screens/summary_screen.dart';
-import '../../features/timeline/presentation/screens/timeline_screen.dart';
 import '../../features/update/presentation/screens/update_required_screen.dart';
 import '../onboarding/birthdate_gate.dart';
 import '../onboarding/username_gate.dart';
@@ -212,10 +211,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/subscription/paywall',
         builder: (context, state) => const PaywallScreen(),
-      ),
-      GoRoute(
-        path: '/timeline',
-        builder: (context, state) => const TimelineScreen(),
       ),
       GoRoute(
         path: '/social',
