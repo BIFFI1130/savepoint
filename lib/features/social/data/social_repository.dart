@@ -17,9 +17,13 @@ class SocialRepository {
     return SocialProfile.fromJson(row);
   }
 
+  /// 他ユーザーのプロフィール取得は`profiles`ではなく`profiles_public`ビュー
+  /// （id・username・display_name・avatar_url・is_public・created_atのみ）経由で行う。
+  /// `birth_year`・`birth_month`（年齢確認用）や`game_history`・`favorite_genres`
+  /// （自分専用の編集項目）は、REST APIを直接叩かれても他ユーザーへ渡らない。
   Future<SocialProfile?> fetchProfile(String userId) async {
     final row = await supabase
-        .from('profiles')
+        .from('profiles_public')
         .select()
         .eq('id', userId)
         .maybeSingle();
@@ -35,7 +39,7 @@ class SocialRepository {
     if (trimmed.isEmpty) return [];
     final escaped = trimmed.replaceAll(',', '');
     final rows = await supabase
-        .from('profiles')
+        .from('profiles_public')
         .select()
         .neq('id', _myId)
         .or('username.ilike.$escaped,display_name.ilike.%$escaped%')
@@ -236,8 +240,10 @@ class SocialRepository {
 
   Future<List<SocialProfile>> _fetchProfilesByIds(List<String> ids) async {
     if (ids.isEmpty) return [];
-    final rows =
-        await supabase.from('profiles').select().inFilter('id', ids);
+    final rows = await supabase
+        .from('profiles_public')
+        .select()
+        .inFilter('id', ids);
     return (rows as List)
         .cast<Map<String, dynamic>>()
         .map(SocialProfile.fromJson)
