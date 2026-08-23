@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/utils/release_countdown.dart';
 import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
+import '../../../../core/widgets/avatar_image.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/genre_filter_section.dart';
 import '../../../../core/widgets/igdb_footer.dart';
@@ -183,26 +184,26 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
     final logsAsync = ref.watch(myLogsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('マイログ'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            tooltip: 'プロフィール',
-            onPressed: () => context.push('/social/my-profile'),
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: '遊んだ'),
-            Tab(text: '遊びたい'),
-            Tab(text: 'オレの推しゲー'),
-          ],
-        ),
-      ),
+      appBar: AppBar(title: const Text('マイページ')),
       body: Column(
         children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: _ProfileHeader(),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: _FollowCountsRow(),
+          ),
+          const Divider(height: 1),
+          TabBar(
+            controller: _tabController,
+            tabs: const [
+              Tab(text: '遊んだ'),
+              Tab(text: '遊びたい'),
+              Tab(text: 'オレの推しゲー'),
+            ],
+          ),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: _HubRow(),
@@ -345,6 +346,103 @@ class _MyFavoritesTab extends ConsumerWidget {
         error: (error, _) => ErrorView(
           message: '推しゲーの取得に失敗しました',
           onRetry: () => ref.invalidate(myFavoritesProvider),
+        ),
+      ),
+    );
+  }
+}
+
+/// マイページ最上部のユーザーアイコン・ユーザー名。タップでプロフィール編集画面へ。
+class _ProfileHeader extends ConsumerWidget {
+  const _ProfileHeader();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(myProfileProvider).valueOrNull;
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => context.push('/social/my-profile'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            AvatarImage(url: profile?.avatarUrl, radius: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                profile?.displayLabel ?? '名前未設定',
+                style: Theme.of(context).textTheme.titleMedium,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: Theme.of(context).colorScheme.outline,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// フォロー中／フォロワーの人数。タップでそれぞれの一覧画面へ遷移する。
+class _FollowCountsRow extends ConsumerWidget {
+  const _FollowCountsRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final followingCount = ref.watch(followingListProvider).valueOrNull?.length;
+    final followersCount = ref.watch(followersListProvider).valueOrNull?.length;
+    return Row(
+      children: [
+        _FollowCountButton(
+          count: followingCount,
+          label: 'フォロー',
+          onTap: () => context.push('/social'),
+        ),
+        const SizedBox(width: 20),
+        _FollowCountButton(
+          count: followersCount,
+          label: 'フォロワー',
+          onTap: () => context.push('/social/followers'),
+        ),
+      ],
+    );
+  }
+}
+
+class _FollowCountButton extends StatelessWidget {
+  const _FollowCountButton({
+    required this.count,
+    required this.label,
+    required this.onTap,
+  });
+
+  final int? count;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '${count ?? 0}',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(width: 4),
+            Text(label, style: Theme.of(context).textTheme.bodyMedium),
+          ],
         ),
       ),
     );

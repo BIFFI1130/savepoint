@@ -39,6 +39,12 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   bool _isDeletingAccount = false;
 
   @override
+  void initState() {
+    super.initState();
+    ref.read(profileSaveAdProvider).preload();
+  }
+
+  @override
   void dispose() {
     _gameHistoryController.dispose();
     super.dispose();
@@ -115,6 +121,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
             favoriteGenres: _favoriteGenres.toList(),
           );
       ref.invalidate(myProfileProvider);
+      if (!ref.read(isAdFreeProvider)) {
+        await ref.read(profileSaveAdProvider).show();
+      }
       if (mounted) {
         ScaffoldMessenger.of(
           context,

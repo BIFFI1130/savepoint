@@ -8,7 +8,7 @@ import '../../features/home/presentation/screens/home_tabs_screen.dart';
 import '../../features/social/presentation/screens/social_feed_screen.dart';
 import '../../features/trending/presentation/screens/trending_screen.dart';
 
-/// 「ホーム」「検索」「トレンド」「マイログ」「つながり」の5タブを切り替えるホーム画面。
+/// 「ホーム」「検索」「トレンド」「マイページ」「つながり」の5タブを切り替えるホーム画面。
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key, this.initialIndex = 0});
 
@@ -54,7 +54,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           NavigationDestination(icon: Icon(Icons.home_outlined), label: 'ホーム'),
           NavigationDestination(icon: Icon(Icons.search), label: '検索'),
           NavigationDestination(icon: Icon(Icons.trending_up), label: 'トレンド'),
-          NavigationDestination(icon: Icon(Icons.bookmark), label: 'マイログ'),
+          NavigationDestination(icon: Icon(Icons.bookmark), label: 'マイページ'),
           NavigationDestination(icon: Icon(Icons.people_outline), label: 'つながり'),
         ],
       ),

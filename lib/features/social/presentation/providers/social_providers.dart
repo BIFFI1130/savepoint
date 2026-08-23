@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/ads/interstitial_ad_service.dart';
 import '../../../../core/utils/age.dart';
 import '../../data/social_repository.dart';
 import '../../domain/follow_feed_entry.dart';
@@ -7,6 +8,12 @@ import '../../domain/social_profile.dart';
 
 final socialRepositoryProvider = Provider<SocialRepository>((ref) {
   return SocialRepository();
+});
+
+/// プロフィール編集保存時に表示する全画面広告。編集画面が開いている間に事前読み込みし、
+/// 保存完了直後に表示する。
+final profileSaveAdProvider = Provider<InterstitialAdService>((ref) {
+  return InterstitialAdService();
 });
 
 /// 自分のプロフィール（ユーザーID・表示名・公開設定）。
