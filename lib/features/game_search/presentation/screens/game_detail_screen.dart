@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/ads/banner_ad_widget.dart';
 import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/notifications/release_reminder_service.dart';
 import '../../../../core/subscription/subscription_providers.dart';
@@ -284,6 +285,10 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                     Text('平均クリア時間', style: Theme.of(context).textTheme.titleMedium),
                     const SizedBox(height: 8),
                     _TimeToBeatRow(game: game),
+                  ],
+                  if (!ref.watch(isAdFreeProvider)) ...[
+                    const SizedBox(height: 16),
+                    const BannerAdWidget(),
                   ],
                   const SizedBox(height: 24),
                   logAsync.when(
