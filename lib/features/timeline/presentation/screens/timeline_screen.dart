@@ -13,78 +13,133 @@ import '../../../social/presentation/providers/social_providers.dart';
 
 /// 自分とフォロー中ユーザーの「遊んだ／遊びたい」への追加を、追加日時の新しい順に
 /// 年ごとに区切って表示するタイムライン。ホーム画面の「タイムライン」タブの中身。
-/// 「自分」「フォロー」のタブで表示を切り替える。
-class TimelineScreen extends StatelessWidget {
+/// 「自分」「フォロー中」のチェックボックスで、どちらを表示するか（両方も可）を選べる。
+class TimelineScreen extends ConsumerStatefulWidget {
   const TimelineScreen({super.key});
 
   @override
+  ConsumerState<TimelineScreen> createState() => _TimelineScreenState();
+}
+
+class _TimelineScreenState extends ConsumerState<TimelineScreen> {
+  bool _includeMine = true;
+  bool _includeFollowing = true;
+
+  @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Column(
-        children: [
-          const TabBar(
-            tabs: [
-              Tab(text: '自分'),
-              Tab(text: 'フォロー'),
+    final myLogsAsync = ref.watch(myLogsProvider);
+    final followingFeedAsync = ref.watch(followingFeedProvider);
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Row(
+            children: [
+              _FilterCheckbox(
+                label: '自分',
+                value: _includeMine,
+                onChanged: (value) => setState(() => _includeMine = value),
+              ),
+              const SizedBox(width: 8),
+              _FilterCheckbox(
+                label: 'フォロー中',
+                value: _includeFollowing,
+                onChanged: (value) =>
+                    setState(() => _includeFollowing = value),
+              ),
             ],
           ),
-          const Expanded(
-            child: TabBarView(
-              children: [
-                _MyTimelineTab(),
-                _FollowingTimelineTab(),
-              ],
-            ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: _buildBody(context, myLogsAsync, followingFeedAsync),
+        ),
+        const IgdbFooter(),
+      ],
+    );
+  }
+
+  Widget _buildBody(
+    BuildContext context,
+    AsyncValue<List<GameLogWithGame>> myLogsAsync,
+    AsyncValue<List<FollowFeedEntry>> followingFeedAsync,
+  ) {
+    if (!_includeMine && !_includeFollowing) {
+      return const EmptyView(
+        message: '「自分」か「フォロー中」を選択してください',
+        icon: Icons.timeline,
+      );
+    }
+
+    final activeAsyncs = [
+      if (_includeMine) myLogsAsync,
+      if (_includeFollowing) followingFeedAsync,
+    ];
+    if (activeAsyncs.any((async) => async.isLoading)) {
+      return const LoadingView();
+    }
+    if (activeAsyncs.any((async) => async.hasError)) {
+      return ErrorView(
+        message: 'タイムラインの取得に失敗しました',
+        onRetry: () {
+          if (_includeMine) ref.invalidate(myLogsProvider);
+          if (_includeFollowing) ref.invalidate(followingFeedProvider);
+        },
+      );
+    }
+
+    final entries = <_TimelineFeedEntry>[
+      if (_includeMine)
+        for (final entry in myLogsAsync.value ?? [])
+          _TimelineFeedEntry.mine(entry),
+      if (_includeFollowing)
+        for (final entry in followingFeedAsync.value ?? [])
+          _TimelineFeedEntry.following(entry),
+    ];
+
+    return _TimelineList(
+      entries: entries,
+      onRefresh: () async {
+        await Future.wait([
+          if (_includeMine) ref.refresh(myLogsProvider.future),
+          if (_includeFollowing) ref.refresh(followingFeedProvider.future),
+        ]);
+      },
+      emptyMessage: '「遊んだ」「遊びたい」に追加すると、\nここに記録が並びます',
+    );
+  }
+}
+
+/// 「自分」「フォロー中」の表示切り替え用チェックボックス。ラベルタップでも切り替わる。
+class _FilterCheckbox extends StatelessWidget {
+  const _FilterCheckbox({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => onChanged(!value),
+      borderRadius: BorderRadius.circular(8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Checkbox(
+            value: value,
+            onChanged: (checked) => onChanged(checked ?? false),
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
-          const IgdbFooter(),
+          const SizedBox(width: 2),
+          Text(label),
         ],
-      ),
-    );
-  }
-}
-
-/// 「自分」タブ。自分の「遊んだ／遊びたい」への追加のみを表示する。
-class _MyTimelineTab extends ConsumerWidget {
-  const _MyTimelineTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final logsAsync = ref.watch(myLogsProvider);
-    return logsAsync.when(
-      data: (logs) => _TimelineList(
-        entries: [for (final entry in logs) _TimelineFeedEntry.mine(entry)],
-        onRefresh: () => ref.refresh(myLogsProvider.future),
-        emptyMessage: '「遊んだ」「遊びたい」に追加すると、\nここに記録が並びます',
-      ),
-      loading: () => const LoadingView(),
-      error: (error, _) => ErrorView(
-        message: 'タイムラインの取得に失敗しました',
-        onRetry: () => ref.invalidate(myLogsProvider),
-      ),
-    );
-  }
-}
-
-/// 「フォロー」タブ。フォロー中ユーザーの「遊んだ／遊びたい」への追加のみを表示する。
-class _FollowingTimelineTab extends ConsumerWidget {
-  const _FollowingTimelineTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final feedAsync = ref.watch(followingFeedProvider);
-    return feedAsync.when(
-      data: (feed) => _TimelineList(
-        entries: [
-          for (final entry in feed) _TimelineFeedEntry.following(entry),
-        ],
-        onRefresh: () => ref.refresh(followingFeedProvider.future),
-        emptyMessage: 'フォロー中のユーザーが「遊んだ」「遊びたい」に追加すると、\nここに並びます',
-      ),
-      loading: () => const LoadingView(),
-      error: (error, _) => ErrorView(
-        message: 'タイムラインの取得に失敗しました',
-        onRetry: () => ref.invalidate(followingFeedProvider),
       ),
     );
   }
