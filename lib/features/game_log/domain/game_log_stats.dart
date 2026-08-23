@@ -13,6 +13,7 @@ class GameLogStats {
     this.avgRating,
     this.ratingCount = 0,
     this.genres = const [],
+    this.favoriteCount = 0,
   });
 
   final int gameId;
@@ -37,6 +38,9 @@ class GameLogStats {
   /// IGDBのジャンル名（英語）一覧。ジャンルフィルタの絞り込みに使う。
   final List<String> genres;
 
+  /// 「オレの推しゲー」に登録しているユーザー数（全ユーザー集計）。
+  final int favoriteCount;
+
   /// 表示用のタイトル。IGDBのLocalized Title（日本）があればそれを、無ければ原題を返す。
   String get displayName => nameJa ?? name;
 
@@ -53,6 +57,7 @@ class GameLogStats {
       avgRating: (json['avg_rating'] as num?)?.toDouble(),
       ratingCount: json['rating_count'] as int? ?? 0,
       genres: (json['genres'] as List?)?.cast<String>() ?? const [],
+      favoriteCount: json['favorite_count'] as int? ?? 0,
     );
   }
 }

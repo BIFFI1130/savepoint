@@ -490,7 +490,9 @@ class _StatsRow extends ConsumerWidget {
     return statsAsync.when(
       data: (stats) {
         if (stats == null ||
-            (stats.playedCount == 0 && stats.wantToPlayCount == 0)) {
+            (stats.playedCount == 0 &&
+                stats.wantToPlayCount == 0 &&
+                stats.favoriteCount == 0)) {
           return const SizedBox.shrink();
         }
         final style = Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -533,6 +535,15 @@ class _StatsRow extends ConsumerWidget {
                 Text('遊びたい ${stats.wantToPlayCount}人', style: style),
               ],
             ),
+            if (stats.favoriteCount > 0)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.favorite, size: 16, color: style?.color),
+                  const SizedBox(width: 4),
+                  Text('推しゲー ${stats.favoriteCount}人', style: style),
+                ],
+              ),
           ],
         );
       },
