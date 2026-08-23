@@ -9,7 +9,6 @@ import '../../../../core/notifications/release_reminder_service.dart';
 import '../../../../core/subscription/subscription_providers.dart';
 import '../../../../core/utils/release_countdown.dart';
 import '../../../../core/widgets/async_state_views.dart';
-import '../../../../core/widgets/avatar_image.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/star_rating.dart';
 import '../../../collections/presentation/widgets/collection_picker_sheet.dart';
@@ -214,6 +213,8 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                         Chip(label: Text(platform)),
                     ],
                   ),
+                  const SizedBox(height: 8),
+                  _StatsRow(gameId: widget.gameId),
                   if (countdownLabel != null) ...[
                     const SizedBox(height: 8),
                     Row(
@@ -303,8 +304,6 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                     error: (error, stackTrace) => const SizedBox.shrink(),
                   ),
                   _PublicReviewsSection(gameId: widget.gameId),
-                  const SizedBox(height: 12),
-                  _StatsRow(gameId: widget.gameId),
                   if (game.similarGames.isNotEmpty) ...[
                     const SizedBox(height: 24),
                     Text(
@@ -798,7 +797,10 @@ class _PublicReviewsSection extends ConsumerWidget {
                   }
                   return Column(
                     children: [
-                      for (final entry in reviews) _PublicReviewTile(entry: entry),
+                      for (var i = 0; i < reviews.length; i++) ...[
+                        if (i > 0) const Divider(height: 1),
+                        _PublicReviewTile(entry: reviews[i]),
+                      ],
                     ],
                   );
                 },
@@ -822,6 +824,8 @@ class _PublicReviewsSection extends ConsumerWidget {
   }
 }
 
+/// 投稿者を特定できる情報（ユーザー名・アバター等）は一切表示しない、
+/// 匿名の評価・レビューカード。
 class _PublicReviewTile extends StatelessWidget {
   const _PublicReviewTile({required this.entry});
 
@@ -830,30 +834,25 @@ class _PublicReviewTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasReviewText = entry.reviewText != null && entry.reviewText!.isNotEmpty;
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: AvatarImage(url: entry.avatarUrl, radius: 20),
-      title: Text(entry.userLabel),
-      subtitle: Column(
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (entry.rating != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  StarRating(rating: entry.rating!, size: 16),
-                  if (entry.hasSpoiler) ...[
-                    const SizedBox(width: 6),
-                    const Chip(
-                      label: Text('ネタバレあり'),
-                      visualDensity: VisualDensity.compact,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ],
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                StarRating(rating: entry.rating!, size: 16),
+                if (entry.hasSpoiler) ...[
+                  const SizedBox(width: 6),
+                  const Chip(
+                    label: Text('ネタバレあり'),
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                 ],
-              ),
+              ],
             ),
           if (hasReviewText)
             Padding(
@@ -866,7 +865,6 @@ class _PublicReviewTile extends StatelessWidget {
             ),
         ],
       ),
-      isThreeLine: hasReviewText,
     );
   }
 }
