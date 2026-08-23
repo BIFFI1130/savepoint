@@ -66,10 +66,7 @@ class SocialFeedScreen extends ConsumerWidget {
                 final profile = users[index];
                 return ListTile(
                   leading: AvatarImage(url: profile.avatarUrl),
-                  title: Text(profile.displayLabel),
-                  subtitle: profile.username != null
-                      ? Text('@${profile.username}')
-                      : null,
+                  title: Text(profile.publicDisplayLabel),
                   onTap: () => context.push('/users/${profile.id}'),
                 );
               },

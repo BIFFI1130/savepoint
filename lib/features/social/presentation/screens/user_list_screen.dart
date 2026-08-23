@@ -50,10 +50,7 @@ class UserListScreen extends ConsumerWidget {
               final profile = users[index];
               return ListTile(
                 leading: AvatarImage(url: profile.avatarUrl),
-                title: Text(profile.displayLabel),
-                subtitle: profile.username != null
-                    ? Text('@${profile.username}')
-                    : null,
+                title: Text(profile.publicDisplayLabel),
                 trailing: mode == UserListMode.blocked
                     ? TextButton(
                         onPressed: () => _unblock(context, ref, profile),

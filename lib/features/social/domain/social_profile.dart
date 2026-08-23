@@ -27,9 +27,17 @@ class SocialProfile {
   final int? birthMonth;
 
   /// 表示名があればそれを、なければ@ユーザーID、どちらもなければ「名前未設定」を返す。
+  /// 自分自身の表示にのみ使う（他ユーザーの一覧・検索結果では[publicDisplayLabel]を使う）。
   String get displayLabel {
     if (displayName != null && displayName!.isNotEmpty) return displayName!;
     if (username != null && username!.isNotEmpty) return '@$username';
+    return '名前未設定';
+  }
+
+  /// 他ユーザー向けの表示用ラベル。ユーザーID（username）は表示しないため、
+  /// 表示名が未設定の場合は「名前未設定」を返す。
+  String get publicDisplayLabel {
+    if (displayName != null && displayName!.isNotEmpty) return displayName!;
     return '名前未設定';
   }
 

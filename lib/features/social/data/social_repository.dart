@@ -28,6 +28,8 @@ class SocialRepository {
   }
 
   /// ユーザーIDまたは表示名でユーザーを検索する（自分自身は除外）。
+  /// 表示名は部分一致だが、ユーザーIDは完全一致（大文字小文字は区別しない）の
+  /// 場合のみヒットする。
   Future<List<SocialProfile>> searchUsers(String query) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return [];
@@ -36,7 +38,7 @@ class SocialRepository {
         .from('profiles')
         .select()
         .neq('id', _myId)
-        .or('username.ilike.%$escaped%,display_name.ilike.%$escaped%')
+        .or('username.ilike.$escaped,display_name.ilike.%$escaped%')
         .limit(20);
     return (rows as List)
         .cast<Map<String, dynamic>>()

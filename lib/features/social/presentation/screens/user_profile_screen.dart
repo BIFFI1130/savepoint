@@ -193,14 +193,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                       AvatarImage(url: profile.avatarUrl, radius: 40),
                       const SizedBox(height: 8),
                       Text(
-                        profile.displayLabel,
+                        profile.publicDisplayLabel,
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
-                      if (profile.username != null)
-                        Text(
-                          '@${profile.username}',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
                       const SizedBox(height: 16),
                       if (isBlocked)
                         OutlinedButton(

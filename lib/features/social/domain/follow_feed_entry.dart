@@ -41,9 +41,10 @@ class FollowFeedEntry {
   final bool hasSpoiler;
   final bool isCleared;
 
+  /// 他ユーザーの表示用ラベル。ユーザーID（username）は表示しないため、
+  /// 表示名が未設定の場合は「名前未設定」を返す。
   String get userLabel {
     if (displayName != null && displayName!.isNotEmpty) return displayName!;
-    if (username != null && username!.isNotEmpty) return '@$username';
     return '名前未設定';
   }
 
