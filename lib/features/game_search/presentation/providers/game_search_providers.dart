@@ -62,7 +62,7 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
   Set<String> _platforms = {};
   String _developer = '';
   Set<String> _genres = {};
-  GameSortType _sort = GameSortType.popularity;
+  GameSortType _sort = GameSortType.name;
   bool _includeUpcoming = false;
   late bool _includeAdult;
   late bool _includeIndie;

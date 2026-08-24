@@ -29,7 +29,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
   final Set<String> _selectedPlatforms = {};
   final Set<String> _selectedGenres = {};
   String _queryText = '';
-  GameSortType _sort = GameSortType.popularity;
+  GameSortType _sort = GameSortType.name;
   bool _includeUpcoming = false;
   late bool _includeAdult;
   late bool _includeIndie;
@@ -347,7 +347,6 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
 }
 
 const _sortLabels = <GameSortType, String>{
-  GameSortType.popularity: '人気順',
   GameSortType.name: '辞書順',
   GameSortType.releaseDate: '発売時期順',
 };
