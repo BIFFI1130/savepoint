@@ -195,6 +195,10 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
             padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: _FollowCountsRow(),
           ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: _HubRow(),
+          ),
           const Divider(height: 1),
           TabBar(
             controller: _tabController,
@@ -203,10 +207,6 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
               Tab(text: '遊びたい'),
               Tab(text: 'オレの推しゲー'),
             ],
-          ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: _HubRow(),
           ),
           AnimatedBuilder(
             animation: _tabController.animation ?? _tabController,
@@ -459,14 +459,6 @@ class _HubRow extends StatelessWidget {
       children: [
         Expanded(
           child: _HubCard(
-            icon: Icons.collections_bookmark_outlined,
-            label: 'コレクション',
-            onTap: () => context.push('/collections'),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _HubCard(
             icon: Icons.bar_chart_outlined,
             label: 'まとめ',
             onTap: () => context.push('/summary'),
@@ -478,6 +470,14 @@ class _HubRow extends StatelessWidget {
             icon: Icons.emoji_events_outlined,
             label: '実績',
             onTap: () => context.push('/achievements'),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _HubCard(
+            icon: Icons.collections_bookmark_outlined,
+            label: 'コレクション',
+            onTap: () => context.push('/collections'),
           ),
         ),
       ],
