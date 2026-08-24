@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,6 +34,13 @@ Future<void> main() async {
   }
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // バックグラウンド/終了状態でのプッシュ通知受信ハンドラの登録は、FCMプラグインの
+  // 要件としてFirebase初期化後・runApp前に行う必要がある。通知本体の表示はOSが
+  // 自動で行う（notificationペイロードを含めて送っているため）ため、ここでの処理は
+  // 不要（ハンドラ自体の登録のみが目的）。
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
   // デバッグ実行中はCrashlyticsへの送信を無効化し、開発中のエラーでノイズを
   // 増やさないようにする（TestFlight/Firebase配信のリリースビルドでのみ収集する）。
   await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(
@@ -88,6 +96,9 @@ Future<void> main() async {
     ),
   );
 }
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {}
 
 Future<void> _rescheduleReleaseReminders() async {
   try {

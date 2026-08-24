@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/notifications/backlog_reminder_service.dart';
+import '../../../../core/notifications/push_notification_service.dart';
 import '../../../../core/subscription/subscription_providers.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/avatar_image.dart';
@@ -172,6 +173,21 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     }
     await ref.read(appAnalyticsProvider).logBacklogReminderToggled(value);
     ref.invalidate(backlogReminderEnabledProvider);
+  }
+
+  Future<void> _toggleFollowPush(bool value) async {
+    final service = ref.read(pushNotificationServiceProvider);
+    if (value) {
+      final granted = await service.enable();
+      if (!granted && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('通知の許可が必要です。端末の設定から許可してください')),
+        );
+      }
+    } else {
+      await service.disable();
+    }
+    ref.invalidate(followPushEnabledProvider);
   }
 
   Future<void> _confirmSignOut() async {
@@ -429,6 +445,18 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   contentPadding: EdgeInsets.zero,
                   title: const Text('積みゲーリマインダー'),
                   subtitle: const Text('「遊びたい」の消化を週1回通知でお知らせします'),
+                );
+              },
+            ),
+            Consumer(
+              builder: (context, ref, _) {
+                final enabledAsync = ref.watch(followPushEnabledProvider);
+                return SwitchListTile(
+                  value: enabledAsync.value ?? false,
+                  onChanged: enabledAsync.isLoading ? null : _toggleFollowPush,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('フォロー中ユーザーの新着通知'),
+                  subtitle: const Text('フォロー中のユーザーが「遊んだ」「遊びたい」に追加したときにお知らせします'),
                 );
               },
             ),

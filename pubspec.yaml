@@ -69,6 +69,8 @@ dependencies:
   firebase_core: ^4.13.0
   firebase_crashlytics: ^5.2.7
   firebase_analytics: ^12.4.6
+  # サーバー起点のプッシュ通知（フォロー中ユーザーの新着）に使用
+  firebase_messaging: ^16.5.0
   in_app_review: ^2.0.12
   share_plus: ^12.0.2
   shared_preferences: ^2.5.5

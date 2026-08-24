@@ -10,5 +10,10 @@
 	<array>
 		<string>group.com.biffi.savepoint</string>
 	</array>
+	<!-- サーバー起点のプッシュ通知（フォロー中ユーザーの新着）用。TestFlight/App Store配信は
+	     配布用証明書のためproductionを使う（開発ビルドで動作確認する場合はdevelopmentに
+	     一時的に切り替える必要がある）。 -->
+	<key>aps-environment</key>
+	<string>production</string>
 </dict>
 </plist>

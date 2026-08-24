@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import 'package:home_widget/home_widget.dart';
 
 import 'core/deep_links/deep_link_service.dart';
 import 'core/home_widget/backlog_widget_service.dart';
+import 'core/notifications/push_notification_service.dart';
 import 'core/router/app_router.dart';
 import 'core/subscription/subscription_service.dart';
 import 'core/supabase/supabase_client.dart';
@@ -23,6 +25,9 @@ class SavePointApp extends ConsumerStatefulWidget {
 
 class _SavePointAppState extends ConsumerState<SavePointApp> {
   StreamSubscription<Uri?>? _widgetClickSubscription;
+  StreamSubscription<RemoteMessage>? _foregroundPushSubscription;
+  StreamSubscription<RemoteMessage>? _pushTapSubscription;
+  StreamSubscription<String>? _pushTokenRefreshSubscription;
 
   @override
   void initState() {
@@ -42,12 +47,41 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
     ref.listenManual(myLogsProvider, (previous, next) {
       next.whenData((logs) => const BacklogWidgetService().sync(logs));
     }, fireImmediately: true);
+
+    // フォロー中ユーザーの新着プッシュ通知（サーバー起点）の受信・タップ処理。
+    // 通知自体が無効（未許可）な端末では単にトークンが無いだけで、これらの
+    // リスナー登録自体は無害なので常に行っておく。
+    final pushService = ref.read(pushNotificationServiceProvider);
+    unawaited(pushService.reregisterIfEnabled());
+    _foregroundPushSubscription =
+        FirebaseMessaging.onMessage.listen(pushService.showForeground);
+    _pushTapSubscription =
+        FirebaseMessaging.onMessageOpenedApp.listen(_handlePushTap);
+    FirebaseMessaging.instance.getInitialMessage().then(_handlePushTap);
+    _pushTokenRefreshSubscription = pushService.onTokenRefresh.listen(
+      (_) => pushService.reregisterIfEnabled(),
+    );
   }
 
   @override
   void dispose() {
     _widgetClickSubscription?.cancel();
+    _foregroundPushSubscription?.cancel();
+    _pushTapSubscription?.cancel();
+    _pushTokenRefreshSubscription?.cancel();
     super.dispose();
+  }
+
+  /// フォロー中ユーザーの新着プッシュ通知のタップを受け取り、該当ゲームの
+  /// 詳細画面へ遷移する（ホーム画面ウィジェットのタップ処理と同じ考え方）。
+  void _handlePushTap(RemoteMessage? message) {
+    final gameId = message?.data['game_id'];
+    if (gameId == null) return;
+    try {
+      ref.read(routerProvider).go('/games/$gameId');
+    } catch (error, stackTrace) {
+      debugPrint('プッシュ通知タップの処理に失敗しました: $error\n$stackTrace');
+    }
   }
 
   /// パスワード再設定メールのリンク（`savepoint://reset-password?code=...`）を受け取り、
