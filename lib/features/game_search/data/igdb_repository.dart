@@ -17,12 +17,15 @@ class IgdbRepository {
   /// 指定時、関連度順以外の並び替えを受け付けないため（併用すると400/406エラー）。
   /// [includeUpcoming] は sort が発売時期順の場合のみ意味を持つ。falseなら
   /// 未来の発売日（未発売作品）を除外する。
+  /// [sortAscending] は sort が「name」「release_date」の場合のみ有効（昇順/降順の切り替え）。
+  /// 「popularity」はigdb-proxy側で常に固定方向のため無視される。
   Future<List<Game>> search({
     String? query,
     Set<String> platforms = const {},
     String? developer,
     Set<String> genres = const {},
     String? sort,
+    bool sortAscending = false,
     bool includeUpcoming = false,
     bool includeAdult = false,
     bool includeIndie = false,
@@ -43,6 +46,7 @@ class IgdbRepository {
         if (developer != null && developer.isNotEmpty) 'developer': developer,
         if (genres.isNotEmpty) 'genres': genres.toList(),
         if (trimmedQuery.isEmpty && sort != null) 'sort': sort,
+        if (trimmedQuery.isEmpty && sort != null) 'sortAscending': sortAscending,
         if (trimmedQuery.isEmpty && includeUpcoming) 'includeUpcoming': true,
         if (includeAdult) 'includeAdult': true,
         if (includeIndie) 'includeIndie': true,

@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/preferences/content_filter_prefs.dart';
+import '../../../../core/subscription/subscription_providers.dart';
 import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/game_sliver_grid.dart';
@@ -29,7 +31,8 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
   final Set<String> _selectedPlatforms = {};
   final Set<String> _selectedGenres = {};
   String _queryText = '';
-  GameSortType _sort = GameSortType.name;
+  GameSortType _sort = GameSortType.releaseDate;
+  bool _sortAscending = false;
   bool _includeUpcoming = false;
   late bool _includeAdult;
   late bool _includeIndie;
@@ -104,6 +107,11 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
   void _onSortChanged(GameSortType sort) {
     setState(() => _sort = sort);
     ref.read(gameSearchProvider.notifier).setSort(sort);
+  }
+
+  void _onSortAscendingChanged(bool value) {
+    setState(() => _sortAscending = value);
+    ref.read(gameSearchProvider.notifier).setSortAscending(value);
   }
 
   void _onIncludeUpcomingChanged(bool value) {
@@ -336,6 +344,9 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
           enabled: _queryText.trim().isEmpty,
           sort: _sort,
           onChanged: _onSortChanged,
+          sortAscending: _sortAscending,
+          onSortAscendingChanged: _onSortAscendingChanged,
+          isSubscribed: ref.watch(isAdFreeProvider),
           includeUpcoming: _includeUpcoming,
           onIncludeUpcomingChanged: _onIncludeUpcomingChanged,
         ),
@@ -347,17 +358,23 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
 }
 
 const _sortLabels = <GameSortType, String>{
+  GameSortType.popularity: '人気順',
   GameSortType.name: '辞書順',
   GameSortType.releaseDate: '発売時期順',
 };
 
 /// カテゴリ探索時の並び替え選択。タイトル検索中（[enabled] が false）は
 /// 操作できない（IGDBは検索キーワードと並び替えを併用できないため）。
+/// 「人気順」はサブスク限定機能。未加入で選択しようとするとサブスク加入ページへ
+/// 誘導し、並び替えは変更しない。「辞書順」「発売時期順」は昇順/降順を切り替えられる。
 class _SortSelector extends StatelessWidget {
   const _SortSelector({
     required this.enabled,
     required this.sort,
     required this.onChanged,
+    required this.sortAscending,
+    required this.onSortAscendingChanged,
+    required this.isSubscribed,
     required this.includeUpcoming,
     required this.onIncludeUpcomingChanged,
   });
@@ -365,6 +382,9 @@ class _SortSelector extends StatelessWidget {
   final bool enabled;
   final GameSortType sort;
   final ValueChanged<GameSortType> onChanged;
+  final bool sortAscending;
+  final ValueChanged<bool> onSortAscendingChanged;
+  final bool isSubscribed;
   final bool includeUpcoming;
   final ValueChanged<bool> onIncludeUpcomingChanged;
 
@@ -388,15 +408,51 @@ class _SortSelector extends StatelessWidget {
                     for (final entry in _sortLabels.entries)
                       DropdownMenuItem(
                         value: entry.key,
-                        child: Text(entry.value),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(entry.value),
+                            if (entry.key == GameSortType.popularity &&
+                                !isSubscribed) ...[
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.lock_outline,
+                                size: 14,
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                   ],
                   onChanged: enabled
                       ? (value) {
-                          if (value != null) onChanged(value);
+                          if (value == null) return;
+                          if (value == GameSortType.popularity &&
+                              !isSubscribed) {
+                            context.push('/subscription/paywall');
+                            return;
+                          }
+                          onChanged(value);
                         }
                       : null,
                 ),
+                if (sort != GameSortType.popularity) ...[
+                  const SizedBox(width: 4),
+                  IconButton(
+                    onPressed: enabled
+                        ? () => onSortAscendingChanged(!sortAscending)
+                        : null,
+                    tooltip: sortAscending ? '昇順' : '降順',
+                    icon: Icon(
+                      sortAscending
+                          ? Icons.arrow_upward
+                          : Icons.arrow_downward,
+                      size: 18,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
               ],
             ),
             if (sort == GameSortType.releaseDate)

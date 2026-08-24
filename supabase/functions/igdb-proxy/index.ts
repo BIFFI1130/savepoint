@@ -74,11 +74,17 @@ function insertWordBoundarySpaces(text: string): string | null {
   return spaced !== text ? spaced : null;
 }
 
-/** カテゴリ探索（タイトル検索なし）時の並び替え。キーはFlutter側と合わせている。 */
-const SORT_CLAUSES: Record<string, string> = {
-  popularity: 'sort total_rating_count desc',
-  name: 'sort name asc',
-  release_date: 'sort first_release_date desc',
+/** カテゴリ探索（タイトル検索なし）時の並び替え対象フィールド。キーはFlutter側と合わせている。 */
+const SORT_FIELDS: Record<string, string> = {
+  popularity: 'total_rating_count',
+  name: 'name',
+  release_date: 'first_release_date',
+};
+/** 各並び替えのデフォルト方向。popularityは常にこの方向固定（逆順指定は無視する）。 */
+const SORT_DEFAULT_DIRECTION: Record<string, 'asc' | 'desc'> = {
+  popularity: 'desc',
+  name: 'asc',
+  release_date: 'desc',
 };
 const DETAILS_FIELDS = `${SEARCH_FIELDS},` +
   'involved_companies.company.name,involved_companies.company.country,' +
@@ -657,7 +663,7 @@ Deno.serve(async (req) => {
   try {
     const {
       action, query, id, platform, platforms, developer, genre, genres,
-      offset, sort, includeUpcoming, includeAdult, includeIndie, year, month, weekStart, days,
+      offset, sort, sortAscending, includeUpcoming, includeAdult, includeIndie, year, month, weekStart, days,
     } = await req.json();
     const accessToken = await getTwitchAccessToken(db);
 
@@ -693,7 +699,11 @@ Deno.serve(async (req) => {
         );
       }
 
-      const sortKey = typeof sort === 'string' && SORT_CLAUSES[sort] ? sort : 'popularity';
+      const sortKey = typeof sort === 'string' && SORT_FIELDS[sort] ? sort : 'popularity';
+      // 逆順指定はpopularity以外（name・release_date）のみ有効。popularityは常に固定方向。
+      const sortDirection: 'asc' | 'desc' = sortKey !== 'popularity' && typeof sortAscending === 'boolean'
+        ? (sortAscending ? 'asc' : 'desc')
+        : SORT_DEFAULT_DIRECTION[sortKey];
 
       // 発売時期順は、デフォルトでは未発売（未来の発売日）の作品を除外する。
       // includeUpcomingがtrueの場合のみ、発売予定作品も含めて一覧表示する。
@@ -724,7 +734,7 @@ Deno.serve(async (req) => {
       // IGDBは search と sort を同時に使えない（sortは関連度順を上書きしてしまうため
       // 406エラーになる）。タイトル検索が無い場合のみ、指定された並び順を適用する。
       if (!hasQuery) {
-        clauses.push(SORT_CLAUSES[sortKey]);
+        clauses.push(`sort ${SORT_FIELDS[sortKey]} ${sortDirection}`);
       }
       const pageOffset = typeof offset === 'number' && offset > 0 ? offset : 0;
       clauses.push(`limit ${SEARCH_PAGE_SIZE}`);

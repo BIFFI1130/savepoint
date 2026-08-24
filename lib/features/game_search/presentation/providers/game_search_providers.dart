@@ -62,7 +62,8 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
   Set<String> _platforms = {};
   String _developer = '';
   Set<String> _genres = {};
-  GameSortType _sort = GameSortType.name;
+  GameSortType _sort = GameSortType.releaseDate;
+  bool _sortAscending = false;
   bool _includeUpcoming = false;
   late bool _includeAdult;
   late bool _includeIndie;
@@ -104,6 +105,14 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
   }
 
   GameSortType get sort => _sort;
+
+  /// 並び替えの昇順/降順（name・release_dateのみ有効）を切り替える。
+  void setSortAscending(bool value) {
+    _sortAscending = value;
+    _schedule(immediate: true);
+  }
+
+  bool get sortAscending => _sortAscending;
 
   /// 発売時期順のときに、未発売（未来の発売日）作品も含めるかどうか。
   void setIncludeUpcoming(bool value) {
@@ -152,6 +161,7 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
             developer: _developer.isEmpty ? null : _developer,
             genres: _genres,
             sort: _sort.value,
+            sortAscending: _sortAscending,
             includeUpcoming: _includeUpcoming,
             includeAdult: _includeAdult,
             includeIndie: _includeIndie,
@@ -176,6 +186,7 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
             developer: _developer.isEmpty ? null : _developer,
             genres: _genres,
             sort: _sort.value,
+            sortAscending: _sortAscending,
             includeUpcoming: _includeUpcoming,
             includeAdult: _includeAdult,
             includeIndie: _includeIndie,
