@@ -455,8 +455,8 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   value: enabledAsync.value ?? false,
                   onChanged: enabledAsync.isLoading ? null : _toggleFollowPush,
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('フォロー中ユーザーの新着通知'),
-                  subtitle: const Text('フォロー中のユーザーが「遊んだ」「遊びたい」に追加したときにお知らせします'),
+                  title: const Text('新しいフォロワーの通知'),
+                  subtitle: const Text('誰かに新しくフォローされたときにお知らせします'),
                 );
               },
             ),

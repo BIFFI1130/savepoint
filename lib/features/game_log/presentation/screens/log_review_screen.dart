@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -28,10 +26,6 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
   bool _isSaving = false;
   bool _initialized = false;
   GameLogVisibility _visibility = GameLogVisibility.public;
-
-  /// 画面を開いた時点で既に記録があったか（フォロー中ユーザーへの新着通知を、
-  /// 初回保存の場合だけに絞るために使う。編集では通知しない）。
-  bool _hadExistingLog = false;
 
   @override
   void dispose() {
@@ -79,13 +73,6 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
             hasRating: _rating > 0,
             hasReview: _reviewController.text.trim().isNotEmpty,
           );
-      if (!_hadExistingLog) {
-        unawaited(ref.read(logRepositoryProvider).notifyFollowersOfNewLog(
-              gameId: widget.gameId,
-              status: GameLogStatus.played,
-              visibility: _visibility,
-            ));
-      }
       ref.invalidate(myLogsProvider);
       ref.invalidate(existingLogProvider(widget.gameId));
       if (mounted) {
@@ -159,16 +146,13 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
     final existingLogAsync = ref.watch(existingLogProvider(widget.gameId));
 
     existingLogAsync.whenData((existingLog) {
-      if (!_initialized) {
+      if (!_initialized && existingLog != null) {
         _initialized = true;
-        _hadExistingLog = existingLog != null;
-        if (existingLog != null) {
-          _rating = existingLog.rating?.toDouble() ?? 0;
-          _reviewController.text = existingLog.reviewText ?? '';
-          _hasSpoiler = existingLog.hasSpoiler;
-          _isCleared = existingLog.isCleared;
-          _visibility = existingLog.visibility;
-        }
+        _rating = existingLog.rating?.toDouble() ?? 0;
+        _reviewController.text = existingLog.reviewText ?? '';
+        _hasSpoiler = existingLog.hasSpoiler;
+        _isCleared = existingLog.isCleared;
+        _visibility = existingLog.visibility;
       }
     });
 

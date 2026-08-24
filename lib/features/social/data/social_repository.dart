@@ -1,5 +1,6 @@
-import 'dart:typed_data';
+import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_client.dart';
@@ -121,6 +122,21 @@ class SocialRepository {
       'follower_id': _myId,
       'followee_id': userId,
     });
+    unawaited(_notifyNewFollower(userId));
+  }
+
+  /// 新しくフォローされたことを、フォローされた本人へプッシュ通知する
+  /// （notify-new-follower Edge Function）。ベストエフォートの副作用のため、
+  /// 失敗してもフォロー自体の成功には影響させない。
+  Future<void> _notifyNewFollower(String followeeId) async {
+    try {
+      await supabase.functions.invoke(
+        'notify-new-follower',
+        body: {'followee_id': followeeId},
+      );
+    } catch (error, stackTrace) {
+      debugPrint('notifyNewFollower failed: $error\n$stackTrace');
+    }
   }
 
   Future<void> unfollow(String userId) async {

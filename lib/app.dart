@@ -48,7 +48,7 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
       next.whenData((logs) => const BacklogWidgetService().sync(logs));
     }, fireImmediately: true);
 
-    // フォロー中ユーザーの新着プッシュ通知（サーバー起点）の受信・タップ処理。
+    // 新しいフォロワーのプッシュ通知（サーバー起点）の受信・タップ処理。
     // 通知自体が無効（未許可）な端末では単にトークンが無いだけで、これらの
     // リスナー登録自体は無害なので常に行っておく。
     final pushService = ref.read(pushNotificationServiceProvider);
@@ -72,13 +72,14 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
     super.dispose();
   }
 
-  /// フォロー中ユーザーの新着プッシュ通知のタップを受け取り、該当ゲームの
-  /// 詳細画面へ遷移する（ホーム画面ウィジェットのタップ処理と同じ考え方）。
+  /// 新しいフォロワーのプッシュ通知のタップを受け取り、フォローしてきた
+  /// ユーザーのプロフィール画面へ遷移する（ホーム画面ウィジェットのタップ処理と
+  /// 同じ考え方）。
   void _handlePushTap(RemoteMessage? message) {
-    final gameId = message?.data['game_id'];
-    if (gameId == null) return;
+    final userId = message?.data['user_id'];
+    if (userId == null) return;
     try {
-      ref.read(routerProvider).go('/games/$gameId');
+      ref.read(routerProvider).go('/users/$userId');
     } catch (error, stackTrace) {
       debugPrint('プッシュ通知タップの処理に失敗しました: $error\n$stackTrace');
     }

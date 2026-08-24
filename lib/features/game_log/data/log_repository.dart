@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 import '../../../core/supabase/supabase_client.dart';
 import '../domain/game_log.dart';
 
@@ -81,28 +79,5 @@ class LogRepository {
         .from('game_logs')
         .update({'priority': priority?.dbValue})
         .eq('id', logId);
-  }
-
-  /// フォロー中ユーザーの新着として、フォロワーへプッシュ通知する
-  /// （notify-follow-activity Edge Function）。新規追加（初めての記録）の
-  /// 場合のみ呼び出す想定で、既存記録の編集では呼ばない。
-  /// ベストエフォートの副作用のため、失敗しても記録の保存自体には影響させない。
-  Future<void> notifyFollowersOfNewLog({
-    required int gameId,
-    required GameLogStatus status,
-    GameLogVisibility visibility = GameLogVisibility.public,
-  }) async {
-    try {
-      await supabase.functions.invoke(
-        'notify-follow-activity',
-        body: {
-          'game_id': gameId,
-          'status': status.toDb(),
-          'visibility': visibility.dbValue,
-        },
-      );
-    } catch (error, stackTrace) {
-      debugPrint('notifyFollowersOfNewLog failed: $error\n$stackTrace');
-    }
   }
 }

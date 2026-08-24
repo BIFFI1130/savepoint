@@ -68,7 +68,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<!-- サーバー起点のプッシュ通知（フォロー中ユーザーの新着）を受け取るために必要。 -->
+	<!-- サーバー起点のプッシュ通知（新しいフォロワー）を受け取るために必要。 -->
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

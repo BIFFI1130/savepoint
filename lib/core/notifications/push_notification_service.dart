@@ -8,12 +8,12 @@ import '../supabase/supabase_client.dart';
 
 const _enabledKey = 'follow_push_enabled';
 
-/// フォロー中ユーザーの新着（「遊んだ」「遊びたい」への追加）をサーバー起点の
+/// 新しいフォロワー（誰かに新しくフォローされたこと）をサーバー起点の
 /// プッシュ通知（FCM/APNs）で受け取るための登録・解除・受信表示をまとめて扱う。
 ///
 /// 積みゲー/発売日リマインダー（[BacklogReminderService]・[ReleaseReminderService]、
 /// 端末内で完結するローカル通知）とは異なり、これはサーバー
-/// （notify-follow-activity Edge Function）から送信される通知を受け取る。
+/// （notify-new-follower Edge Function）から送信される通知を受け取る。
 /// フォアグラウンド受信時の表示にはflutter_local_notificationsをそのまま流用する
 /// （FCMはフォアグラウンド中は自動でシステム通知を出さないため）。
 class PushNotificationService {
@@ -112,9 +112,9 @@ class PushNotificationService {
       body: notification.body,
       notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
-          'follow_activity',
-          'フォロー中ユーザーの新着',
-          channelDescription: 'フォロー中のユーザーが「遊んだ」「遊びたい」に追加したときに通知します',
+          'new_follower',
+          '新しいフォロワー',
+          channelDescription: '誰かに新しくフォローされたときに通知します',
           importance: Importance.defaultImportance,
         ),
         iOS: DarwinNotificationDetails(),

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -57,14 +55,6 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
               hasRating: false,
               hasReview: false,
             );
-        if (log == null) {
-          unawaited(
-            ref.read(logRepositoryProvider).notifyFollowersOfNewLog(
-                  gameId: widget.gameId,
-                  status: GameLogStatus.wantToPlay,
-                ),
-          );
-        }
         final releaseDate = game.firstReleaseDate;
         if (releaseDate != null) {
           await ref.read(releaseReminderServiceProvider).scheduleForGame(

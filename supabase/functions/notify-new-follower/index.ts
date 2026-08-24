@@ -1,16 +1,16 @@
-// notify-follow-activity
+// notify-new-follower
 //
-// フォロー中ユーザーの新着（「遊んだ」「遊びたい」への新規追加）を、
-// 対象のフォロワーへFCM経由でプッシュ通知するEdge Function。
+// 誰かに新しくフォローされたとき、フォローされた本人へFCM経由でプッシュ通知する
+// Edge Function。
 //
-// 呼び出し元（Flutter）は、記録を新規作成した直後にこのFunctionを呼ぶ
-// （supabase.functions.invoke('notify-follow-activity', body: {...})）。
-// 呼び出し元のJWTから本人のuser_idを検証するため、他人になりすまして
-// 通知を送らせることはできない。ベストエフォートの副作用のため、送信失敗が
-// 記録の保存自体を失敗させることはない（呼び出し側で結果を待たない想定）。
+// 呼び出し元（Flutter）は、フォロー操作が成功した直後にこのFunctionを呼ぶ
+// （supabase.functions.invoke('notify-new-follower', body: {...})）。
+// 呼び出し元のJWTから本人（フォローした側）のuser_idを検証するため、
+// 他人になりすまして通知を送らせることはできない。ベストエフォートの副作用の
+// ため、送信失敗がフォロー自体を失敗させることはない（呼び出し側で結果を待たない想定）。
 //
 // リクエストボディ:
-//   { game_id: number, status: 'played' | 'want_to_play', visibility: 'public' | 'mutual' | 'private' }
+//   { followee_id: string }  -- フォローされた側（通知の送り先）のユーザーID
 //
 // 必要なSecrets:
 //   FCM_SERVICE_ACCOUNT_JSON - FirebaseプロジェクトのService Account JSON（1行の文字列）。
@@ -21,9 +21,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 interface NotifyRequest {
-  game_id: number;
-  status: 'played' | 'want_to_play';
-  visibility: 'public' | 'mutual' | 'private';
+  followee_id: string;
 }
 
 interface ServiceAccount {
@@ -150,7 +148,7 @@ Deno.serve(async (req) => {
       headers: { 'Content-Type': 'application/json' },
     });
   }
-  if (!body.game_id || !body.status || !body.visibility) {
+  if (!body.followee_id) {
     return new Response(JSON.stringify({ error: 'パラメータが不足しています' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
@@ -158,7 +156,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // 呼び出し元のJWTでユーザーを検証する（delete-accountと同じ方式）。
+    // 呼び出し元のJWTでユーザーを検証する（フォローした本人）。
     const callerClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
@@ -175,8 +173,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 非公開の記録は誰にも通知しない。
-    if (body.visibility === 'private') {
+    // 自分自身をフォローすることは無いはずだが、念のため無視する。
+    if (user.id === body.followee_id) {
       return new Response(JSON.stringify({ success: true, sent: 0 }), {
         headers: { 'Content-Type': 'application/json' },
       });
@@ -187,13 +185,12 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    const [gameResult, profileResult, tokensResult] = await Promise.all([
-      adminClient.from('games').select('name, name_ja').eq('id', body.game_id).maybeSingle(),
+    const [followerResult, tokensResult] = await Promise.all([
       adminClient.from('profiles').select('display_name').eq('id', user.id).maybeSingle(),
-      adminClient.rpc('eligible_follower_tokens', {
-        p_actor_id: user.id,
-        p_visibility: body.visibility,
-      }),
+      adminClient
+        .from('device_tokens')
+        .select('token, platform')
+        .eq('user_id', body.followee_id),
     ]);
 
     if (tokensResult.error) throw new Error(tokensResult.error.message);
@@ -215,11 +212,10 @@ Deno.serve(async (req) => {
     const serviceAccount: ServiceAccount = JSON.parse(serviceAccountJson);
     const accessToken = await getAccessToken(serviceAccount);
 
-    const gameName = gameResult.data?.name_ja || gameResult.data?.name || 'ゲーム';
-    const actorName = profileResult.data?.display_name?.trim() || 'フォロー中のユーザー';
-    const statusLabel = body.status === 'played' ? '遊んだ' : '遊びたい';
-    const title = 'フォロー中のユーザーの新着';
-    const messageBody = `${actorName}さんが「${gameName}」を${statusLabel}に追加しました`;
+    // ユーザーIDは表示しない方針のため、表示名が無ければ汎用の文言にする。
+    const followerName = followerResult.data?.display_name?.trim() || '新しいフォロワー';
+    const title = '新しいフォロワー';
+    const messageBody = `${followerName}さんにフォローされました`;
 
     let sent = 0;
     const staleTokens: string[] = [];
@@ -230,7 +226,7 @@ Deno.serve(async (req) => {
         row.token,
         title,
         messageBody,
-        { type: 'follow_activity', game_id: String(body.game_id) },
+        { type: 'new_follower', user_id: user.id },
       );
       if (result.ok) sent++;
       if (result.shouldDeleteToken) staleTokens.push(row.token);
@@ -245,7 +241,7 @@ Deno.serve(async (req) => {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('notify-follow-activity failed', error);
+    console.error('notify-new-follower failed', error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
       { status: 500, headers: { 'Content-Type': 'application/json' } },
