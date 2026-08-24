@@ -6,10 +6,12 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:home_widget/home_widget.dart';
 
+import 'core/ads/launch_ad_service.dart';
 import 'core/deep_links/deep_link_service.dart';
 import 'core/home_widget/backlog_widget_service.dart';
 import 'core/notifications/push_notification_service.dart';
 import 'core/router/app_router.dart';
+import 'core/subscription/subscription_providers.dart';
 import 'core/subscription/subscription_service.dart';
 import 'core/supabase/supabase_client.dart';
 import 'core/theme/app_theme.dart';
@@ -61,6 +63,14 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
     _pushTokenRefreshSubscription = pushService.onTokenRefresh.listen(
       (_) => pushService.reregisterIfEnabled(),
     );
+
+    // 起動時広告（1日1回、サブスク加入者には表示しない）。「遊んだ／遊びたい」を
+    // 記録するフロー自体には一切関与しない、起動直後のみの広告枠。
+    // 未ログイン（オンボーディング中）はまだ記録体験に至っていないので対象外とする。
+    if (ref.read(currentUserProvider) != null &&
+        !ref.read(isAdFreeProvider)) {
+      unawaited(ref.read(launchAdServiceProvider).maybeShow());
+    }
   }
 
   @override
