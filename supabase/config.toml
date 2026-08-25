@@ -375,6 +375,11 @@ allow_dynamic_registration = false
 # 認証済みユーザーのみ呼び出し可能にする（匿名呼び出しでIGDBクォータを消費されないように）。
 verify_jwt = true
 
+[functions.notify-weekly-digest]
+# pg_cronからの呼び出しにはユーザーJWTが無いため、Supabase標準のJWT検証を無効化し、
+# 代わりに関数内でx-cron-secretヘッダ（CRON_SECRET）を検証する。
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

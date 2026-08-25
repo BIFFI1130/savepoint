@@ -256,6 +256,11 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     ref.invalidate(myProfileProvider);
   }
 
+  Future<void> _toggleNotifyWeeklyDigest(bool value) async {
+    await ref.read(socialRepositoryProvider).setNotifyWeeklyDigest(value);
+    ref.invalidate(myProfileProvider);
+  }
+
   Future<void> _toggleShowIdentityInPublicReviews(bool value) async {
     await ref
         .read(socialRepositoryProvider)
@@ -636,6 +641,19 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   contentPadding: EdgeInsets.zero,
                   title: const Text('フォロー中ユーザーの新着レビュー通知'),
                   subtitle: const Text('フォロー中のユーザーがレビューを投稿したときにお知らせします'),
+                );
+              },
+            ),
+            Consumer(
+              builder: (context, ref, _) {
+                final profileAsync = ref.watch(myProfileProvider);
+                return SwitchListTile(
+                  value: profileAsync.value?.notifyWeeklyDigest ?? true,
+                  onChanged:
+                      profileAsync.isLoading ? null : _toggleNotifyWeeklyDigest,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('フォロー中ユーザーの週間ダイジェスト'),
+                  subtitle: const Text('週1回、フォロー中のユーザーの新着記録をまとめてお知らせします'),
                 );
               },
             ),

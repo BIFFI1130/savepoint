@@ -64,3 +64,7 @@ app.*.map.json
 
 # SavePoint: Node製ツール（tools/配下）の依存パッケージ
 /tools/**/node_modules/
+
+# SavePoint: ローカル控え用のsecretsメモ（値自体はmigrationにも埋め込まれているが、
+# 参照用にここにも控えている。バラ撒きを避けるためgit管理はしない）
+/supabase/SECRETS.local.md

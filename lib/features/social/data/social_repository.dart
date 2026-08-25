@@ -94,6 +94,15 @@ class SocialRepository {
         .update({'notify_new_follower': value}).eq('id', _myId);
   }
 
+  /// フォロー中ユーザーの新着記録をまとめて知らせる週間ダイジェスト通知を
+  /// 受け取るかどうかを設定する。サーバー側（notify-weekly-digest Edge Function、
+  /// pg_cronで週1回起動）が送信可否を判断する際に使う。
+  Future<void> setNotifyWeeklyDigest(bool value) async {
+    await supabase
+        .from('profiles')
+        .update({'notify_weekly_digest': value}).eq('id', _myId);
+  }
+
   /// 「みんなのレビュー」でユーザー名・アバターなど身元がわかる情報を表示するかどうかを
   /// 設定する。デフォルトは非表示（匿名）。
   Future<void> setShowIdentityInPublicReviews(bool value) async {

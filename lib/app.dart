@@ -100,6 +100,7 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
   /// 適切な画面へ遷移する（ホーム画面ウィジェットのタップ処理と同じ考え方）。
   /// - new_follower: フォローしてきたユーザーのプロフィール画面
   /// - new_review: レビューが投稿されたゲームの詳細画面
+  /// - weekly_digest: ホーム画面（タイムラインサブタブへの直接遷移は未対応）
   void _handlePushTap(RemoteMessage? message) {
     final data = message?.data;
     if (data == null) return;
@@ -111,6 +112,8 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
         case 'new_review':
           final gameId = data['game_id'];
           if (gameId != null) ref.read(routerProvider).go('/games/$gameId');
+        case 'weekly_digest':
+          ref.read(routerProvider).go('/home');
       }
     } catch (error, stackTrace) {
       debugPrint('プッシュ通知タップの処理に失敗しました: $error\n$stackTrace');
