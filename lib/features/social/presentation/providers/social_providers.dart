@@ -59,6 +59,12 @@ final isFollowingProvider =
   return ref.read(socialRepositoryProvider).isFollowing(userId);
 });
 
+/// 指定ユーザーが自分をフォロー中かどうか（[isFollowingProvider]と両方trueなら相互フォロー）。
+final isFollowedByProvider =
+    FutureProvider.family<bool, String>((ref, userId) async {
+  return ref.read(socialRepositoryProvider).isFollowedBy(userId);
+});
+
 /// 自分が指定ユーザーをブロック中かどうか。
 final isBlockedProvider =
     FutureProvider.family<bool, String>((ref, userId) async {

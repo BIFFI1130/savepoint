@@ -32,7 +32,7 @@ class MyProfileScreen extends ConsumerStatefulWidget {
 
 class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   final _gameHistoryController = TextEditingController();
-  bool _isPublic = false;
+  ProfileVisibility _profileVisibility = ProfileVisibility.private_;
   Set<String> _favoriteGenres = {};
   bool _initialized = false;
   bool _isSaving = false;
@@ -117,7 +117,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     setState(() => _isSaving = true);
     try {
       await ref.read(socialRepositoryProvider).updateMyProfile(
-            isPublic: _isPublic,
+            profileVisibility: _profileVisibility,
             gameHistory: _gameHistoryController.text.trim(),
             favoriteGenres: _favoriteGenres.toList(),
           );
@@ -288,7 +288,8 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     profileAsync.whenData((profile) {
       if (!_initialized) {
         _initialized = true;
-        _isPublic = profile?.isPublic ?? false;
+        _profileVisibility =
+            profile?.profileVisibility ?? ProfileVisibility.private_;
         _gameHistoryController.text = profile?.gameHistory ?? '';
         _favoriteGenres = {...?profile?.favoriteGenres};
       }
@@ -375,16 +376,21 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
               ),
             ],
             const SizedBox(height: 24),
-            SwitchListTile(
-              value: _isPublic,
-              onChanged: (value) => setState(() => _isPublic = value),
-              contentPadding: EdgeInsets.zero,
-              title: const Text('プロフィールを公開する'),
-              subtitle: const Text(
-                '公開にすると、あなたをフォローしているユーザーに「遊んだ／遊びたい」の'
-                'ステータス（ゲーム名と状態のみ）が表示されます。評価・レビュー本文・'
-                'クリア情報・優先度は公開されません。非公開の間は誰にも表示されません。',
-              ),
+            Text('公開範囲', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 4),
+            SegmentedButton<ProfileVisibility>(
+              segments: [
+                for (final v in ProfileVisibility.values)
+                  ButtonSegment(value: v, label: Text(v.label)),
+              ],
+              selected: {_profileVisibility},
+              onSelectionChanged: (selection) =>
+                  setState(() => _profileVisibility = selection.first),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _profileVisibility.description,
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             Consumer(
               builder: (context, ref, _) {

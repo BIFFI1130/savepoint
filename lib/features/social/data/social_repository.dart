@@ -19,7 +19,8 @@ class SocialRepository {
   }
 
   /// 他ユーザーのプロフィール取得は`profiles`ではなく`profiles_public`ビュー
-  /// （id・username・display_name・avatar_url・is_public・created_atのみ）経由で行う。
+  /// （id・username・display_name・avatar_url・profile_visibility・created_atのみ）
+  /// 経由で行う。
   /// `birth_year`・`birth_month`（年齢確認用）や`game_history`・`favorite_genres`
   /// （自分専用の編集項目）は、REST APIを直接叩かれても他ユーザーへ渡らない。
   Future<SocialProfile?> fetchProfile(String userId) async {
@@ -55,12 +56,12 @@ class SocialRepository {
   /// ユーザーID（username）と表示名は別の専用エンドポイント（[setUsername]・
   /// [updateDisplayName]）で個別に保存するため、ここには含めない。
   Future<void> updateMyProfile({
-    required bool isPublic,
+    required ProfileVisibility profileVisibility,
     required String? gameHistory,
     required List<String> favoriteGenres,
   }) async {
     await supabase.from('profiles').update({
-      'is_public': isPublic,
+      'profile_visibility': profileVisibility.dbValue,
       'game_history':
           (gameHistory == null || gameHistory.isEmpty) ? null : gameHistory,
       'favorite_genres': favoriteGenres,
@@ -139,6 +140,19 @@ class SocialRepository {
         .select()
         .eq('follower_id', _myId)
         .eq('followee_id', userId)
+        .maybeSingle();
+    return row != null;
+  }
+
+  /// 指定ユーザーが自分をフォローしているかどうか（[isFollowing]の逆方向）。
+  /// 両方trueなら相互フォロー。プロフィールの公開範囲が「相互フォローのみ公開」の
+  /// 相手の記録を見られるかどうかの判定に使う。
+  Future<bool> isFollowedBy(String userId) async {
+    final row = await supabase
+        .from('follows')
+        .select()
+        .eq('follower_id', userId)
+        .eq('followee_id', _myId)
         .maybeSingle();
     return row != null;
   }

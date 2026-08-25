@@ -12,17 +12,16 @@ enum GameLogStatus {
   String toDb() => this == GameLogStatus.wantToPlay ? 'want_to_play' : 'played';
 }
 
-/// 記録の公開範囲。他ユーザーの「つながり」フィード（follow_feedビュー）に
-/// 表示されるかどうかを、ゲーム（記録）単位で制御する。
+/// 記録（レビュー）ごとの公開範囲。「共有するかどうか」だけを持ち、「誰に共有するか」は
+/// プロフィール側の設定（[ProfileVisibility]）で決まる。最終的な可視性は、記録が
+/// 「全公開」かつ、プロフィールの設定で許可された相手、で決まる。
 enum GameLogVisibility {
   private_('private', '非公開', '自分にのみ表示されます'),
-  mutual('mutual', '相互フォローのみ', 'お互いにフォローしているユーザーにのみ表示されます'),
   public(
     'public',
     '全公開',
-    'あなたをフォローしているユーザーに表示されます。評価・レビューを付けた'
-        '「遊んだ」記録は、フォロー関係のない全ユーザーが見る「みんなのレビュー」'
-        'にも表示されます',
+    'プロフィールの公開設定に応じて、フォロー中のユーザーや「みんなのレビュー」'
+        'に表示されます',
   );
 
   const GameLogVisibility(this.dbValue, this.label, this.description);
@@ -31,11 +30,9 @@ enum GameLogVisibility {
   final String description;
 
   static GameLogVisibility fromDb(String? value) {
-    return switch (value) {
-      'private' => GameLogVisibility.private_,
-      'mutual' => GameLogVisibility.mutual,
-      _ => GameLogVisibility.public,
-    };
+    return value == 'private'
+        ? GameLogVisibility.private_
+        : GameLogVisibility.public;
   }
 }
 

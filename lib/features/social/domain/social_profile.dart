@@ -1,3 +1,33 @@
+/// プロフィール単位の公開範囲。「誰に共有するか」を持つ。記録（レビュー）ごとの
+/// 「共有するかどうか」（[GameLogVisibility]）と組み合わさって最終的な可視性が決まる。
+enum ProfileVisibility {
+  private_('private', '非公開', '自分の記録は誰にも表示されません'),
+  mutual(
+    'mutual',
+    '相互フォローのみ公開',
+    'お互いにフォローしているユーザーにのみ、公開設定の記録が表示されます',
+  ),
+  public(
+    'public',
+    '全公開',
+    'あなたをフォローしているユーザーや、「みんなのレビュー」を見る全ユーザーに、'
+        '公開設定の記録が表示されます',
+  );
+
+  const ProfileVisibility(this.dbValue, this.label, this.description);
+  final String dbValue;
+  final String label;
+  final String description;
+
+  static ProfileVisibility fromDb(String? value) {
+    return switch (value) {
+      'mutual' => ProfileVisibility.mutual,
+      'public' => ProfileVisibility.public,
+      _ => ProfileVisibility.private_,
+    };
+  }
+}
+
 /// 他ユーザーのプロフィール（ユーザーID・表示名・公開設定・ゲーム歴・好きなジャンル）。
 class SocialProfile {
   const SocialProfile({
@@ -5,7 +35,7 @@ class SocialProfile {
     this.username,
     this.displayName,
     this.avatarUrl,
-    this.isPublic = false,
+    this.profileVisibility = ProfileVisibility.private_,
     this.gameHistory,
     this.favoriteGenres = const [],
     this.birthYear,
@@ -19,7 +49,7 @@ class SocialProfile {
   final String? username;
   final String? displayName;
   final String? avatarUrl;
-  final bool isPublic;
+  final ProfileVisibility profileVisibility;
   /// ゲーム歴（自由記述、任意）。
   final String? gameHistory;
   /// 好きなジャンル（複数選択、genreOptionsの値と対応）。
@@ -61,7 +91,8 @@ class SocialProfile {
       username: json['username'] as String?,
       displayName: json['display_name'] as String?,
       avatarUrl: json['avatar_url'] as String?,
-      isPublic: json['is_public'] as bool? ?? false,
+      profileVisibility:
+          ProfileVisibility.fromDb(json['profile_visibility'] as String?),
       gameHistory: json['game_history'] as String?,
       favoriteGenres:
           (json['favorite_genres'] as List?)?.cast<String>() ?? const [],

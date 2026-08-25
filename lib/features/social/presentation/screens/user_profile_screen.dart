@@ -15,6 +15,7 @@ import '../../../favorites/presentation/widgets/favorite_games_list.dart';
 import '../../../game_log/domain/game_log.dart';
 import '../../domain/follow_feed_entry.dart';
 import '../../domain/report_reason.dart';
+import '../../domain/social_profile.dart';
 import '../providers/social_providers.dart';
 
 class UserProfileScreen extends ConsumerStatefulWidget {
@@ -164,6 +165,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     final profileAsync = ref.watch(userProfileProvider(userId));
     final isFollowing =
         ref.watch(isFollowingProvider(userId)).valueOrNull ?? false;
+    final isFollowedBy =
+        ref.watch(isFollowedByProvider(userId)).valueOrNull ?? false;
     final isBlocked = ref.watch(isBlockedProvider(userId)).valueOrNull ?? false;
 
     return Scaffold(
@@ -241,9 +244,17 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                         message: 'フォローするとこのユーザーの「遊んだ／遊びたい」記録が見られます',
                         icon: Icons.lock_outline,
                       )
-                    : !profile.isPublic
+                    : profile.profileVisibility == ProfileVisibility.private_
                     ? const EmptyView(
                         message: 'このユーザーは非公開設定のため、記録は表示されません',
+                        icon: Icons.lock_outline,
+                      )
+                    : profile.profileVisibility == ProfileVisibility.mutual &&
+                          !isFollowedBy
+                    ? const EmptyView(
+                        message:
+                            'このユーザーは相互フォローのみ公開の設定です。'
+                            'フォローバックされると記録が見られます',
                         icon: Icons.lock_outline,
                       )
                     : _UserFeedTabs(userId: userId, isGridView: _isGridView),
