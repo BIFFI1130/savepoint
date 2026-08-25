@@ -45,6 +45,19 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       });
     });
 
+    // 「あと1つ」で達成できる実績に新しく入ったタイミングで、後押しのバナーを表示する。
+    ref.listen(nearCompletionAchievementsProvider, (previous, next) {
+      next.whenData((near) {
+        if (near.isEmpty) return;
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        if (messenger == null) return;
+        final title = near.length == 1
+            ? '『${near.first.title}』まであと1つ！'
+            : '${near.length}件の実績があと1つで達成できます';
+        messenger.showSnackBar(SnackBar(content: Text(title)));
+      });
+    });
+
     return Scaffold(
       body: IndexedStack(index: _index, children: _screens),
       bottomNavigationBar: NavigationBar(

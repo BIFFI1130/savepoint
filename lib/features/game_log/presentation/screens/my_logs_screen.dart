@@ -451,6 +451,32 @@ class _FollowCountsRow extends ConsumerWidget {
           label: 'フォロワー',
           onTap: () => context.push('/social/followers'),
         ),
+        const Spacer(),
+        const _StreakBadge(),
+      ],
+    );
+  }
+}
+
+/// 週間記録ストリークのバッジ。ストリークが無い（0週）場合は何も表示しない。
+class _StreakBadge extends ConsumerWidget {
+  const _StreakBadge();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final streak = ref.watch(currentWeeklyStreakProvider);
+    if (streak <= 0) return const SizedBox.shrink();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('🔥', style: TextStyle(fontSize: 16)),
+        const SizedBox(width: 2),
+        Text(
+          '$streak週連続',
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+        ),
       ],
     );
   }

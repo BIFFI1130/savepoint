@@ -180,3 +180,12 @@ List<AchievementStatus> evaluateAchievements(
 
   return statuses;
 }
+
+/// あと1つで達成できる実績（未達成かつ残り目標数が1）の一覧。
+List<AchievementStatus> nearCompletionAchievements(
+  List<AchievementStatus> statuses,
+) {
+  return statuses
+      .where((s) => !s.achieved && s.achievement.target - s.currentProgress == 1)
+      .toList();
+}

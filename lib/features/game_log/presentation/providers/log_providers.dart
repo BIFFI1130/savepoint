@@ -5,6 +5,7 @@ import '../../data/log_repository.dart';
 import '../../data/stats_repository.dart';
 import '../../domain/game_log.dart';
 import '../../domain/game_log_stats.dart';
+import '../../domain/weekly_streak.dart';
 
 final logRepositoryProvider = Provider<LogRepository>((ref) {
   return LogRepository();
@@ -33,4 +34,11 @@ final myLogsProvider = FutureProvider<List<GameLogWithGame>>((ref) async {
 final existingLogProvider =
     FutureProvider.family<GameLog?, int>((ref, gameId) async {
   return ref.read(logRepositoryProvider).fetchLogForGame(gameId);
+});
+
+/// 現在の週間記録ストリーク（連続して記録している週数）。
+final currentWeeklyStreakProvider = Provider<int>((ref) {
+  final logs = ref.watch(myLogsProvider).valueOrNull;
+  if (logs == null) return 0;
+  return currentWeeklyStreak(logs);
 });

@@ -47,3 +47,35 @@ final newlyUnlockedAchievementsProvider = FutureProvider<List<Achievement>>((ref
       .map((s) => s.achievement)
       .toList();
 });
+
+const _seenNearAchievementsKey = 'seen_near_achievement_ids';
+
+/// [newlyUnlockedAchievementsProvider]と同じ考え方で、「あと1つで達成」の
+/// 状態に新しく入った実績を検出する（達成済みIDではなく「あと1つ」IDの
+/// 差分で判定する、別のSharedPreferencesキーを使う）。初回起動時は抑制する。
+final nearCompletionAchievementsProvider =
+    FutureProvider<List<Achievement>>((ref) async {
+  final logs = await ref.watch(myLogsProvider.future);
+  final collections = await ref.watch(myCollectionsProvider.future);
+  final statuses = evaluateAchievements(logs, collections);
+  final nearIds =
+      nearCompletionAchievements(statuses).map((s) => s.achievement.id).toSet();
+
+  final prefs = await SharedPreferences.getInstance();
+  final seenIds =
+      (prefs.getStringList(_seenNearAchievementsKey) ?? const []).toSet();
+  final isFirstRun = seenIds.isEmpty;
+  final newlyNearIds = nearIds.difference(seenIds);
+
+  if (nearIds.difference(seenIds).isNotEmpty ||
+      seenIds.difference(nearIds).isNotEmpty) {
+    await prefs.setStringList(_seenNearAchievementsKey, nearIds.toList());
+  }
+
+  if (newlyNearIds.isEmpty || isFirstRun) return const [];
+
+  return nearCompletionAchievements(statuses)
+      .where((s) => newlyNearIds.contains(s.achievement.id))
+      .map((s) => s.achievement)
+      .toList();
+});

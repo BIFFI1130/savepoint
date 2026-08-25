@@ -9,7 +9,10 @@ import 'package:home_widget/home_widget.dart';
 import 'core/ads/launch_ad_service.dart';
 import 'core/deep_links/deep_link_service.dart';
 import 'core/home_widget/backlog_widget_service.dart';
+import 'core/notifications/aged_backlog_reminder_service.dart';
+import 'core/notifications/monthly_recap_reminder_service.dart';
 import 'core/notifications/push_notification_service.dart';
+import 'core/notifications/streak_reminder_service.dart';
 import 'core/router/app_router.dart';
 import 'core/subscription/subscription_providers.dart';
 import 'core/subscription/subscription_service.dart';
@@ -47,8 +50,19 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
     // 登録前に確定していた（＝アプリ起動直後の）データを取りこぼさないよう
     // initStateでlistenManual(fireImmediately: true)を使う。
     ref.listenManual(myLogsProvider, (previous, next) {
-      next.whenData((logs) => const BacklogWidgetService().sync(logs));
+      next.whenData((logs) {
+        const BacklogWidgetService().sync(logs);
+        unawaited(ref.read(streakReminderServiceProvider).syncSchedule(logs));
+        unawaited(
+          ref.read(agedBacklogReminderServiceProvider).syncSchedule(logs),
+        );
+      });
     }, fireImmediately: true);
+
+    // 月末ふりかえりのローカル通知（有効な場合、次回分が確実に積まれているようにする）。
+    unawaited(
+      ref.read(monthlyRecapReminderServiceProvider).ensureScheduled(),
+    );
 
     // 新しいフォロワーのプッシュ通知（サーバー起点）の受信・タップ処理。
     // 通知自体が無効（未許可）な端末では単にトークンが無いだけで、これらの

@@ -7,8 +7,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/analytics/analytics_service.dart';
+import '../../../../core/notifications/aged_backlog_reminder_service.dart';
 import '../../../../core/notifications/backlog_reminder_service.dart';
+import '../../../../core/notifications/monthly_recap_reminder_service.dart';
 import '../../../../core/notifications/push_notification_service.dart';
+import '../../../../core/notifications/streak_reminder_service.dart';
 import '../../../../core/subscription/subscription_providers.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/avatar_image.dart';
@@ -16,6 +19,7 @@ import '../../../../core/widgets/genre_badge_selector.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../favorites/presentation/providers/favorite_providers.dart';
 import '../../../favorites/presentation/widgets/favorite_games_list.dart';
+import '../../../game_log/presentation/providers/log_providers.dart';
 import '../../domain/social_profile.dart';
 import '../providers/social_providers.dart';
 import '../widgets/profile_share_sheet.dart';
@@ -174,6 +178,57 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     }
     await ref.read(appAnalyticsProvider).logBacklogReminderToggled(value);
     ref.invalidate(backlogReminderEnabledProvider);
+  }
+
+  Future<void> _toggleStreakReminder(bool value) async {
+    final service = ref.read(streakReminderServiceProvider);
+    if (value) {
+      final granted = await service.enable();
+      if (!granted && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('通知の許可が必要です。端末の設定から許可してください')),
+        );
+      } else {
+        final logs = ref.read(myLogsProvider).valueOrNull;
+        if (logs != null) await service.syncSchedule(logs);
+      }
+    } else {
+      await service.disable();
+    }
+    ref.invalidate(streakReminderEnabledProvider);
+  }
+
+  Future<void> _toggleAgedBacklogReminder(bool value) async {
+    final service = ref.read(agedBacklogReminderServiceProvider);
+    if (value) {
+      final granted = await service.enable();
+      if (!granted && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('通知の許可が必要です。端末の設定から許可してください')),
+        );
+      } else {
+        final logs = ref.read(myLogsProvider).valueOrNull;
+        if (logs != null) await service.syncSchedule(logs);
+      }
+    } else {
+      await service.disable();
+    }
+    ref.invalidate(agedBacklogReminderEnabledProvider);
+  }
+
+  Future<void> _toggleMonthlyRecap(bool value) async {
+    final service = ref.read(monthlyRecapReminderServiceProvider);
+    if (value) {
+      final granted = await service.enable();
+      if (!granted && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('通知の許可が必要です。端末の設定から許可してください')),
+        );
+      }
+    } else {
+      await service.disable();
+    }
+    ref.invalidate(monthlyRecapEnabledProvider);
   }
 
   Future<void> _toggleFollowPush(bool value) async {
@@ -505,6 +560,43 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   contentPadding: EdgeInsets.zero,
                   title: const Text('積みゲーリマインダー'),
                   subtitle: const Text('「遊びたい」の消化を週1回通知でお知らせします'),
+                );
+              },
+            ),
+            Consumer(
+              builder: (context, ref, _) {
+                final enabledAsync = ref.watch(streakReminderEnabledProvider);
+                return SwitchListTile(
+                  value: enabledAsync.value ?? false,
+                  onChanged: enabledAsync.isLoading ? null : _toggleStreakReminder,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('記録ストリークリマインダー'),
+                  subtitle: const Text('週間記録ストリークが途切れそうな時にお知らせします'),
+                );
+              },
+            ),
+            Consumer(
+              builder: (context, ref, _) {
+                final enabledAsync = ref.watch(agedBacklogReminderEnabledProvider);
+                return SwitchListTile(
+                  value: enabledAsync.value ?? false,
+                  onChanged:
+                      enabledAsync.isLoading ? null : _toggleAgedBacklogReminder,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('積みゲー経年アラート'),
+                  subtitle: const Text('長期間手つかずの「遊びたい」作品をお知らせします'),
+                );
+              },
+            ),
+            Consumer(
+              builder: (context, ref, _) {
+                final enabledAsync = ref.watch(monthlyRecapEnabledProvider);
+                return SwitchListTile(
+                  value: enabledAsync.value ?? false,
+                  onChanged: enabledAsync.isLoading ? null : _toggleMonthlyRecap,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('月末のふりかえり通知'),
+                  subtitle: const Text('月末に今月の記録の振り返りをお知らせします'),
                 );
               },
             ),
