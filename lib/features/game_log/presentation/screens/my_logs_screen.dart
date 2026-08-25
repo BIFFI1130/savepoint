@@ -230,115 +230,134 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
       ),
       body: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: _ProfileHeader(),
-          ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: _FollowCountsRow(),
-          ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: _HubRow(),
-          ),
-          const Divider(height: 1),
-          TabBar(
-            controller: _tabController,
-            tabs: const [
-              Tab(text: '遊んだ'),
-              Tab(text: '遊びたい'),
-              Tab(text: 'オレの推しゲー'),
-            ],
-          ),
-          AnimatedBuilder(
-            animation: _tabController.animation ?? _tabController,
-            builder: (context, child) {
-              final isFavoritesTab = _tabController.index == 2;
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
-                child: Row(
-                  children: [
-                    if (!isFavoritesTab) ...[
-                      Text(
-                        '並び替え：',
-                        style: Theme.of(context).textTheme.labelMedium,
-                      ),
-                      const SizedBox(width: 8),
-                      DropdownButton<MyLogSortType>(
-                        value: _sort,
-                        isDense: true,
-                        items: [
-                          for (final type in MyLogSortType.values)
-                            DropdownMenuItem(
-                              value: type,
-                              child: Text(type.label),
-                            ),
-                        ],
-                        onChanged: (value) {
-                          if (value != null) setState(() => _sort = value);
-                        },
-                      ),
-                    ],
-                    const Spacer(),
-                    IconButton(
-                      icon: Icon(
-                        _hasActiveFilter
-                            ? Icons.filter_alt
-                            : Icons.filter_alt_outlined,
-                        color: _hasActiveFilter
-                            ? Theme.of(context).colorScheme.primary
-                            : null,
-                      ),
-                      tooltip: '絞り込み',
-                      onPressed: _openFilterSheet,
-                    ),
-                    IconButton(
-                      onPressed: () =>
-                          setState(() => _isGridView = !_isGridView),
-                      icon: Icon(
-                        _isGridView ? Icons.view_list : Icons.grid_view,
-                      ),
-                      tooltip: _isGridView ? 'リスト表示に切り替え' : 'グリッド表示に切り替え',
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                logsAsync.when(
-                  data: (logs) => _LogList(
-                    logs: _filterAndSort(logs, GameLogStatus.played),
-                    emptyMessage: 'まだ「遊んだ」記録がありません',
-                    onRefresh: () => ref.refresh(myLogsProvider.future),
-                    sortType: _sort,
-                    isGridView: _isGridView,
-                  ),
-                  loading: () => const LoadingView(),
-                  error: (error, _) => ErrorView(
-                    message: 'ログの取得に失敗しました',
-                    onRetry: () => ref.invalidate(myLogsProvider),
+            child: CustomScrollView(
+              slivers: [
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: _ProfileHeader(),
                   ),
                 ),
-                logsAsync.when(
-                  data: (logs) => _LogList(
-                    logs: _filterAndSort(logs, GameLogStatus.wantToPlay),
-                    emptyMessage: 'まだ「遊びたい」に登録した作品がありません',
-                    onRefresh: () => ref.refresh(myLogsProvider.future),
-                    sortType: _sort,
-                    isGridView: _isGridView,
-                  ),
-                  loading: () => const LoadingView(),
-                  error: (error, _) => ErrorView(
-                    message: 'ログの取得に失敗しました',
-                    onRetry: () => ref.invalidate(myLogsProvider),
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: _FollowCountsRow(),
                   ),
                 ),
-                _MyFavoritesTab(isGridView: _isGridView),
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: _HubRow(),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: Divider(height: 1)),
+                SliverToBoxAdapter(
+                  child: TabBar(
+                    controller: _tabController,
+                    tabs: const [
+                      Tab(text: '遊んだ'),
+                      Tab(text: '遊びたい'),
+                      Tab(text: 'オレの推しゲー'),
+                    ],
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: AnimatedBuilder(
+                    animation: _tabController.animation ?? _tabController,
+                    builder: (context, child) {
+                      final isFavoritesTab = _tabController.index == 2;
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+                        child: Row(
+                          children: [
+                            if (!isFavoritesTab) ...[
+                              Text(
+                                '並び替え：',
+                                style: Theme.of(context).textTheme.labelMedium,
+                              ),
+                              const SizedBox(width: 8),
+                              DropdownButton<MyLogSortType>(
+                                value: _sort,
+                                isDense: true,
+                                items: [
+                                  for (final type in MyLogSortType.values)
+                                    DropdownMenuItem(
+                                      value: type,
+                                      child: Text(type.label),
+                                    ),
+                                ],
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setState(() => _sort = value);
+                                  }
+                                },
+                              ),
+                            ],
+                            const Spacer(),
+                            IconButton(
+                              icon: Icon(
+                                _hasActiveFilter
+                                    ? Icons.filter_alt
+                                    : Icons.filter_alt_outlined,
+                                color: _hasActiveFilter
+                                    ? Theme.of(context).colorScheme.primary
+                                    : null,
+                              ),
+                              tooltip: '絞り込み',
+                              onPressed: _openFilterSheet,
+                            ),
+                            IconButton(
+                              onPressed: () =>
+                                  setState(() => _isGridView = !_isGridView),
+                              icon: Icon(
+                                _isGridView ? Icons.view_list : Icons.grid_view,
+                              ),
+                              tooltip: _isGridView ? 'リスト表示に切り替え' : 'グリッド表示に切り替え',
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                SliverFillRemaining(
+                  hasScrollBody: true,
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      logsAsync.when(
+                        data: (logs) => _LogList(
+                          logs: _filterAndSort(logs, GameLogStatus.played),
+                          emptyMessage: 'まだ「遊んだ」記録がありません',
+                          onRefresh: () => ref.refresh(myLogsProvider.future),
+                          sortType: _sort,
+                          isGridView: _isGridView,
+                        ),
+                        loading: () => const LoadingView(),
+                        error: (error, _) => ErrorView(
+                          message: 'ログの取得に失敗しました',
+                          onRetry: () => ref.invalidate(myLogsProvider),
+                        ),
+                      ),
+                      logsAsync.when(
+                        data: (logs) => _LogList(
+                          logs: _filterAndSort(logs, GameLogStatus.wantToPlay),
+                          emptyMessage: 'まだ「遊びたい」に登録した作品がありません',
+                          onRefresh: () => ref.refresh(myLogsProvider.future),
+                          sortType: _sort,
+                          isGridView: _isGridView,
+                        ),
+                        loading: () => const LoadingView(),
+                        error: (error, _) => ErrorView(
+                          message: 'ログの取得に失敗しました',
+                          onRetry: () => ref.invalidate(myLogsProvider),
+                        ),
+                      ),
+                      _MyFavoritesTab(isGridView: _isGridView),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
