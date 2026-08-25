@@ -10,6 +10,8 @@ class SocialProfile {
     this.favoriteGenres = const [],
     this.birthYear,
     this.birthMonth,
+    this.notifyFollowingReviews = true,
+    this.notifyNewFollower = true,
   });
 
   final String id;
@@ -25,6 +27,13 @@ class SocialProfile {
   final int? birthYear;
   /// 生月（1〜12、年齢確認用）。
   final int? birthMonth;
+  /// フォロー中ユーザーの新着レビュー通知を受け取るかどうか。自分のプロフィール
+  /// （profilesテーブル直取得）でのみ意味を持つ。他ユーザー（profiles_publicビュー）
+  /// はこの列を持たないため常にデフォルト値になる。
+  final bool notifyFollowingReviews;
+  /// 新しいフォロワー通知を受け取るかどうか。[notifyFollowingReviews]と同様、
+  /// 自分のプロフィールでのみ意味を持つ。
+  final bool notifyNewFollower;
 
   /// 表示名があればそれを、なければ@ユーザーID、どちらもなければ「名前未設定」を返す。
   /// 自分自身の表示にのみ使う（他ユーザーの一覧・検索結果では[publicDisplayLabel]を使う）。
@@ -53,6 +62,9 @@ class SocialProfile {
           (json['favorite_genres'] as List?)?.cast<String>() ?? const [],
       birthYear: json['birth_year'] as int?,
       birthMonth: json['birth_month'] as int?,
+      notifyFollowingReviews:
+          json['notify_following_reviews'] as bool? ?? true,
+      notifyNewFollower: json['notify_new_follower'] as bool? ?? true,
     );
   }
 }

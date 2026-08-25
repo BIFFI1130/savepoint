@@ -8,6 +8,7 @@ import '../../game_log/domain/game_log.dart';
 /// レビュー内容を見る権限を持っている。
 class FollowFeedEntry {
   const FollowFeedEntry({
+    required this.logId,
     required this.userId,
     this.username,
     this.displayName,
@@ -25,6 +26,7 @@ class FollowFeedEntry {
     this.isCleared = false,
   });
 
+  final String logId;
   final String userId;
   final String? username;
   final String? displayName;
@@ -53,6 +55,7 @@ class FollowFeedEntry {
 
   factory FollowFeedEntry.fromJson(Map<String, dynamic> json) {
     return FollowFeedEntry(
+      logId: json['log_id'] as String,
       userId: json['user_id'] as String,
       username: json['username'] as String?,
       displayName: json['display_name'] as String?,

@@ -9,6 +9,7 @@ import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/igdb_footer.dart';
 import '../../../../core/widgets/star_rating.dart';
 import '../../../game_log/domain/game_log.dart';
+import '../../../game_log/presentation/providers/like_providers.dart';
 import '../../../game_log/presentation/providers/log_providers.dart';
 import '../../../social/domain/follow_feed_entry.dart';
 import '../../../social/presentation/providers/social_providers.dart';
@@ -149,7 +150,7 @@ class _FilterCheckbox extends StatelessWidget {
 }
 
 /// 年ごとに区切った縦のタイムライン表示。[_MyTimelineTab]・[_FollowingTimelineTab]で共通利用する。
-class _TimelineList extends StatelessWidget {
+class _TimelineList extends ConsumerWidget {
   const _TimelineList({
     required this.entries,
     required this.onRefresh,
@@ -161,7 +162,17 @@ class _TimelineList extends StatelessWidget {
   final String emptyMessage;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 表示中のログのいいね数・自分のいいね状態をまとめて読み込む（読み込み済みの
+    // ログIDはensureLoaded内でスキップされるため、毎buildで呼んでも安全）。
+    if (entries.isNotEmpty) {
+      Future.microtask(
+        () => ref
+            .read(likesProvider.notifier)
+            .ensureLoaded(entries.map((e) => e.logId)),
+      );
+    }
+
     if (entries.isEmpty) {
       return RefreshIndicator(
         onRefresh: onRefresh,
@@ -207,6 +218,7 @@ class _TimelineList extends StatelessWidget {
 /// 同じ形で扱うための統一エントリ。
 class _TimelineFeedEntry {
   const _TimelineFeedEntry({
+    required this.logId,
     required this.gameId,
     required this.gameName,
     this.coverUrl,
@@ -220,6 +232,7 @@ class _TimelineFeedEntry {
 
   factory _TimelineFeedEntry.mine(GameLogWithGame entry) {
     return _TimelineFeedEntry(
+      logId: entry.log.id,
       gameId: entry.game.id,
       gameName: entry.game.displayName,
       coverUrl: entry.game.coverUrl,
@@ -234,6 +247,7 @@ class _TimelineFeedEntry {
 
   factory _TimelineFeedEntry.following(FollowFeedEntry entry) {
     return _TimelineFeedEntry(
+      logId: entry.logId,
       gameId: entry.gameId,
       gameName: entry.displayGameName,
       coverUrl: entry.gameCoverUrl,
@@ -246,6 +260,7 @@ class _TimelineFeedEntry {
     );
   }
 
+  final String logId;
   final int gameId;
   final String gameName;
   final String? coverUrl;
@@ -282,16 +297,19 @@ class _YearHeader extends StatelessWidget {
   }
 }
 
-class _TimelineEntryTile extends StatelessWidget {
+class _TimelineEntryTile extends ConsumerWidget {
   const _TimelineEntryTile({required this.entry, required this.isLast});
 
   final _TimelineFeedEntry entry;
   final bool isLast;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final date = entry.createdAt;
     final outline = Theme.of(context).colorScheme.outline;
+    final likes = ref.watch(likesProvider);
+    final isLiked = likes.isLikedByMe(entry.logId);
+    final likeCount = likes.countFor(entry.logId);
 
     return IntrinsicHeight(
       child: Row(
@@ -399,6 +417,43 @@ class _TimelineEntryTile extends StatelessWidget {
                                 ),
                               ],
                             ],
+                          ),
+                          const SizedBox(height: 4),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () => ref
+                                .read(likesProvider.notifier)
+                                .toggle(entry.logId),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 2,
+                                horizontal: 2,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isLiked
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    size: 16,
+                                    color: isLiked
+                                        ? Theme.of(context).colorScheme.error
+                                        : outline,
+                                  ),
+                                  if (likeCount > 0) ...[
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '$likeCount',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(color: outline),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
                           ),
                         ],
                       ),

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/log_draft_service.dart';
 import '../../data/log_repository.dart';
 import '../../data/stats_repository.dart';
 import '../../domain/game_log.dart';
@@ -7,6 +8,10 @@ import '../../domain/game_log_stats.dart';
 
 final logRepositoryProvider = Provider<LogRepository>((ref) {
   return LogRepository();
+});
+
+final logDraftServiceProvider = Provider<LogDraftService>((ref) {
+  return LogDraftService();
 });
 
 final statsRepositoryProvider = Provider<StatsRepository>((ref) {

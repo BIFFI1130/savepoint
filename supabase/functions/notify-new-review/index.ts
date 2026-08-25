@@ -1,27 +1,25 @@
-// notify-new-follower
+// notify-new-review
 //
-// 誰かに新しくフォローされたとき、フォローされた本人へFCM経由でプッシュ通知する
-// Edge Function。
+// フォロー中のユーザーが新しくレビュー（評価・レビュー本文）を投稿したとき、
+// そのフォロワー全員（「フォロー中ユーザーの新着レビュー通知」を有効にしている人のみ）へ
+// FCM経由でプッシュ通知する Edge Function。
 //
-// 呼び出し元（Flutter）は、フォロー操作が成功した直後にこのFunctionを呼ぶ
-// （supabase.functions.invoke('notify-new-follower', body: {...})）。
-// 呼び出し元のJWTから本人（フォローした側）のuser_idを検証するため、
+// 呼び出し元（Flutter）は、「遊んだ」記録の保存が成功し、かつそれが新規レビュー
+// （それまで評価・レビュー本文が無かった記録に、今回はじめて付いた）だった直後に
+// このFunctionを呼ぶ（supabase.functions.invoke('notify-new-review', body: {...})）。
+// 呼び出し元のJWTから本人（レビューを書いた側）のuser_idを検証するため、
 // 他人になりすまして通知を送らせることはできない。ベストエフォートの副作用の
-// ため、送信失敗がフォロー自体を失敗させることはない（呼び出し側で結果を待たない想定）。
+// ため、送信失敗が記録の保存自体を失敗させることはない（呼び出し側で結果を待たない想定）。
 //
 // リクエストボディ:
-//   { followee_id: string }  -- フォローされた側（通知の送り先）のユーザーID
+//   { game_id: number }  -- レビューを投稿したゲームのID
 //
-// 必要なSecrets:
-//   FCM_SERVICE_ACCOUNT_JSON - FirebaseプロジェクトのService Account JSON（1行の文字列）。
-//     Firebaseコンソール → プロジェクトの設定 → サービスアカウント → 新しい秘密鍵の生成、で
-//     ダウンロードしたJSONの中身をそのまま`supabase secrets set`で登録する。
-//   SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY はSupabaseが自動的に注入する。
+// 必要なSecrets: notify-new-followerと共通（FCM_SERVICE_ACCOUNT_JSON等）。
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 interface NotifyRequest {
-  followee_id: string;
+  game_id: number;
 }
 
 interface ServiceAccount {
@@ -148,7 +146,7 @@ Deno.serve(async (req) => {
       headers: { 'Content-Type': 'application/json' },
     });
   }
-  if (!body.followee_id) {
+  if (!body.game_id) {
     return new Response(JSON.stringify({ error: 'パラメータが不足しています' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
@@ -156,7 +154,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // 呼び出し元のJWTでユーザーを検証する（フォローした本人）。
+    // 呼び出し元のJWTでユーザーを検証する（レビューを書いた本人）。
     const callerClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
@@ -173,41 +171,55 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 自分自身をフォローすることは無いはずだが、念のため無視する。
-    if (user.id === body.followee_id) {
-      return new Response(JSON.stringify({ success: true, sent: 0 }), {
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
     const adminClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    const [followerResult, followeeResult, tokensResult] = await Promise.all([
-      adminClient.from('profiles').select('display_name').eq('id', user.id).maybeSingle(),
-      adminClient
-        .from('profiles')
-        .select('notify_new_follower')
-        .eq('id', body.followee_id)
-        .maybeSingle(),
-      adminClient
-        .from('device_tokens')
-        .select('token, platform')
-        .eq('user_id', body.followee_id),
-    ]);
+    const followsResult = await adminClient
+      .from('follows')
+      .select('follower_id')
+      .eq('followee_id', user.id);
+    if (followsResult.error) throw new Error(followsResult.error.message);
 
-    // 「新しいフォロワーの通知」を種別として無効にしている場合は送らない
-    // （device_tokens自体は他の通知種別のために残っている可能性があるため）。
-    if (followeeResult.data?.notify_new_follower === false) {
+    const followerIds = (followsResult.data ?? [])
+      .map((row) => row.follower_id as string)
+      .filter((id) => id !== user.id);
+    if (followerIds.length === 0) {
       return new Response(JSON.stringify({ success: true, sent: 0 }), {
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
+    const [optedInResult, gameResult, authorResult] = await Promise.all([
+      adminClient
+        .from('profiles')
+        .select('id')
+        .in('id', followerIds)
+        .eq('notify_following_reviews', true),
+      adminClient
+        .from('games')
+        .select('name, name_ja')
+        .eq('id', body.game_id)
+        .maybeSingle(),
+      adminClient.from('profiles').select('display_name').eq('id', user.id).maybeSingle(),
+    ]);
+    if (optedInResult.error) throw new Error(optedInResult.error.message);
+
+    const optedInIds = (optedInResult.data ?? []).map((row) => row.id as string);
+    if (optedInIds.length === 0) {
+      return new Response(JSON.stringify({ success: true, sent: 0 }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const tokensResult = await adminClient
+      .from('device_tokens')
+      .select('token')
+      .in('user_id', optedInIds);
     if (tokensResult.error) throw new Error(tokensResult.error.message);
-    const tokens = (tokensResult.data ?? []) as { token: string; platform: string }[];
+
+    const tokens = (tokensResult.data ?? []) as { token: string }[];
     if (tokens.length === 0) {
       return new Response(JSON.stringify({ success: true, sent: 0 }), {
         headers: { 'Content-Type': 'application/json' },
@@ -225,10 +237,11 @@ Deno.serve(async (req) => {
     const serviceAccount: ServiceAccount = JSON.parse(serviceAccountJson);
     const accessToken = await getAccessToken(serviceAccount);
 
-    // ユーザーIDは表示しない方針のため、表示名が無ければ汎用の文言にする。
-    const followerName = followerResult.data?.display_name?.trim() || '新しいフォロワー';
-    const title = '新しいフォロワー';
-    const messageBody = `${followerName}さんにフォローされました`;
+    const authorName = authorResult.data?.display_name?.trim() || '名前未設定';
+    const gameName =
+      gameResult.data?.name_ja?.trim() || gameResult.data?.name?.trim() || 'ゲーム';
+    const title = '新着レビュー';
+    const messageBody = `${authorName}さんが「${gameName}」のレビューを投稿しました`;
 
     let sent = 0;
     const staleTokens: string[] = [];
@@ -239,13 +252,12 @@ Deno.serve(async (req) => {
         row.token,
         title,
         messageBody,
-        { type: 'new_follower', user_id: user.id },
+        { type: 'new_review', game_id: String(body.game_id) },
       );
       if (result.ok) sent++;
       if (result.shouldDeleteToken) staleTokens.push(row.token);
     }
 
-    // 無効化されたトークン（アンインストール・再インストール等）は掃除しておく。
     if (staleTokens.length > 0) {
       await adminClient.from('device_tokens').delete().in('token', staleTokens);
     }
@@ -254,7 +266,7 @@ Deno.serve(async (req) => {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('notify-new-follower failed', error);
+    console.error('notify-new-review failed', error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
       { status: 500, headers: { 'Content-Type': 'application/json' } },

@@ -1,11 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/analytics/analytics_service.dart';
+import '../../../../core/supabase/supabase_client.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/star_rating.dart';
 import '../../../game_search/presentation/providers/game_search_providers.dart';
+import '../../data/log_draft_service.dart';
 import '../../domain/game_log.dart';
 import '../providers/log_providers.dart';
 
@@ -25,7 +29,15 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
   bool _isCleared = false;
   bool _isSaving = false;
   bool _initialized = false;
+  bool _draftApplied = false;
+  bool _hadReview = false;
   GameLogVisibility _visibility = GameLogVisibility.public;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDraftIfAny();
+  }
 
   @override
   void dispose() {
@@ -34,6 +46,37 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
   }
 
   bool get _hasReview => _rating > 0 || _reviewController.text.trim().isNotEmpty;
+
+  /// 保存せずに離脱した下書きがあれば復元する。サーバーから取得した既存の記録
+  /// （_hadReviewの判定に使う）とは独立して扱い、どちらが先に届いても正しく
+  /// 動くようにする（既存記録の初期化ロジックとは別のフラグ_draftAppliedで管理）。
+  Future<void> _loadDraftIfAny() async {
+    final draft = await ref.read(logDraftServiceProvider).load(widget.gameId);
+    if (draft == null || !mounted || _draftApplied) return;
+    _draftApplied = true;
+    setState(() {
+      _rating = draft.rating;
+      _reviewController.text = draft.reviewText;
+      _hasSpoiler = draft.hasSpoiler;
+      _isCleared = draft.isCleared;
+      _visibility = draft.visibility;
+    });
+  }
+
+  void _saveDraft() {
+    unawaited(
+      ref.read(logDraftServiceProvider).save(
+            widget.gameId,
+            LogDraft(
+              rating: _rating,
+              reviewText: _reviewController.text,
+              hasSpoiler: _hasSpoiler,
+              isCleared: _isCleared,
+              visibility: _visibility,
+            ),
+          ),
+    );
+  }
 
   Future<void> _openReviewSheet() async {
     final result = await showModalBottomSheet<_ReviewSheetResult>(
@@ -52,11 +95,13 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
         _reviewController.text = result.reviewText;
         _hasSpoiler = result.hasSpoiler;
       });
+      _saveDraft();
     }
   }
 
   Future<void> _save() async {
     setState(() => _isSaving = true);
+    final isNewReview = !_hadReview && _hasReview;
     try {
       await ref.read(logRepositoryProvider).upsertPlayedLog(
             gameId: widget.gameId,
@@ -75,6 +120,10 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
           );
       ref.invalidate(myLogsProvider);
       ref.invalidate(existingLogProvider(widget.gameId));
+      unawaited(ref.read(logDraftServiceProvider).clear(widget.gameId));
+      if (isNewReview && _visibility != GameLogVisibility.private_) {
+        unawaited(_notifyFollowersOfNewReview());
+      }
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('記録を保存しました')));
@@ -88,6 +137,19 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  /// フォロー中ユーザーへ新着レビューを通知する（notify-new-review Edge Function）。
+  /// ベストエフォートの副作用のため、失敗しても記録の保存自体には影響させない。
+  Future<void> _notifyFollowersOfNewReview() async {
+    try {
+      await supabase.functions.invoke(
+        'notify-new-review',
+        body: {'game_id': widget.gameId},
+      );
+    } catch (error, stackTrace) {
+      debugPrint('notifyFollowersOfNewReview failed: $error\n$stackTrace');
     }
   }
 
@@ -153,6 +215,7 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
         _hasSpoiler = existingLog.hasSpoiler;
         _isCleared = existingLog.isCleared;
         _visibility = existingLog.visibility;
+        _hadReview = _hasReview;
       }
     });
 
@@ -188,7 +251,10 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
                 const SizedBox(height: 8),
                 CheckboxListTile(
                   value: _isCleared,
-                  onChanged: (value) => setState(() => _isCleared = value ?? false),
+                  onChanged: (value) {
+                    setState(() => _isCleared = value ?? false);
+                    _saveDraft();
+                  },
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
                   title: const Text('クリアした'),
@@ -203,8 +269,10 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
                       ButtonSegment(value: v, label: Text(v.label)),
                   ],
                   selected: {_visibility},
-                  onSelectionChanged: (selection) =>
-                      setState(() => _visibility = selection.first),
+                  onSelectionChanged: (selection) {
+                    setState(() => _visibility = selection.first);
+                    _saveDraft();
+                  },
                 ),
                 const SizedBox(height: 4),
                 Text(

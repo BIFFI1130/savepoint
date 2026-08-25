@@ -82,14 +82,22 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
     super.dispose();
   }
 
-  /// 新しいフォロワーのプッシュ通知のタップを受け取り、フォローしてきた
-  /// ユーザーのプロフィール画面へ遷移する（ホーム画面ウィジェットのタップ処理と
-  /// 同じ考え方）。
+  /// サーバー起点のプッシュ通知のタップを受け取り、通知の種類（data.type）に応じて
+  /// 適切な画面へ遷移する（ホーム画面ウィジェットのタップ処理と同じ考え方）。
+  /// - new_follower: フォローしてきたユーザーのプロフィール画面
+  /// - new_review: レビューが投稿されたゲームの詳細画面
   void _handlePushTap(RemoteMessage? message) {
-    final userId = message?.data['user_id'];
-    if (userId == null) return;
+    final data = message?.data;
+    if (data == null) return;
     try {
-      ref.read(routerProvider).go('/users/$userId');
+      switch (data['type']) {
+        case 'new_follower':
+          final userId = data['user_id'];
+          if (userId != null) ref.read(routerProvider).go('/users/$userId');
+        case 'new_review':
+          final gameId = data['game_id'];
+          if (gameId != null) ref.read(routerProvider).go('/games/$gameId');
+      }
     } catch (error, stackTrace) {
       debugPrint('プッシュ通知タップの処理に失敗しました: $error\n$stackTrace');
     }

@@ -75,6 +75,24 @@ class SocialRepository {
     }).eq('id', _myId);
   }
 
+  /// フォロー中ユーザーの新着レビュー通知を受け取るかどうかを設定する。
+  /// プッシュ通知自体（device_tokensの登録）とは独立した設定で、サーバー側
+  /// （notify-new-review Edge Function）がフォロワーへの送信可否を判断する際に使う。
+  Future<void> setNotifyFollowingReviews(bool value) async {
+    await supabase
+        .from('profiles')
+        .update({'notify_following_reviews': value}).eq('id', _myId);
+  }
+
+  /// 新しいフォロワー通知を受け取るかどうかを設定する。プッシュ通知自体
+  /// （device_tokensの登録）とは独立した設定で、[setNotifyFollowingReviews]と同様、
+  /// サーバー側（notify-new-follower Edge Function）が送信可否を判断する際に使う。
+  Future<void> setNotifyNewFollower(bool value) async {
+    await supabase
+        .from('profiles')
+        .update({'notify_new_follower': value}).eq('id', _myId);
+  }
+
   /// ユーザーID（半角英数字、一意）を設定する。ユーザーID入力画面（オンボーディング）
   /// からのみ呼ばれる想定。一度設定したユーザーIDは通常はプロフィール確認ページからは
   /// 変更できない（UI側で編集不可にしている）。

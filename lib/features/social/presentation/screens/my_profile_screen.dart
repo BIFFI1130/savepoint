@@ -190,6 +190,16 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     ref.invalidate(followPushEnabledProvider);
   }
 
+  Future<void> _toggleNotifyFollowingReviews(bool value) async {
+    await ref.read(socialRepositoryProvider).setNotifyFollowingReviews(value);
+    ref.invalidate(myProfileProvider);
+  }
+
+  Future<void> _toggleNotifyNewFollower(bool value) async {
+    await ref.read(socialRepositoryProvider).setNotifyNewFollower(value);
+    ref.invalidate(myProfileProvider);
+  }
+
   Future<void> _confirmSignOut() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -455,8 +465,35 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   value: enabledAsync.value ?? false,
                   onChanged: enabledAsync.isLoading ? null : _toggleFollowPush,
                   contentPadding: EdgeInsets.zero,
+                  title: const Text('プッシュ通知を有効にする'),
+                  subtitle: const Text('端末への通知の受信自体を許可します（種別ごとの設定は下記）'),
+                );
+              },
+            ),
+            Consumer(
+              builder: (context, ref, _) {
+                final profileAsync = ref.watch(myProfileProvider);
+                return SwitchListTile(
+                  value: profileAsync.value?.notifyNewFollower ?? true,
+                  onChanged:
+                      profileAsync.isLoading ? null : _toggleNotifyNewFollower,
+                  contentPadding: EdgeInsets.zero,
                   title: const Text('新しいフォロワーの通知'),
                   subtitle: const Text('誰かに新しくフォローされたときにお知らせします'),
+                );
+              },
+            ),
+            Consumer(
+              builder: (context, ref, _) {
+                final profileAsync = ref.watch(myProfileProvider);
+                return SwitchListTile(
+                  value: profileAsync.value?.notifyFollowingReviews ?? true,
+                  onChanged: profileAsync.isLoading
+                      ? null
+                      : _toggleNotifyFollowingReviews,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('フォロー中ユーザーの新着レビュー通知'),
+                  subtitle: const Text('フォロー中のユーザーがレビューを投稿したときにお知らせします'),
                 );
               },
             ),
