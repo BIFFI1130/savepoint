@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/ads/banner_ad_widget.dart';
+import '../../../../core/subscription/subscription_providers.dart';
 import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
@@ -151,6 +153,7 @@ class _TrendingScreenState extends ConsumerState<TrendingScreen> {
                 ],
               ),
             ),
+            if (!ref.watch(isAdFreeProvider)) const BannerAdWidget(),
             const IgdbFooter(),
           ],
         ),
