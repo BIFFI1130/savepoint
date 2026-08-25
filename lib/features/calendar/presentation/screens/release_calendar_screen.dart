@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/ads/banner_ad_widget.dart';
 import '../../../../core/preferences/content_filter_prefs.dart';
+import '../../../../core/subscription/subscription_providers.dart';
 import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
@@ -236,6 +238,7 @@ class _ReleaseCalendarScreenState
             onDayTap: _showDayGames,
           ),
         ),
+        if (!ref.watch(isAdFreeProvider)) const BannerAdWidget(),
       ],
     );
   }
@@ -489,7 +492,6 @@ class _DailyCard extends StatelessWidget {
               : null,
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
@@ -499,17 +501,30 @@ class _DailyCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             if (topGame != null) ...[
-              // ゲームのカバー画像は縦長（おおよそ3:4）が一般的なので、カードの幅
-              // いっぱいまで使ってできるだけ大きく表示する。
-              AspectRatio(
-                aspectRatio: 3 / 4,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: CoverImage(
-                    url: topGame.coverUrl,
-                    width: double.infinity,
-                    height: double.infinity,
-                  ),
+              // ゲームのカバー画像は縦長（おおよそ3:4）が一般的。幅基準の固定サイズだと
+              // カルーセルの縦幅が狭い場面（横向き・バナー広告追加時等）で画像が
+              // 見切れてしまうため、LayoutBuilderで使える幅・高さ両方を見た上で、
+              // 3:4を保ったまま収まる最大サイズを計算する。
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    var boxWidth = constraints.maxWidth;
+                    var boxHeight = boxWidth * 4 / 3;
+                    if (boxHeight > constraints.maxHeight) {
+                      boxHeight = constraints.maxHeight;
+                      boxWidth = boxHeight * 3 / 4;
+                    }
+                    return Center(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: CoverImage(
+                          url: topGame.coverUrl,
+                          width: boxWidth,
+                          height: boxHeight,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 6),
