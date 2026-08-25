@@ -33,6 +33,14 @@ workflows:
         #      手動で一度作成しておく必要がある（bundle_identifierフィールドは単一の
         #      文字列のみ対応でリスト化はできない。docs.codemagic.io/yaml-code-signing/
         #      signing-ios/で確認済み）。
+        #
+        # プッシュ通知（FCM、ios/Runner/Runner.entitlementsのaps-environment）追加に伴い、
+        # 同じ理由で実際にビルド失敗を確認済み（2026-08-26）: 「Provisioning profile
+        # "SavePoint App Store" doesn't include the Push Notifications capability /
+        # aps-environment entitlement」。App ID側でPush Notifications capabilityを
+        # 有効化した上で、本体の配布用プロビジョニングプロファイル（SavePoint App Store）を
+        # 再生成する必要がある（App Groupsの時と同様、capability追加だけでは既発行の
+        # プロファイルには自動反映されない）。
       groups:
         # SUPABASE_URL / SUPABASE_ANON_KEY を含むCodemagic側の変数グループ。
         # app_versionsテーブルへの更新チェック用書き込みには、加えて
