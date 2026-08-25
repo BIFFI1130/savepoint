@@ -124,6 +124,19 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen> {
           Column(
             children: [
               Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Card(
+                  margin: EdgeInsets.zero,
+                  child: ListTile(
+                    leading: const Text('🎮', style: TextStyle(fontSize: 24)),
+                    title: const Text('プレイ傾向診断'),
+                    subtitle: const Text('あなたのゲーマータイプを診断してシェアしよう'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/summary/gamer-type'),
+                  ),
+                ),
+              ),
+              Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: SegmentedButton<SummaryPeriodType>(
                   segments: const [
