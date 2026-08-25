@@ -99,10 +99,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(
-                    Icons.videogame_asset,
-                    size: 64,
-                    color: Theme.of(context).colorScheme.primary,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.asset(
+                      'assets/icon/icon_master.png',
+                      width: 88,
+                      height: 88,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Text(
