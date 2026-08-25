@@ -17,7 +17,13 @@ enum GameLogStatus {
 enum GameLogVisibility {
   private_('private', '非公開', '自分にのみ表示されます'),
   mutual('mutual', '相互フォローのみ', 'お互いにフォローしているユーザーにのみ表示されます'),
-  public('public', '全公開', 'あなたをフォローしているユーザーに表示されます');
+  public(
+    'public',
+    '全公開',
+    'あなたをフォローしているユーザーに表示されます。評価・レビューを付けた'
+        '「遊んだ」記録は、フォロー関係のない全ユーザーが見る「みんなのレビュー」'
+        'にも表示されます',
+  );
 
   const GameLogVisibility(this.dbValue, this.label, this.description);
   final String dbValue;

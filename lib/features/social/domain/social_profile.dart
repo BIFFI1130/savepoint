@@ -12,7 +12,7 @@ class SocialProfile {
     this.birthMonth,
     this.notifyFollowingReviews = true,
     this.notifyNewFollower = true,
-    this.showIdentityInPublicReviews = false,
+    this.showIdentityInPublicReviews = true,
   });
 
   final String id;
@@ -37,7 +37,7 @@ class SocialProfile {
   final bool notifyNewFollower;
   /// 「みんなのレビュー」（フォロー関係を問わない全公開レビュー一覧）で、
   /// ユーザー名・アバターなど身元がわかる情報を表示するかどうか。デフォルトは
-  /// 非表示（匿名）で、オプトインした場合のみ表示される。
+  /// 表示（全公開）で、オフにした場合のみ匿名になる。
   final bool showIdentityInPublicReviews;
 
   /// 表示名があればそれを、なければ@ユーザーID、どちらもなければ「名前未設定」を返す。
@@ -71,7 +71,7 @@ class SocialProfile {
           json['notify_following_reviews'] as bool? ?? true,
       notifyNewFollower: json['notify_new_follower'] as bool? ?? true,
       showIdentityInPublicReviews:
-          json['show_identity_in_public_reviews'] as bool? ?? false,
+          json['show_identity_in_public_reviews'] as bool? ?? true,
     );
   }
 }
