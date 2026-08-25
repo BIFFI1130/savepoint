@@ -1,6 +1,490 @@
+# 共通スクリプトステップをYAML anchorとして定義する場所。Codemagicは`workflows`以外の
+# トップレベルキーを解釈しないため、`definitions`はCodemagic自体には効果を持たず、
+# 下のworkflows内から`<<: *anchor_name`で参照して重複を避けるためだけに存在する
+# （Codemagic公式ブログで紹介されている手法）。
+#
+# 5つのworkflowに分割した理由: 元は「release」1つでiOS/Androidを同時ビルド・
+# パブリッシュしていたが、iOSだけ/Androidだけをビルド確認したい・パブリッシュせず
+# 挙動だけ見たい、といったケースに対応するため、Build（ビルドのみ）とPublish
+# （ビルド＋パブリッシュ）を独立したworkflowとして分離し、個別・組み合わせ
+# どちらでも実行できるようにした。既存の統合workflow（release、iOS & Android
+# Build/Publish）は動作実績を優先し、内容はそのまま維持している。
+definitions:
+  steps:
+    flutter_packages: &step_flutter_packages
+      name: Get Flutter packages
+      script: flutter pub get
+    unit_tests: &step_unit_tests
+      name: Run unit tests
+      script: flutter test
+      # ここが失敗した場合はignore_failureを付けていないため、後続のビルド・
+      # パブリッシュ工程は実行されずビルド全体が失敗扱いになる（意図した挙動）。
+    ios_signing_settings: &step_ios_signing_settings
+      name: Set up code signing settings on Xcode project
+      script: |
+        # testFlightInternalTestingOnly を付けることで、外部向けベータ版レビューへの
+        # 自動提出を行わず、内部テストグループへの配布だけにする。
+        xcode-project use-profiles --custom-export-options='{"testFlightInternalTestingOnly": true}'
+    resolve_ios_build_number: &step_resolve_ios_build_number
+      name: Resolve iOS build number
+      script: |
+        set -euo pipefail
+
+        # pubspec.yaml からバージョン名 (例: 1.0.0) を抽出
+        APP_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d '+' -f 1 | tr -d '[:space:]')
+        echo "APP_VERSION=$APP_VERSION" >> $CM_ENV
+
+        # App Store Connect上の最新ビルド番号を取得して+1
+        LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number "6799825415")
+        NEXT_BUILD_NUMBER=$((${LATEST_BUILD_NUMBER%%.*} + 1))
+        echo "APP_BUILD_NUMBER=$NEXT_BUILD_NUMBER" >> $CM_ENV
+    resolve_android_build_number: &step_resolve_android_build_number
+      name: Resolve Android build number
+      script: |
+        set -euo pipefail
+
+        # pubspec.yaml からバージョン名 (例: 1.0.0) を抽出
+        APP_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d '+' -f 1 | tr -d '[:space:]')
+        echo "APP_VERSION=$APP_VERSION" >> $CM_ENV
+
+        # pubspec.yaml のバージョン番号（+以降のビルド番号）をAndroidのversionCodeとして使う
+        ANDROID_BUILD_NUMBER=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d '+' -f 2 | tr -d '[:space:]')
+        echo "ANDROID_BUILD_NUMBER=$ANDROID_BUILD_NUMBER" >> $CM_ENV
+    android_signing_setup: &step_android_signing_setup
+      name: Set up Android signing
+      script: |
+        # ANDROID_SIGNINGグループの変数が揃っている場合のみ、base64化されたキーストアを
+        # 復元してandroid/key.propertiesを生成する。CI機械は毎回使い捨てのため、これを
+        # 用意しないとAndroidのビルドツールが実行のたびに新しいdebug鍵を自動生成して
+        # しまい、Firebase App Distributionのテスターが「アプリを更新できない」
+        # （署名不一致）に陥る。未設定の場合は何もせず、android/app/build.gradle.kts
+        # のフォールバック（debug鍵）に任せる。
+        if [ -n "${CM_KEYSTORE:-}" ]; then
+          KEYSTORE_PATH="$CM_BUILD_DIR/android/app/upload-keystore.jks"
+          # macOS標準のbase64はGNU版と引数が異なり、デコードには -D を使う。
+          echo "$CM_KEYSTORE" | base64 -D > "$KEYSTORE_PATH"
+          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=%s\n' \
+            "$CM_KEYSTORE_PASSWORD" "$CM_KEY_PASSWORD" "$CM_KEY_ALIAS" "$KEYSTORE_PATH" \
+            > android/key.properties
+          echo "android/key.properties を生成しました（本番鍵で署名します）。"
+        else
+          echo "ANDROID_SIGNINGが未設定のため、debug鍵で署名します。"
+        fi
+    build_ios_ipa: &step_build_ios_ipa
+      name: Build iOS ipa
+      script: |
+        set -euo pipefail
+        flutter build ipa --release \
+          --export-options-plist=/Users/builder/export_options.plist \
+          --build-number=$APP_BUILD_NUMBER \
+          --dart-define=SUPABASE_URL=$SUPABASE_URL \
+          --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
+          --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID:-} \
+          --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID:-} \
+          --dart-define=ADMOB_INTERSTITIAL_AD_UNIT_ID=${ADMOB_INTERSTITIAL_AD_UNIT_ID:-} \
+          --dart-define=REVENUECAT_IOS_API_KEY=${REVENUECAT_IOS_API_KEY:-} \
+          --dart-define=GOOGLE_IOS_CLIENT_ID=${GOOGLE_IOS_CLIENT_ID:-} \
+          --dart-define=GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID:-}
+
+        # クラッシュレポート（Crashlytics）のスタックトレースをシンボリケートできるよう、
+        # dSYMをアップロードする。
+        # 注意: `firebase crashlytics:symbols:upload`（firebase-tools CLI）はAndroid(NDK)の
+        # ネイティブライブラリ（.so）向けのツールで、iOSのdSYM（Swift/Objective-Cの
+        # デバッグ情報）には対応していない（"No native libraries found"で失敗する）。
+        # upload-symbolsバイナリが必要だが、Firebase一式はCocoaPodsではなくSPMで
+        # 取得されるようになったため ios/Pods/FirebaseCrashlytics/upload-symbols は
+        # 存在しない（"No such file or directory"で失敗する）。SPMのパッケージ
+        # チェックアウト先（キャッシュ・DerivedData双方）を横断的に探して使う。
+        # 失敗してもビルド自体は継続させる（|| echoで握りつぶす）。
+        UPLOAD_SYMBOLS=$(find "$HOME/Library/Developer/Xcode/DerivedData" \
+              "$HOME/Library/Caches/org.swift.swiftpm" \
+              ios \
+              -type f -name upload-symbols 2>/dev/null | head -n 1)
+        # 上記の既知パスで見つからない場合、SPMのキャッシュ先がXcodeバージョンや
+        # ビルド設定によって変わることがあるため、$HOME全体に検索範囲を広げる
+        # （それでも見つからない場合は、次回の原因調査用にFirebaseCrashlytics関連
+        # ディレクトリの一覧をログに残す）。
+        if [ -z "$UPLOAD_SYMBOLS" ]; then
+          echo "既知のパスでupload-symbolsが見つからなかったため、\$HOME全体を再検索します。"
+          UPLOAD_SYMBOLS=$(find "$HOME" -type f -name upload-symbols 2>/dev/null | head -n 1)
+        fi
+        if [ -n "$UPLOAD_SYMBOLS" ]; then
+          echo "upload-symbolsが見つかりました: $UPLOAD_SYMBOLS"
+          find build/ios/archive/Runner.xcarchive/dSYMs -name '*.dSYM' -print0 2>/dev/null \
+            | xargs -0 -I{} "$UPLOAD_SYMBOLS" \
+                -gsp ios/Runner/GoogleService-Info.plist \
+                -p ios \
+                {} || echo "dSYMのアップロードに失敗しましたが、ビルド自体は継続します。"
+        else
+          echo "upload-symbolsが\$HOME全体を探しても見つかりませんでした。調査用にFirebaseCrashlytics関連ディレクトリを一覧表示します:"
+          find "$HOME/Library/Developer/Xcode/DerivedData" -iname '*firebasecrashlytics*' 2>/dev/null | head -n 30
+          echo "dSYMのアップロードをスキップします。"
+        fi
+
+        touch /tmp/ios_build_success
+      # ビルドが失敗しても後続のDiscord通知は実行し、失敗をDiscordに通知できるように
+      # する（/tmp/ios_build_successの有無で成否を判定する）。
+      ignore_failure: true
+    build_android_apk: &step_build_android_apk
+      name: Build Android APK
+      script: |
+        set -euo pipefail
+        # Firebase App Distributionのテスターはほぼ全員arm64実機のため、
+        # --target-platform=android-arm64でビルド対象アーキテクチャを絞り、
+        # armv7・x86_64向けの重複ビルド・パッケージングを省いてビルド時間を短縮する。
+        flutter build apk --release \
+          --target-platform=android-arm64 \
+          --dart-define=SUPABASE_URL=$SUPABASE_URL \
+          --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
+          --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID:-} \
+          --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID:-} \
+          --dart-define=ADMOB_INTERSTITIAL_AD_UNIT_ID=${ADMOB_INTERSTITIAL_AD_UNIT_ID:-} \
+          --dart-define=REVENUECAT_ANDROID_API_KEY=${REVENUECAT_ANDROID_API_KEY:-} \
+          --dart-define=GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID:-}
+
+        touch /tmp/android_build_success
+      # ビルドが失敗しても後続のDiscord通知は実行し、失敗をDiscordに通知できるように
+      # する（/tmp/android_build_successの有無で成否を判定する）。
+      ignore_failure: true
+    publish_ios_testflight: &step_publish_ios_testflight
+      name: Publish to TestFlight
+      script: |
+        set -euo pipefail
+        HTTP_STATUS=""
+        if [ -f /tmp/ios_build_success ]; then
+          IPA_PATH=$(find build/ios/ipa -name '*.ipa' | head -n 1)
+          app-store-connect publish --path "$IPA_PATH"
+
+          # TestFlightはストアの自動更新チェックが効かないため、app_versionsテーブルに
+          # 最新ビルド番号を反映し、アプリ側で古いビルドを検知して強制アップデート画面を
+          # 出せるようにする（SUPABASE_SERVICE_ROLE_KEYが未設定の場合はスキップし、
+          # TestFlightへのパブリッシュ自体は成功のまま完了させる）。
+          # curlの失敗（-fで非2xx時に非ゼロ終了）がset -eでスクリプト全体を道連れにし、
+          # 実際にはTestFlightへのアップロードが成功しているのに「スキップ」と誤報される
+          # 事態を防ぐため、この更新はベストエフォート（失敗してもパブリッシュ成功として扱う）にする。
+          if [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+            set +e
+            HTTP_STATUS=$(curl -sS -o /tmp/app_versions_ios_response.json -w '%{http_code}' -X POST "$SUPABASE_URL/rest/v1/app_versions" \
+              -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+              -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+              -H "Content-Type: application/json" \
+              -H "Prefer: resolution=merge-duplicates" \
+              -d "$(jq -n --arg build "$APP_BUILD_NUMBER" '{platform:"ios", latest_build: ($build|tonumber), update_url: "itms-beta://"}')")
+            CURL_EXIT=$?
+            set -e
+            if [ "$CURL_EXIT" -ne 0 ]; then
+              HTTP_STATUS="curl失敗(exit=$CURL_EXIT)"
+            fi
+            case "${HTTP_STATUS:-}" in
+              200|201|204)
+                echo "app_versions（ios）を更新しました: build=$APP_BUILD_NUMBER" ;;
+              *)
+                echo "app_versions（ios）の更新に失敗しました（HTTP ${HTTP_STATUS:-不明}）。TestFlightへのパブリッシュ自体は成功として扱います。"
+                cat /tmp/app_versions_ios_response.json 2>/dev/null || true ;;
+            esac
+          else
+            echo "SUPABASE_SERVICE_ROLE_KEYが未設定のため、app_versionsの更新をスキップしました。"
+          fi
+          touch /tmp/ios_publish_success
+        else
+          echo "iOSビルドが失敗したため、TestFlightへのパブリッシュをスキップしました。"
+        fi
+      # ビルド失敗時はスキップするだけで、後続のDiscord通知は必ず実行したいため
+      # ここでもignore_failureを付ける（/tmp/ios_publish_successの有無で成否を判定する）。
+      ignore_failure: true
+    publish_android_firebase: &step_publish_android_firebase
+      name: Publish to Firebase App Distribution
+      script: |
+        set -euo pipefail
+        HTTP_STATUS=""
+        if [ -f /tmp/android_build_success ]; then
+          # Codemagicのmacイメージにはfirebase-toolsがプリインストール済みのため、
+          # 既にある場合はグローバルインストールをスキップする（EEXISTで失敗するのを防ぐ）。
+          if ! command -v firebase >/dev/null 2>&1; then
+            npm install -g firebase-tools
+          fi
+          # テスターはCodemagic側（このYAML）ではなくFirebase App Distribution側の
+          # 「testers」グループで管理する。グループにテスターを追加・削除するだけで
+          # 次回配布から自動的に反映され、ここを編集する必要はない。
+          # --jsonでテスター向けダウンロードリンク（testingUri）を機械可読な形で取得する。
+          FIREBASE_OUTPUT=$(firebase appdistribution:distribute build/app/outputs/flutter-apk/app-release.apk \
+            --app 1:763009686501:android:22db046778e22c10c1ed0c \
+            --groups "testers" \
+            --token "$FIREBASE_TOKEN" \
+            --json)
+          echo "$FIREBASE_OUTPUT"
+          # firebase-toolsのバージョンによって--json出力のトップレベル形が変わる
+          # ことがあるため、想定されるいくつかの場所を順に試す。
+          TESTING_URI=$(echo "$FIREBASE_OUTPUT" | jq -r '.result.testingUri // .testingUri // .release.testingUri // empty')
+          echo "テスター向けダウンロードリンク: ${TESTING_URI:-取得できませんでした}"
+
+          # app_versionsテーブルに最新ビルド番号とダウンロードリンクを反映する
+          # （SUPABASE_SERVICE_ROLE_KEYが未設定の場合はスキップし、Firebaseへの
+          # パブリッシュ自体は成功のまま完了させる）。
+          if [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+            set +e
+            HTTP_STATUS=$(curl -sS -o /tmp/app_versions_android_response.json -w '%{http_code}' -X POST "$SUPABASE_URL/rest/v1/app_versions" \
+              -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+              -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+              -H "Content-Type: application/json" \
+              -H "Prefer: resolution=merge-duplicates" \
+              -d "$(jq -n --arg build "$ANDROID_BUILD_NUMBER" --arg url "$TESTING_URI" \
+                '{platform:"android", latest_build: ($build|tonumber), update_url: $url}')")
+            CURL_EXIT=$?
+            set -e
+            if [ "$CURL_EXIT" -ne 0 ]; then
+              HTTP_STATUS="curl失敗(exit=$CURL_EXIT)"
+            fi
+            case "${HTTP_STATUS:-}" in
+              200|201|204)
+                echo "app_versions（android）を更新しました: build=$ANDROID_BUILD_NUMBER" ;;
+              *)
+                echo "app_versions（android）の更新に失敗しました（HTTP ${HTTP_STATUS:-不明}）。Firebaseへのパブリッシュ自体は成功として扱います。"
+                cat /tmp/app_versions_android_response.json 2>/dev/null || true ;;
+            esac
+          else
+            echo "SUPABASE_SERVICE_ROLE_KEYが未設定のため、app_versionsの更新をスキップしました。"
+          fi
+          touch /tmp/android_publish_success
+        else
+          echo "Androidビルドが失敗したため、Firebase App Distributionへのパブリッシュをスキップしました。"
+        fi
+      ignore_failure: true
+
+  # 変数グループの説明（各workflowで実際に使う分だけ参照する）。
+  groups_doc: &groups_doc |
+    SUPABASE_VARIABLES: SUPABASE_URL / SUPABASE_ANON_KEY を含む。app_versionsテーブルへの
+      更新には、加えてSUPABASE_SERVICE_ROLE_KEYをこのグループに追加登録すること。
+      AdMob本番広告ユニットID・RevenueCat公開SDKキーもこのグループに相乗りさせている。
+      未設定の項目はテスト広告IDへのフォールバックや機能無効化に留まり、ビルド自体は失敗しない。
+    DISCORD_VARIABLES: DISCORD_WEBHOOK_URL を含む。
+    FIREBASE_VARIABLES: FIREBASE_TOKEN（firebase appdistribution:distribute の認証用）を含む。
+    ANDROID_SIGNING: CM_KEYSTORE / CM_KEYSTORE_PASSWORD / CM_KEY_ALIAS / CM_KEY_PASSWORD を含む。
+      未設定の場合はdebug鍵にフォールバックする（ビルド自体は失敗しない）。
+
+  ios_signing_block: &ios_signing_block
+    distribution_type: app_store
+    bundle_identifier: com.biffi.savepoint
+    # iOSホーム画面ウィジェット（BacklogWidgetExtension、ios/BacklogWidgetExtension/）
+    # 追加に伴い、Apple Developer Portal側で以下の作業が必要（実際のビルド失敗で確認済み）:
+    #   1. App ID「com.biffi.savepoint.BacklogWidgetExtension」を新規登録し、
+    #      App Groups capability（group.com.biffi.savepoint）を有効化する。
+    #      本体App ID（com.biffi.savepoint）側にもApp Groups capabilityを追加し、
+    #      同じグループを紐付ける。
+    #   2. 本体アプリの既存プロビジョニングプロファイル（SavePoint App Store）を
+    #      再生成する。App IDにcapabilityを追加しても発行済みプロファイルには
+    #      自動反映されないため、再生成しないとApp Groupsのentitlementが
+    #      欠けたままビルドが失敗する。
+    #   3. 拡張機能用の新規プロファイル（Distribution / App Store、
+    #      com.biffi.savepoint.BacklogWidgetExtension向け、既存の配布証明書を使用）を
+    #      作成する。Codemagicの自動署名は本体bundle_identifierに対して
+    #      `com.biffi.savepoint.*`形式の拡張機能用プロファイルを自動検索するが、
+    #      未作成のプロファイルを拡張機能分だけ自動生成することはしないため、
+    #      手動で一度作成しておく必要がある（bundle_identifierフィールドは単一の
+    #      文字列のみ対応でリスト化はできない。docs.codemagic.io/yaml-code-signing/
+    #      signing-ios/で確認済み）。
+    #
+    # プッシュ通知（FCM、ios/Runner/Runner.entitlementsのaps-environment）追加に伴い、
+    # 同じ理由で実際にビルド失敗を確認済み（2026-08-26）: 「Provisioning profile
+    # "SavePoint App Store" doesn't include the Push Notifications capability /
+    # aps-environment entitlement」。App ID側でPush Notifications capabilityを
+    # 有効化した上で、本体の配布用プロビジョニングプロファイル（SavePoint App Store）を
+    # 再生成する必要がある（App Groupsの時と同様、capability追加だけでは既発行の
+    # プロファイルには自動反映されない）。
+
 workflows:
+  # ---------------------------------------------------------------
+  # iOS TestFlight Build: iOSのビルドのみ行い、TestFlightへはパブリッシュしない。
+  # コード署名・ビルドが通るかどうかだけを確認したい時に使う。
+  # ---------------------------------------------------------------
+  ios_build:
+    name: iOS TestFlight Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: savepoint_appstore
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        <<: *ios_signing_block
+      groups:
+        - SUPABASE_VARIABLES
+        - DISCORD_VARIABLES
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $CM_BUILD_DIR/.dart_tool
+        - $HOME/Library/Caches/org.swift.swiftpm
+    scripts:
+      - *step_flutter_packages
+      - *step_unit_tests
+      - *step_ios_signing_settings
+      - *step_resolve_ios_build_number
+      - *step_build_ios_ipa
+      - name: Notify Discord
+        script: |
+          set -euo pipefail
+          COMMIT_HASH=$(echo "${CM_COMMIT}" | cut -c 1-7)
+          IOS_LINE="iOS Build：失敗"
+          if [ -f /tmp/ios_build_success ]; then
+            IOS_LINE="iOS Build：成功（パブリッシュはしていません。Version：${APP_VERSION} / Build：${APP_BUILD_NUMBER}）"
+          fi
+          MESSAGE="SavePointのiOSビルドが完了しました。
+          ${IOS_LINE}
+          Commit：${COMMIT_HASH}"
+          JSON_PAYLOAD=$(jq -n --arg content "$MESSAGE" '{content: $content}')
+          curl -H "Content-Type: application/json" -X POST -d "$JSON_PAYLOAD" "$DISCORD_WEBHOOK_URL"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+  # ---------------------------------------------------------------
+  # iOS TestFlight Publish: iOSをビルドし、TestFlightへパブリッシュまで行う。
+  # ---------------------------------------------------------------
+  ios_publish:
+    name: iOS TestFlight Publish
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: savepoint_appstore
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        <<: *ios_signing_block
+      groups:
+        - SUPABASE_VARIABLES
+        - DISCORD_VARIABLES
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $CM_BUILD_DIR/.dart_tool
+        - $HOME/Library/Caches/org.swift.swiftpm
+    scripts:
+      - *step_flutter_packages
+      - *step_unit_tests
+      - *step_ios_signing_settings
+      - *step_resolve_ios_build_number
+      - *step_build_ios_ipa
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      scripts:
+        - *step_publish_ios_testflight
+        - name: Notify Discord
+          script: |
+            set -euo pipefail
+            COMMIT_HASH=$(echo "${CM_COMMIT}" | cut -c 1-7)
+            IOS_LINE="iOS TestFlight：スキップ（ビルドまたはパブリッシュ失敗）"
+            if [ -f /tmp/ios_publish_success ]; then
+              IOS_LINE="iOS TestFlight：成功＆パブリッシュ済み（Version：${APP_VERSION} / Build：${APP_BUILD_NUMBER}）"
+            fi
+            MESSAGE="SavePointのiOSビルドが完了しました。
+            ${IOS_LINE}
+            Commit：${COMMIT_HASH}"
+            JSON_PAYLOAD=$(jq -n --arg content "$MESSAGE" '{content: $content}')
+            curl -H "Content-Type: application/json" -X POST -d "$JSON_PAYLOAD" "$DISCORD_WEBHOOK_URL"
+
+  # ---------------------------------------------------------------
+  # Android Build: Androidのビルドのみ行い、Firebase App Distributionへは
+  # パブリッシュしない。
+  # ---------------------------------------------------------------
+  android_build:
+    name: Android Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      groups:
+        - SUPABASE_VARIABLES
+        - ANDROID_SIGNING
+        - DISCORD_VARIABLES
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+        - $HOME/.gradle/wrapper
+        - $HOME/.pub-cache
+        - $CM_BUILD_DIR/.dart_tool
+        - $CM_BUILD_DIR/android/.gradle
+    scripts:
+      - *step_flutter_packages
+      - *step_unit_tests
+      - *step_resolve_android_build_number
+      - *step_android_signing_setup
+      - *step_build_android_apk
+      - name: Notify Discord
+        script: |
+          set -euo pipefail
+          COMMIT_HASH=$(echo "${CM_COMMIT}" | cut -c 1-7)
+          ANDROID_LINE="Android Build：失敗"
+          if [ -f /tmp/android_build_success ]; then
+            ANDROID_LINE="Android Build：成功（Firebaseへのパブリッシュはしていません。Version：${APP_VERSION} / Build：${ANDROID_BUILD_NUMBER}）"
+          fi
+          MESSAGE="SavePointのAndroidビルドが完了しました。
+          ${ANDROID_LINE}
+          Commit：${COMMIT_HASH}"
+          JSON_PAYLOAD=$(jq -n --arg content "$MESSAGE" '{content: $content}')
+          curl -H "Content-Type: application/json" -X POST -d "$JSON_PAYLOAD" "$DISCORD_WEBHOOK_URL"
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+
+  # ---------------------------------------------------------------
+  # Android Publish: Androidをビルドし、Firebase App Distributionへ
+  # パブリッシュまで行う。
+  # ---------------------------------------------------------------
+  android_publish:
+    name: Android Publish
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      groups:
+        - SUPABASE_VARIABLES
+        - ANDROID_SIGNING
+        - FIREBASE_VARIABLES
+        - DISCORD_VARIABLES
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+        - $HOME/.gradle/wrapper
+        - $HOME/.pub-cache
+        - $CM_BUILD_DIR/.dart_tool
+        - $CM_BUILD_DIR/android/.gradle
+    scripts:
+      - *step_flutter_packages
+      - *step_unit_tests
+      - *step_resolve_android_build_number
+      - *step_android_signing_setup
+      - *step_build_android_apk
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+    publishing:
+      scripts:
+        - *step_publish_android_firebase
+        - name: Notify Discord
+          script: |
+            set -euo pipefail
+            COMMIT_HASH=$(echo "${CM_COMMIT}" | cut -c 1-7)
+            ANDROID_LINE="Android Firebase App Distribution：スキップ（ビルドまたはパブリッシュ失敗）"
+            if [ -f /tmp/android_publish_success ]; then
+              ANDROID_LINE="Android Firebase App Distribution：成功＆パブリッシュ済み（Version：${APP_VERSION} / Build：${ANDROID_BUILD_NUMBER}）"
+            fi
+            MESSAGE="SavePointのAndroidビルドが完了しました。
+            ${ANDROID_LINE}
+            Commit：${COMMIT_HASH}"
+            JSON_PAYLOAD=$(jq -n --arg content "$MESSAGE" '{content: $content}')
+            curl -H "Content-Type: application/json" -X POST -d "$JSON_PAYLOAD" "$DISCORD_WEBHOOK_URL"
+
+  # ---------------------------------------------------------------
+  # iOS & Android Build/Publish: 両OSを同一マシン上で並行ビルド・パブリッシュする
+  # 統合workflow（分割前から存在する、動作実績のあるworkflow。内容は変更していない）。
+  # ---------------------------------------------------------------
   release:
-    name: iOS TestFlight & Android Firebase配信
+    name: iOS & Android Build/Publish
     max_build_duration: 60
     # iOSのコード署名・ipaビルドにはmacが必須。AndroidのAPKビルドも同じマシン上で
     # バックグラウンドジョブとして並行実行する（詳細は各scriptのコメント参照）。
@@ -13,50 +497,8 @@ workflows:
       xcode: latest
       cocoapods: default
       ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.biffi.savepoint
-        # iOSホーム画面ウィジェット（BacklogWidgetExtension、ios/BacklogWidgetExtension/）
-        # 追加に伴い、Apple Developer Portal側で以下の作業が必要（実際のビルド失敗で確認済み）:
-        #   1. App ID「com.biffi.savepoint.BacklogWidgetExtension」を新規登録し、
-        #      App Groups capability（group.com.biffi.savepoint）を有効化する。
-        #      本体App ID（com.biffi.savepoint）側にもApp Groups capabilityを追加し、
-        #      同じグループを紐付ける。
-        #   2. 本体アプリの既存プロビジョニングプロファイル（SavePoint App Store）を
-        #      再生成する。App IDにcapabilityを追加しても発行済みプロファイルには
-        #      自動反映されないため、再生成しないとApp Groupsのentitlementが
-        #      欠けたままビルドが失敗する。
-        #   3. 拡張機能用の新規プロファイル（Distribution / App Store、
-        #      com.biffi.savepoint.BacklogWidgetExtension向け、既存の配布証明書を使用）を
-        #      作成する。Codemagicの自動署名は本体bundle_identifierに対して
-        #      `com.biffi.savepoint.*`形式の拡張機能用プロファイルを自動検索するが、
-        #      未作成のプロファイルを拡張機能分だけ自動生成することはしないため、
-        #      手動で一度作成しておく必要がある（bundle_identifierフィールドは単一の
-        #      文字列のみ対応でリスト化はできない。docs.codemagic.io/yaml-code-signing/
-        #      signing-ios/で確認済み）。
-        #
-        # プッシュ通知（FCM、ios/Runner/Runner.entitlementsのaps-environment）追加に伴い、
-        # 同じ理由で実際にビルド失敗を確認済み（2026-08-26）: 「Provisioning profile
-        # "SavePoint App Store" doesn't include the Push Notifications capability /
-        # aps-environment entitlement」。App ID側でPush Notifications capabilityを
-        # 有効化した上で、本体の配布用プロビジョニングプロファイル（SavePoint App Store）を
-        # 再生成する必要がある（App Groupsの時と同様、capability追加だけでは既発行の
-        # プロファイルには自動反映されない）。
+        <<: *ios_signing_block
       groups:
-        # SUPABASE_URL / SUPABASE_ANON_KEY を含むCodemagic側の変数グループ。
-        # app_versionsテーブルへの更新チェック用書き込みには、加えて
-        # SUPABASE_SERVICE_ROLE_KEY（Supabaseダッシュボードの Project Settings > API >
-        # service_role key）をこのグループに追加登録すること。未設定の場合、
-        # app_versionsの更新はスキップされ、パブリッシュ自体は成功のまま完了する
-        # （＝強制アップデート機能が動かないだけで、配信は今まで通り成功する）。
-        #
-        # AdMobの本番用バナー広告ユニットID（ADMOB_BANNER_AD_UNIT_ID）・ネイティブ広告
-        # ユニットID（ADMOB_NATIVE_AD_UNIT_ID）、RevenueCatの公開SDKキー
-        # （REVENUECAT_IOS_API_KEY / REVENUECAT_ANDROID_API_KEY）も、正式リリース時に
-        # このグループへ追加登録すること（新規グループをここに追加すると、Codemagic側で
-        # そのグループ自体が未作成の場合にビルドが失敗するため、既存のこのグループに
-        # 相乗りさせている）。未設定の場合、AdMobはGoogle公式のテスト広告ユニットIDに
-        # フォールバックし、RevenueCatは課金機能全体が無効化される（いずれもビルド自体は
-        # 失敗しない）。
         - SUPABASE_VARIABLES
         # DISCORD_WEBHOOK_URL を含むCodemagic側の変数グループ（ダッシュボード名と完全一致させてください）
         - DISCORD_VARIABLES
