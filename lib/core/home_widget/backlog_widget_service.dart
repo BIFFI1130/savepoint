@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 
 import '../../features/game_log/domain/game_log.dart';
+import '../../features/game_log/domain/weekly_streak.dart';
 import '../utils/nearest_upcoming_backlog_entry.dart';
 import '../utils/todays_releasing_backlog_entries.dart';
 
@@ -29,6 +30,7 @@ class BacklogWidgetService {
     try {
       await _syncNearest(logs);
       await _syncTodayReleases(logs);
+      await _syncStreak(logs);
       await HomeWidget.updateWidget(
         androidName: _androidProviderName,
         iOSName: _iosWidgetName,
@@ -72,6 +74,15 @@ class BacklogWidgetService {
       nearest.game.coverUrl,
     );
     await HomeWidget.saveWidgetData<String?>('backlog_cover_image', coverPath);
+  }
+
+  /// 週間記録ストリークをウィジェットに同期する（0週なら空文字にして非表示）。
+  Future<void> _syncStreak(List<GameLogWithGame> logs) async {
+    final streak = currentWeeklyStreak(logs);
+    await HomeWidget.saveWidgetData<String>(
+      'backlog_streak',
+      streak >= 1 ? '🔥$streak週連続' : '',
+    );
   }
 
   Future<void> _syncTodayReleases(List<GameLogWithGame> logs) async {

@@ -42,13 +42,14 @@ struct BacklogEntry: TimelineEntry {
   let countdown: String?
   let gameId: String?
   let coverImagePath: String?
+  let streak: String?
 }
 
 struct BacklogProvider: TimelineProvider {
   func placeholder(in context: Context) -> BacklogEntry {
     BacklogEntry(
       date: Date(), title: "Horror Prison: Escape", countdown: "発売まであと2日", gameId: nil,
-      coverImagePath: nil)
+      coverImagePath: nil, streak: nil)
   }
 
   func getSnapshot(in context: Context, completion: @escaping (BacklogEntry) -> Void) {
@@ -70,10 +71,11 @@ struct BacklogProvider: TimelineProvider {
     let releaseDateIso = data?.string(forKey: "backlog_release_date")
     let gameId = data?.string(forKey: "backlog_game_id")
     let coverImagePath = data?.string(forKey: "backlog_cover_image")
+    let streak = data?.string(forKey: "backlog_streak")
     let countdown = releaseDateIso.flatMap(countdownLabel(from:))
     return BacklogEntry(
       date: Date(), title: title, countdown: countdown, gameId: gameId,
-      coverImagePath: coverImagePath)
+      coverImagePath: coverImagePath, streak: (streak?.isEmpty ?? true) ? nil : streak)
   }
 }
 
@@ -107,6 +109,12 @@ struct BacklogWidgetEntryView: View {
           .font(.system(size: 13))
           .foregroundColor(Color(red: 0.24, green: 0.35, blue: 1.0))
           .lineLimit(1)
+        if let streak = entry.streak {
+          Text(streak)
+            .font(.system(size: 12))
+            .foregroundColor(Color(red: 0.10, green: 0.10, blue: 0.18))
+            .lineLimit(1)
+        }
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)

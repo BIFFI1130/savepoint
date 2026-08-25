@@ -31,6 +31,7 @@ class BacklogWidgetProvider : HomeWidgetProvider() {
             val releaseDateIso = widgetData.getString("backlog_release_date", null)
             val gameId = widgetData.getString("backlog_game_id", null)
             val coverImagePath = widgetData.getString("backlog_cover_image", null)
+            val streak = widgetData.getString("backlog_streak", null)
             val countdown = releaseDateIso?.let { computeCountdownLabel(it) }
             val hasEntry = title != null && countdown != null
 
@@ -41,6 +42,13 @@ class BacklogWidgetProvider : HomeWidgetProvider() {
                 } else {
                     setTextViewText(R.id.backlog_widget_title, "もうすぐ発売の遊びたいゲームはありません")
                     setTextViewText(R.id.backlog_widget_countdown, "SavePoint")
+                }
+
+                if (!streak.isNullOrEmpty()) {
+                    setTextViewText(R.id.backlog_widget_streak, streak)
+                    setViewVisibility(R.id.backlog_widget_streak, View.VISIBLE)
+                } else {
+                    setViewVisibility(R.id.backlog_widget_streak, View.GONE)
                 }
 
                 val cover = if (hasEntry) coverImagePath?.let { BitmapFactory.decodeFile(it) } else null
