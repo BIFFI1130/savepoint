@@ -7,8 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../../core/ads/banner_ad_widget.dart';
 import '../../../../core/analytics/analytics_service.dart';
+import '../../../../core/subscription/subscription_providers.dart';
 import '../../../../core/widgets/async_state_views.dart';
+import '../../../game_log/domain/game_log.dart';
 import '../../../game_log/presentation/providers/log_providers.dart';
 import '../../domain/gamer_type.dart';
 
@@ -60,7 +63,20 @@ class _GamerTypeScreenState extends ConsumerState<GamerTypeScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('プレイ傾向診断')),
-      body: logsAsync.when(
+      body: Column(
+        children: [
+          Expanded(child: _buildBody(context, logsAsync)),
+          if (!ref.watch(isAdFreeProvider)) const BannerAdWidget(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody(
+    BuildContext context,
+    AsyncValue<List<GameLogWithGame>> logsAsync,
+  ) {
+    return logsAsync.when(
         data: (logs) {
           final type = diagnoseGamerType(logs);
           return SingleChildScrollView(
@@ -102,8 +118,7 @@ class _GamerTypeScreenState extends ConsumerState<GamerTypeScreen> {
           message: '診断に失敗しました',
           onRetry: () => ref.invalidate(myLogsProvider),
         ),
-      ),
-    );
+      );
   }
 }
 
