@@ -65,32 +65,35 @@ class _GamerTypeScreenState extends ConsumerState<GamerTypeScreen> {
           final type = diagnoseGamerType(logs);
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                RepaintBoundary(
-                  key: _cardKey,
-                  child: _GamerTypeCard(type: type),
-                ),
-                const SizedBox(height: 20),
-                FilledButton.icon(
-                  onPressed: _isSharing ? null : _share,
-                  icon: _isSharing
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.ios_share),
-                  label: const Text('診断結果をシェア'),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '記録を重ねるほど、診断結果は変わっていきます',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.outline,
-                      ),
-                ),
-              ],
+            child: SizedBox(
+              width: double.infinity,
+              child: Column(
+                children: [
+                  RepaintBoundary(
+                    key: _cardKey,
+                    child: _GamerTypeCard(type: type),
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: _isSharing ? null : _share,
+                    icon: _isSharing
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.ios_share),
+                    label: const Text('診断結果をシェア'),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '記録を重ねるほど、診断結果は変わっていきます',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                  ),
+                ],
+              ),
             ),
           );
         },
