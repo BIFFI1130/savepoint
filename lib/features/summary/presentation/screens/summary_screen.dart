@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/analytics/analytics_service.dart';
+import '../../../../core/subscription/subscription_providers.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/igdb_footer.dart';
@@ -341,13 +342,13 @@ class _ShareStat extends StatelessWidget {
   }
 }
 
-class _SummaryBody extends StatelessWidget {
+class _SummaryBody extends ConsumerWidget {
   const _SummaryBody({required this.summary});
 
   final PeriodSummary summary;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (summary.playedCount == 0 && summary.wantToPlayAddedCount == 0) {
       return const EmptyView(
         message: 'この期間の記録はまだありません',
@@ -355,6 +356,7 @@ class _SummaryBody extends StatelessWidget {
       );
     }
 
+    final isAdFree = ref.watch(isAdFreeProvider);
     final average = summary.averageRating;
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -390,6 +392,29 @@ class _SummaryBody extends StatelessWidget {
             const SizedBox(height: 8),
             _GenreBreakdown(genreCounts: summary.genreCounts),
           ],
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Text('詳細統計', style: Theme.of(context).textTheme.titleMedium),
+              if (!isAdFree) ...[
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.lock_outline,
+                  size: 14,
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (isAdFree)
+            _DetailedStats(summary: summary)
+          else
+            OutlinedButton.icon(
+              onPressed: () => context.push('/subscription/paywall'),
+              icon: const Icon(Icons.workspace_premium_outlined),
+              label: const Text('サブスクに加入して詳細な統計グラフを見る'),
+            ),
           const SizedBox(height: 24),
           Text('この期間に記録した作品', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -540,6 +565,171 @@ class _GenreIconBadge extends StatelessWidget {
           alignment: Alignment.center,
           child: Icon(icon, size: 18, color: Colors.white),
         ),
+      ),
+    );
+  }
+}
+
+/// サブスク特典「統計の詳細グラフ化」。評価の内訳と、期間内の記録数推移をまとめる。
+class _DetailedStats extends StatelessWidget {
+  const _DetailedStats({required this.summary});
+
+  final PeriodSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasRatings = summary.ratingCounts.values.any((c) => c > 0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (hasRatings) ...[
+          Text('評価の内訳', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
+          _RatingBreakdown(ratingCounts: summary.ratingCounts),
+          const SizedBox(height: 20),
+        ],
+        if (summary.periodType != SummaryPeriodType.month) ...[
+          Text('記録数の推移', style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
+          _TrendChart(summary: summary),
+        ],
+      ],
+    );
+  }
+}
+
+/// 星1〜5ごとの記録件数を縦棒グラフで表示する。
+class _RatingBreakdown extends StatelessWidget {
+  const _RatingBreakdown({required this.ratingCounts});
+
+  final Map<int, int> ratingCounts;
+
+  static const double _barAreaHeight = 100;
+
+  @override
+  Widget build(BuildContext context) {
+    final maxCount = ratingCounts.values.isEmpty
+        ? 0
+        : ratingCounts.values.reduce((a, b) => a > b ? a : b);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (var star = 1; star <= 5; star++)
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${ratingCounts[star] ?? 0}',
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    height: maxCount == 0
+                        ? 4
+                        : (_barAreaHeight - 20) *
+                            (ratingCounts[star] ?? 0) /
+                            maxCount,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(4)),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('$star', style: Theme.of(context).textTheme.labelSmall),
+                      const Icon(Icons.star, size: 12, color: Colors.amber),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// 期間内の記録数推移。年間表示は月ごと（1〜12月）、すべて表示は年ごとに集計する。
+/// 月間表示は期間が短すぎて推移として意味を持たないため呼び出し側で表示しない。
+class _TrendChart extends StatelessWidget {
+  const _TrendChart({required this.summary});
+
+  final PeriodSummary summary;
+
+  static const double _barAreaHeight = 100;
+
+  Map<String, int> _buckets() {
+    final counts = <String, int>{};
+    if (summary.periodType == SummaryPeriodType.year) {
+      for (var month = 1; month <= 12; month++) {
+        counts['$month月'] = 0;
+      }
+      for (final entry in summary.playedEntries) {
+        final key = '${entry.log.createdAt.month}月';
+        counts[key] = (counts[key] ?? 0) + 1;
+      }
+    } else {
+      if (summary.playedEntries.isEmpty) return {};
+      final years = summary.playedEntries.map((e) => e.log.createdAt.year);
+      final minYear = years.reduce((a, b) => a < b ? a : b);
+      final maxYear = years.reduce((a, b) => a > b ? a : b);
+      for (var year = minYear; year <= maxYear; year++) {
+        counts['$year'] = 0;
+      }
+      for (final entry in summary.playedEntries) {
+        final key = '${entry.log.createdAt.year}';
+        counts[key] = (counts[key] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final buckets = _buckets();
+    if (buckets.isEmpty) return const SizedBox.shrink();
+    final maxCount = buckets.values.reduce((a, b) => a > b ? a : b);
+    final entries = buckets.entries.toList();
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (final entry in entries)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${entry.value}',
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    width: 20,
+                    height: maxCount == 0
+                        ? 4
+                        : (_barAreaHeight - 20) * entry.value / maxCount,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.secondary,
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(4)),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(entry.key, style: Theme.of(context).textTheme.labelSmall),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }

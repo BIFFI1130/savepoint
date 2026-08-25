@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/subscription/subscription_providers.dart';
 import '../../../../core/widgets/async_state_views.dart';
@@ -13,7 +14,9 @@ import '../../../game_search/domain/game.dart';
 import '../../../game_search/presentation/providers/game_search_providers.dart';
 import '../providers/favorite_providers.dart';
 
-const _maxFavorites = 5;
+const _maxFavoritesFree = 5;
+// DB側の安全弁と合わせている（サブスク特典「推しゲー登録数の上限撤廃」）。
+const _maxFavoritesSubscriber = 50;
 
 class _FavoriteSlot {
   const _FavoriteSlot({
@@ -160,6 +163,8 @@ class _FavoriteGamesEditScreenState
   @override
   Widget build(BuildContext context) {
     final favoritesAsync = ref.watch(myFavoritesProvider);
+    final isAdFree = ref.watch(isAdFreeProvider);
+    final maxFavorites = isAdFree ? _maxFavoritesSubscriber : _maxFavoritesFree;
 
     return PopScope(
       canPop: !_isDirty,
@@ -287,17 +292,26 @@ class _FavoriteGamesEditScreenState
                 ),
                 const IgdbFooter(),
                 Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
                   child: FilledButton.icon(
-                    onPressed: slots.length >= _maxFavorites ? null : _addGame,
+                    onPressed: slots.length >= maxFavorites ? null : _addGame,
                     icon: const Icon(Icons.add),
                     label: Text(
-                      slots.length >= _maxFavorites
-                          ? '最大5件まで登録できます'
-                          : 'ゲームを追加（${slots.length}/$_maxFavorites）',
+                      slots.length >= maxFavorites
+                          ? '最大$maxFavorites件まで登録できます'
+                          : 'ゲームを追加（${slots.length}/$maxFavorites）',
                     ),
                   ),
                 ),
+                if (!isAdFree && slots.length >= _maxFavoritesFree)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: OutlinedButton.icon(
+                      onPressed: () => context.push('/subscription/paywall'),
+                      icon: const Icon(Icons.workspace_premium_outlined),
+                      label: const Text('サブスクに加入すると上限なく登録できます'),
+                    ),
+                  ),
               ],
             );
           },

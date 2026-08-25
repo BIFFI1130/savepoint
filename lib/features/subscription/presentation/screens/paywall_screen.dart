@@ -117,6 +117,18 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       title: Text('「ジャンルから探す」で絞り込み検索ができる'),
                       dense: true,
                     ),
+                    const ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.favorite_outline),
+                      title: Text('「オレの推しゲー」の登録上限がなくなる'),
+                      dense: true,
+                    ),
+                    const ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.insert_chart_outlined),
+                      title: Text('「まとめ」で詳細な統計グラフが見られる'),
+                      dense: true,
+                    ),
                     const SizedBox(height: 16),
                     for (final package in packages) ...[
                       Card(

@@ -559,7 +559,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.check_circle_outline),
                     title: const Text('ご契約中'),
-                    subtitle: const Text('広告非表示・閲覧数の分析・ジャンル絞り込みが使えます。タップで契約内容を確認できます'),
+                    subtitle: const Text('広告非表示・閲覧数の分析・ジャンル絞り込みなどが使えます。タップで契約内容を確認できます'),
                     onTap: () => _openManagementUrl(ref),
                   );
                 }
@@ -567,7 +567,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.workspace_premium_outlined),
                   title: const Text('プレミアムプランについて見る'),
-                  subtitle: const Text('広告非表示・閲覧数の分析・ジャンル絞り込み'),
+                  subtitle: const Text('広告非表示・閲覧数の分析・ジャンル絞り込みなど'),
                   onTap: () => context.push('/subscription/paywall'),
                 );
               },
