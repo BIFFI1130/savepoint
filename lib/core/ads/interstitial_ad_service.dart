@@ -58,21 +58,4 @@ class InterstitialAdService {
     await ad.show();
     return completer.future;
   }
-
-  /// [preload]してから読み込み完了を最大[timeout]まで待ち、間に合えば表示する。
-  /// アプリ起動時の広告のように、事前に[preload]を呼んでおく自然なタイミング
-  /// （フォーム入力中など）が無い場合に使う。戻り値は実際に表示を試みたかどうか
-  /// （[timeout]内に読み込みが間に合わなければfalse、何もしない）。
-  Future<bool> preloadAndShow({
-    Duration timeout = const Duration(seconds: 10),
-  }) async {
-    preload();
-    final deadline = DateTime.now().add(timeout);
-    while (_ad == null && DateTime.now().isBefore(deadline)) {
-      await Future.delayed(const Duration(milliseconds: 200));
-    }
-    if (_ad == null) return false;
-    await show();
-    return true;
-  }
 }
