@@ -341,10 +341,10 @@ workflows:
       - /tmp/xcodebuild_logs/*.log
 
   # ---------------------------------------------------------------
-  # iOS TestFlight Publish: iOSをビルドし、TestFlightへパブリッシュまで行う。
+  # iOS TestFlight Build & Publish: iOSをビルドし、TestFlightへパブリッシュまで行う。
   # ---------------------------------------------------------------
-  ios_publish:
-    name: iOS TestFlight Publish
+  ios_build_publish:
+    name: iOS TestFlight Build & Publish
     max_build_duration: 60
     instance_type: mac_mini_m2
     integrations:
@@ -433,11 +433,11 @@ workflows:
       - build/app/outputs/flutter-apk/*.apk
 
   # ---------------------------------------------------------------
-  # Android Publish: Androidをビルドし、Firebase App Distributionへ
+  # Android Build & Publish: Androidをビルドし、Firebase App Distributionへ
   # パブリッシュまで行う。
   # ---------------------------------------------------------------
-  android_publish:
-    name: Android Publish
+  android_build_publish:
+    name: Android Build & Publish
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
