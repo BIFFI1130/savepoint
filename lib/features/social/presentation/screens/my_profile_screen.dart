@@ -200,6 +200,13 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
     ref.invalidate(myProfileProvider);
   }
 
+  Future<void> _toggleShowIdentityInPublicReviews(bool value) async {
+    await ref
+        .read(socialRepositoryProvider)
+        .setShowIdentityInPublicReviews(value);
+    ref.invalidate(myProfileProvider);
+  }
+
   Future<void> _confirmSignOut() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -379,6 +386,26 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                 'クリア情報・優先度は公開されません。非公開の間は誰にも表示されません。',
               ),
             ),
+            Consumer(
+              builder: (context, ref, _) {
+                final profileAsync = ref.watch(myProfileProvider);
+                return SwitchListTile(
+                  value: profileAsync.value?.showIdentityInPublicReviews ??
+                      false,
+                  onChanged: profileAsync.isLoading
+                      ? null
+                      : _toggleShowIdentityInPublicReviews,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('「みんなのレビュー」に身元を表示する'),
+                  subtitle: const Text(
+                    'オンにすると、フォロー関係のない全ユーザーが見る「みんなのレビュー」に'
+                    'あなたのユーザー名・アバターが表示され、タップでプロフィールに'
+                    '遷移できるようになります（フォローされるきっかけになります）。'
+                    'オフの間は匿名で表示されます。',
+                  ),
+                );
+              },
+            ),
             const SizedBox(height: 16),
             Text('ゲーム歴', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
@@ -509,7 +536,7 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.check_circle_outline),
                     title: const Text('ご契約中'),
-                    subtitle: const Text('広告非表示・みんなのレビュー閲覧・ジャンル絞り込みが使えます。タップで契約内容を確認できます'),
+                    subtitle: const Text('広告非表示・閲覧数の分析・ジャンル絞り込みが使えます。タップで契約内容を確認できます'),
                     onTap: () => _openManagementUrl(ref),
                   );
                 }
@@ -517,8 +544,38 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.workspace_premium_outlined),
                   title: const Text('プレミアムプランについて見る'),
-                  subtitle: const Text('広告非表示・みんなのレビュー閲覧・ジャンル絞り込み'),
+                  subtitle: const Text('広告非表示・閲覧数の分析・ジャンル絞り込み'),
                   onTap: () => context.push('/subscription/paywall'),
+                );
+              },
+            ),
+            Consumer(
+              builder: (context, ref, _) {
+                final isAdFree = ref.watch(isAdFreeProvider);
+                if (!isAdFree) return const SizedBox.shrink();
+                final profileViewsAsync = ref.watch(myProfileViewCountProvider);
+                final reviewViewsAsync = ref.watch(myReviewViewCountProvider);
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _ViewCountCard(
+                          icon: Icons.person_search_outlined,
+                          label: 'プロフィール閲覧数',
+                          count: profileViewsAsync.value,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _ViewCountCard(
+                          icon: Icons.visibility_outlined,
+                          label: 'レビュー閲覧数',
+                          count: reviewViewsAsync.value,
+                        ),
+                      ),
+                    ],
+                  ),
                 );
               },
             ),
@@ -695,6 +752,41 @@ class _DeleteAccountConfirmDialogState
           child: const Text('完全に削除する'),
         ),
       ],
+    );
+  }
+}
+
+/// サブスク特典「閲覧数の分析」の1件分のカード。
+class _ViewCountCard extends StatelessWidget {
+  const _ViewCountCard({
+    required this.icon,
+    required this.label,
+    required this.count,
+  });
+
+  final IconData icon;
+  final String label;
+  final int? count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 4),
+            Text(
+              count?.toString() ?? '—',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            Text(label, style: Theme.of(context).textTheme.labelSmall),
+          ],
+        ),
+      ),
     );
   }
 }

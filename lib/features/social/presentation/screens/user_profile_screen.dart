@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -28,6 +30,14 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   bool _isGridView = false;
 
   String get userId => widget.userId;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(
+      ref.read(viewAnalyticsRepositoryProvider).recordProfileView(userId),
+    );
+  }
 
   Future<void> _toggleFollow(
     BuildContext context,

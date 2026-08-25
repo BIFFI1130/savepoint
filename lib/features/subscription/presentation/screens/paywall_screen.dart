@@ -107,8 +107,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     ),
                     const ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.rate_review_outlined),
-                      title: Text('ゲームごとに「みんなのレビュー」が見られる'),
+                      leading: Icon(Icons.query_stats_outlined),
+                      title: Text('プロフィール・レビューの閲覧数を確認できる'),
                       dense: true,
                     ),
                     const ListTile(

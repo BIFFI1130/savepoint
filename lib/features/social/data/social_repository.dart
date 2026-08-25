@@ -93,6 +93,14 @@ class SocialRepository {
         .update({'notify_new_follower': value}).eq('id', _myId);
   }
 
+  /// 「みんなのレビュー」でユーザー名・アバターなど身元がわかる情報を表示するかどうかを
+  /// 設定する。デフォルトは非表示（匿名）。
+  Future<void> setShowIdentityInPublicReviews(bool value) async {
+    await supabase
+        .from('profiles')
+        .update({'show_identity_in_public_reviews': value}).eq('id', _myId);
+  }
+
   /// ユーザーID（半角英数字、一意）を設定する。ユーザーID入力画面（オンボーディング）
   /// からのみ呼ばれる想定。一度設定したユーザーIDは通常はプロフィール確認ページからは
   /// 変更できない（UI側で編集不可にしている）。
@@ -259,7 +267,7 @@ class SocialRepository {
   }
 
   /// 特定ゲームの公開レビュー一覧（フォロー関係を問わず、公開設定の全ユーザーが対象）。
-  /// サブスク特典「みんなのレビュー」用。
+  /// 「みんなのレビュー」用。
   Future<List<FollowFeedEntry>> fetchPublicReviewsForGame(int gameId) async {
     final rows = await supabase
         .from('game_public_reviews')

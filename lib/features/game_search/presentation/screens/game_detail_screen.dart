@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +12,7 @@ import '../../../../core/notifications/release_reminder_service.dart';
 import '../../../../core/subscription/subscription_providers.dart';
 import '../../../../core/utils/release_countdown.dart';
 import '../../../../core/widgets/async_state_views.dart';
+import '../../../../core/widgets/avatar_image.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/star_rating.dart';
 import '../../../collections/presentation/widgets/collection_picker_sheet.dart';
@@ -760,9 +763,9 @@ class _StatusAndLogSection extends StatelessWidget {
   }
 }
 
-/// サブスク特典「みんなのレビュー」。フォロー関係を問わず、公開設定の全ユーザーの
-/// レビューをゲーム単位で表示する。未加入ユーザーにはロック表示とパスウォールへの
-/// 導線を出す。
+/// 「みんなのレビュー」。フォロー関係を問わず、公開設定の全ユーザーのレビューを
+/// ゲーム単位で表示する。投稿者の身元（ユーザー名・アバター）は、投稿者本人が
+/// プロフィール設定で表示を許可している場合のみ表示される（デフォルトは匿名）。
 class _PublicReviewsSection extends ConsumerWidget {
   const _PublicReviewsSection({required this.gameId});
 
@@ -770,91 +773,99 @@ class _PublicReviewsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isAdFree = ref.watch(isAdFreeProvider);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 24),
         Text('みんなのレビュー', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
-        if (!isAdFree)
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.lock_outline,
-                    color: Theme.of(context).colorScheme.outline,
+        ref.watch(gamePublicReviewsProvider(gameId)).when(
+              data: (reviews) {
+                if (reviews.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text('まだレビューがありません'),
+                  );
+                }
+                return Column(
+                  children: [
+                    for (var i = 0; i < reviews.length; i++) ...[
+                      if (i > 0) const Divider(height: 1),
+                      _PublicReviewTile(entry: reviews[i]),
+                    ],
+                  ],
+                );
+              },
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'サブスクに加入すると、みんなのレビューが見られます',
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  FilledButton(
-                    onPressed: () => context.push('/subscription/paywall'),
-                    child: const Text('サブスクについて見る'),
-                  ),
-                ],
+                ),
+              ),
+              error: (error, _) => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text('レビューの取得に失敗しました'),
               ),
             ),
-          )
-        else
-          ref.watch(gamePublicReviewsProvider(gameId)).when(
-                data: (reviews) {
-                  if (reviews.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Text('まだレビューがありません'),
-                    );
-                  }
-                  return Column(
-                    children: [
-                      for (var i = 0; i < reviews.length; i++) ...[
-                        if (i > 0) const Divider(height: 1),
-                        _PublicReviewTile(entry: reviews[i]),
-                      ],
-                    ],
-                  );
-                },
-                loading: () => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
-                ),
-                error: (error, _) => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text('レビューの取得に失敗しました'),
-                ),
-              ),
       ],
     );
   }
 }
 
-/// 投稿者を特定できる情報（ユーザー名・アバター等）は一切表示しない、
-/// 匿名の評価・レビューカード。
-class _PublicReviewTile extends StatelessWidget {
+/// 評価・レビューカード。投稿者が身元表示を許可している場合はユーザー名・アバターを
+/// 表示し、タップでプロフィールへ遷移できる（フォローのきっかけ）。許可していない
+/// 場合（デフォルト）はentry.username等がnullで届くため、匿名表示になる。
+class _PublicReviewTile extends ConsumerStatefulWidget {
   const _PublicReviewTile({required this.entry});
 
   final FollowFeedEntry entry;
 
   @override
+  ConsumerState<_PublicReviewTile> createState() => _PublicReviewTileState();
+}
+
+class _PublicReviewTileState extends ConsumerState<_PublicReviewTile> {
+  @override
+  void initState() {
+    super.initState();
+    unawaited(
+      ref
+          .read(viewAnalyticsRepositoryProvider)
+          .recordReviewView(widget.entry.logId, widget.entry.userId),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final entry = widget.entry;
     final hasReviewText = entry.reviewText != null && entry.reviewText!.isNotEmpty;
-    return Padding(
+    final showsIdentity = entry.displayName != null;
+
+    final content = Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (showsIdentity)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  AvatarImage(url: entry.avatarUrl, radius: 12),
+                  const SizedBox(width: 6),
+                  Text(
+                    entry.userLabel,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                  ),
+                ],
+              ),
+            ),
           if (entry.rating != null)
             Row(
               mainAxisSize: MainAxisSize.min,
@@ -881,6 +892,12 @@ class _PublicReviewTile extends StatelessWidget {
             ),
         ],
       ),
+    );
+
+    if (!showsIdentity) return content;
+    return InkWell(
+      onTap: () => context.push('/users/${entry.userId}'),
+      child: content,
     );
   }
 }
