@@ -29,12 +29,15 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- パスワード再設定メールのリンク（savepoint://reset-password）を受け取るためのカスタムURLスキーム。 -->
+            <!-- パスワード再設定メールのリンク（savepoint://reset-password）と
+                 プロフィール共有リンク（savepoint://user/{userId}）を受け取るための
+                 カスタムURLスキーム。 -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="savepoint" android:host="reset-password"/>
+                <data android:scheme="savepoint" android:host="user"/>
             </intent-filter>
         </activity>
         <!-- 積みゲーの中で発売が一番近い作品を表示するホーム画面ウィジェット。 -->

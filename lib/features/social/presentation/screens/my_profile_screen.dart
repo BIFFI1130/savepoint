@@ -18,6 +18,7 @@ import '../../../favorites/presentation/providers/favorite_providers.dart';
 import '../../../favorites/presentation/widgets/favorite_games_list.dart';
 import '../../domain/social_profile.dart';
 import '../providers/social_providers.dart';
+import '../widgets/profile_share_sheet.dart';
 
 /// 自分のプロフィール確認・編集ページ。プロフィール画像・表示名・公開設定・ゲーム歴・
 /// 好きなジャンル・「オレの推しゲー」を確認・編集できる。ユーザーID（半角英数字、一意）は
@@ -295,8 +296,24 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
       }
     });
 
+    final profile = profileAsync.valueOrNull;
     return Scaffold(
-      appBar: AppBar(title: const Text('プロフィール')),
+      appBar: AppBar(
+        title: const Text('プロフィール'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code),
+            tooltip: 'プロフィールを共有',
+            onPressed: profile == null
+                ? null
+                : () => ProfileShareSheet.show(
+                      context,
+                      userId: profile.id,
+                      displayLabel: profile.displayLabel,
+                    ),
+          ),
+        ],
+      ),
       body: profileAsync.when(
         data: (profile) => ListView(
           padding: const EdgeInsets.all(16),

@@ -2,7 +2,8 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 
 /// カスタムURLスキーム（`savepoint://`）経由のディープリンクを受け取る。
-/// 現状はパスワード再設定メールのリンク（`savepoint://reset-password`）のみを扱う。
+/// パスワード再設定メールのリンク（`savepoint://reset-password`）と、
+/// プロフィール共有リンク（`savepoint://user/{userId}`）を扱う。
 class DeepLinkService {
   DeepLinkService(this._onLink);
 

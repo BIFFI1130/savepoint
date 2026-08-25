@@ -103,15 +103,22 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
     }
   }
 
-  /// パスワード再設定メールのリンク（`savepoint://reset-password?code=...`）を受け取り、
-  /// セッションを確立してから再設定画面へ遷移する。それ以外のリンクは無視する。
+  /// カスタムURLスキーム（`savepoint://`）経由のリンクを受け取る。
+  /// - `savepoint://reset-password?code=...`: パスワード再設定メールのリンク。
+  ///   セッションを確立してから再設定画面へ遷移する。
+  /// - `savepoint://user/{userId}`: プロフィール共有リンク（QRコード/招待リンク）。
+  ///   該当ユーザーのプロフィール画面へ遷移する。
   Future<void> _handleDeepLink(Uri uri) async {
-    if (uri.scheme != 'savepoint' || uri.host != 'reset-password') return;
+    if (uri.scheme != 'savepoint') return;
     try {
-      await supabase.auth.getSessionFromUrl(uri);
-      ref.read(routerProvider).go('/reset-password');
+      if (uri.host == 'reset-password') {
+        await supabase.auth.getSessionFromUrl(uri);
+        ref.read(routerProvider).go('/reset-password');
+      } else if (uri.host == 'user' && uri.pathSegments.isNotEmpty) {
+        ref.read(routerProvider).go('/users/${uri.pathSegments.first}');
+      }
     } catch (error, stackTrace) {
-      debugPrint('パスワード再設定リンクの処理に失敗しました: $error\n$stackTrace');
+      debugPrint('ディープリンクの処理に失敗しました: $error\n$stackTrace');
     }
   }
 

@@ -87,6 +87,7 @@ dependencies:
 
   # Sign in with Google
   google_sign_in: ^7.2.0
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:
