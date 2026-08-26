@@ -17,6 +17,7 @@ import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/star_rating.dart';
 import '../../../collections/presentation/widgets/collection_picker_sheet.dart';
 import '../../../game_log/domain/game_log.dart';
+import '../../../game_log/presentation/providers/like_providers.dart';
 import '../../../game_log/presentation/providers/log_providers.dart';
 import '../../../social/domain/follow_feed_entry.dart';
 import '../../../social/presentation/providers/social_providers.dart';
@@ -835,6 +836,11 @@ class _PublicReviewsSection extends ConsumerWidget {
                     child: Text('まだレビューがありません'),
                   );
                 }
+                Future.microtask(
+                  () => ref
+                      .read(likesProvider.notifier)
+                      .ensureLoaded(reviews.map((e) => e.logId)),
+                );
                 return Column(
                   children: [
                     for (var i = 0; i < reviews.length; i++) ...[
@@ -892,6 +898,10 @@ class _PublicReviewTileState extends ConsumerState<_PublicReviewTile> {
     final entry = widget.entry;
     final hasReviewText = entry.reviewText != null && entry.reviewText!.isNotEmpty;
     final showsIdentity = entry.displayName != null;
+    final outline = Theme.of(context).colorScheme.outline;
+    final likes = ref.watch(likesProvider);
+    final isLiked = likes.isLikedByMe(entry.logId);
+    final likeCount = likes.countFor(entry.logId);
 
     final content = Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -938,6 +948,36 @@ class _PublicReviewTileState extends ConsumerState<_PublicReviewTile> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => ref.read(likesProvider.notifier).toggle(entry.logId),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isLiked ? Icons.favorite : Icons.favorite_border,
+                      size: 16,
+                      color: isLiked ? Theme.of(context).colorScheme.error : outline,
+                    ),
+                    if (likeCount > 0) ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        '$likeCount',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(color: outline),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
