@@ -5,6 +5,9 @@ import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
 const _enabledKey = 'backlog_reminder_enabled';
+const _weekdayKey = 'backlog_reminder_weekday';
+const _hourKey = 'backlog_reminder_hour';
+const _minuteKey = 'backlog_reminder_minute';
 const _notificationId = 1001;
 
 /// 「遊びたい」に積み上がったゲームを消化するよう、週1回ローカル通知でリマインドする。
@@ -76,17 +79,48 @@ class BacklogReminderService {
     await prefs.setBool(_enabledKey, false);
   }
 
+  /// 通知の曜日（`DateTime.monday`〜`DateTime.sunday`）と時刻。未設定時は
+  /// 日曜19:00。
+  Future<({int weekday, int hour, int minute})> getSchedule() async {
+    final prefs = await SharedPreferences.getInstance();
+    return (
+      weekday: prefs.getInt(_weekdayKey) ?? DateTime.sunday,
+      hour: prefs.getInt(_hourKey) ?? 19,
+      minute: prefs.getInt(_minuteKey) ?? 0,
+    );
+  }
+
+  /// 曜日・時刻を変更する。既に有効な場合は、変更後の設定ですぐに
+  /// 再スケジュールする（`matchDateTimeComponents`で毎週固定時刻に積んでいるため、
+  /// 再スケジュールしないと変更前の時刻のまま鳴り続けてしまう）。
+  Future<void> setSchedule({
+    required int weekday,
+    required int hour,
+    required int minute,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_weekdayKey, weekday);
+    await prefs.setInt(_hourKey, hour);
+    await prefs.setInt(_minuteKey, minute);
+    if (await isEnabled()) {
+      await _ensureInitialized();
+      await _schedule();
+    }
+  }
+
   Future<void> _schedule() async {
     final now = tz.TZDateTime.now(tz.local);
-    // 毎週日曜19:00（既に過ぎていれば来週の同時刻から開始）。
+    final schedule = await getSchedule();
+    // 毎週指定曜日の指定時刻（既に過ぎていれば来週の同時刻から開始）。
     var scheduled = tz.TZDateTime(
       tz.local,
       now.year,
       now.month,
       now.day,
-      19,
+      schedule.hour,
+      schedule.minute,
     );
-    while (scheduled.weekday != DateTime.sunday || scheduled.isBefore(now)) {
+    while (scheduled.weekday != schedule.weekday || scheduled.isBefore(now)) {
       scheduled = scheduled.add(const Duration(days: 1));
     }
 

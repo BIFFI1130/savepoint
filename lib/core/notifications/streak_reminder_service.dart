@@ -8,6 +8,9 @@ import '../../features/game_log/domain/game_log.dart';
 import '../../features/game_log/domain/weekly_streak.dart';
 
 const _enabledKey = 'streak_reminder_enabled';
+const _weekdayKey = 'streak_reminder_weekday';
+const _hourKey = 'streak_reminder_hour';
+const _minuteKey = 'streak_reminder_minute';
 const _notificationId = 1002;
 
 /// 週間記録ストリークが途切れそうな時に、ローカル通知でリマインドする。
@@ -73,6 +76,28 @@ class StreakReminderService {
     await prefs.setBool(_enabledKey, false);
   }
 
+  /// 通知の曜日（`DateTime.monday`〜`DateTime.sunday`）と時刻。未設定時は
+  /// 日曜20:00。
+  Future<({int weekday, int hour, int minute})> getSchedule() async {
+    final prefs = await SharedPreferences.getInstance();
+    return (
+      weekday: prefs.getInt(_weekdayKey) ?? DateTime.sunday,
+      hour: prefs.getInt(_hourKey) ?? 20,
+      minute: prefs.getInt(_minuteKey) ?? 0,
+    );
+  }
+
+  Future<void> setSchedule({
+    required int weekday,
+    required int hour,
+    required int minute,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_weekdayKey, weekday);
+    await prefs.setInt(_hourKey, hour);
+    await prefs.setInt(_minuteKey, minute);
+  }
+
   /// 現在のログの状態から、今週分のリマインダーを再スケジュール（または解除）する。
   /// 無効化されている場合は何もしない。
   Future<void> syncSchedule(List<GameLogWithGame> logs) async {
@@ -95,8 +120,16 @@ class StreakReminderService {
       return;
     }
 
-    var scheduled = tz.TZDateTime(tz.local, now.year, now.month, now.day, 20);
-    while (scheduled.weekday != DateTime.sunday || scheduled.isBefore(now)) {
+    final schedule = await getSchedule();
+    var scheduled = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      schedule.hour,
+      schedule.minute,
+    );
+    while (scheduled.weekday != schedule.weekday || scheduled.isBefore(now)) {
       scheduled = scheduled.add(const Duration(days: 1));
     }
 

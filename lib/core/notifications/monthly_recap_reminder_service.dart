@@ -5,6 +5,8 @@ import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
 const _enabledKey = 'monthly_recap_enabled';
+const _hourKey = 'monthly_recap_hour';
+const _minuteKey = 'monthly_recap_minute';
 const _notificationId = 1004;
 
 /// 月末に「今月の振り返りができました」とローカル通知で知らせ、まとめ画面
@@ -70,6 +72,25 @@ class MonthlyRecapReminderService {
     await prefs.setBool(_enabledKey, false);
   }
 
+  /// 通知時刻。未設定時は21:00。
+  Future<({int hour, int minute})> getSchedule() async {
+    final prefs = await SharedPreferences.getInstance();
+    return (
+      hour: prefs.getInt(_hourKey) ?? 21,
+      minute: prefs.getInt(_minuteKey) ?? 0,
+    );
+  }
+
+  Future<void> setSchedule({required int hour, required int minute}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_hourKey, hour);
+    await prefs.setInt(_minuteKey, minute);
+    if (await isEnabled()) {
+      await _ensureInitialized();
+      await _schedule();
+    }
+  }
+
   /// 有効な場合、次回の月末通知が確実に積まれているようにする
   /// （すでに過ぎていれば翌月末に繰り越す）。アプリ起動のたびに呼んでよい。
   Future<void> ensureScheduled() async {
@@ -80,9 +101,24 @@ class MonthlyRecapReminderService {
 
   Future<void> _schedule() async {
     final now = tz.TZDateTime.now(tz.local);
-    var lastDay = tz.TZDateTime(tz.local, now.year, now.month + 1, 0, 21);
+    final schedule = await getSchedule();
+    var lastDay = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month + 1,
+      0,
+      schedule.hour,
+      schedule.minute,
+    );
     if (lastDay.isBefore(now)) {
-      lastDay = tz.TZDateTime(tz.local, now.year, now.month + 2, 0, 21);
+      lastDay = tz.TZDateTime(
+        tz.local,
+        now.year,
+        now.month + 2,
+        0,
+        schedule.hour,
+        schedule.minute,
+      );
     }
 
     await _plugin.zonedSchedule(

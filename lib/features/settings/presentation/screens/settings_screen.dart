@@ -282,6 +282,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               );
             },
           ),
+          _WeekdayTimeScheduleRow(
+            getSchedule: () =>
+                ref.read(backlogReminderServiceProvider).getSchedule(),
+            setSchedule: (weekday, hour, minute) => ref
+                .read(backlogReminderServiceProvider)
+                .setSchedule(weekday: weekday, hour: hour, minute: minute),
+          ),
           Consumer(
             builder: (context, ref, _) {
               final enabledAsync = ref.watch(streakReminderEnabledProvider);
@@ -292,6 +299,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 title: const Text('記録ストリークリマインダー'),
                 subtitle: const Text('週間記録ストリークが途切れそうな時にお知らせします'),
               );
+            },
+          ),
+          _WeekdayTimeScheduleRow(
+            getSchedule: () =>
+                ref.read(streakReminderServiceProvider).getSchedule(),
+            setSchedule: (weekday, hour, minute) async {
+              await ref
+                  .read(streakReminderServiceProvider)
+                  .setSchedule(weekday: weekday, hour: hour, minute: minute);
+              final logs = ref.read(myLogsProvider).valueOrNull;
+              if (logs != null) {
+                await ref.read(streakReminderServiceProvider).syncSchedule(logs);
+              }
             },
           ),
           Consumer(
@@ -318,6 +338,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 subtitle: const Text('月末に今月の記録の振り返りをお知らせします'),
               );
             },
+          ),
+          _TimeScheduleRow(
+            getSchedule: () =>
+                ref.read(monthlyRecapReminderServiceProvider).getSchedule(),
+            setSchedule: (hour, minute) => ref
+                .read(monthlyRecapReminderServiceProvider)
+                .setSchedule(hour: hour, minute: minute),
           ),
           Consumer(
             builder: (context, ref, _) {
@@ -589,6 +616,172 @@ class _ViewCountCard extends StatelessWidget {
             ),
             Text(label, style: Theme.of(context).textTheme.labelSmall),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+const _weekdayLabels = {
+  DateTime.monday: '月曜',
+  DateTime.tuesday: '火曜',
+  DateTime.wednesday: '水曜',
+  DateTime.thursday: '木曜',
+  DateTime.friday: '金曜',
+  DateTime.saturday: '土曜',
+  DateTime.sunday: '日曜',
+};
+
+String _timeLabel(int hour, int minute) =>
+    '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+
+/// 曜日+時刻の通知タイミング設定行（積みゲーリマインダー・記録ストリーク用）。
+class _WeekdayTimeScheduleRow extends StatefulWidget {
+  const _WeekdayTimeScheduleRow({
+    required this.getSchedule,
+    required this.setSchedule,
+  });
+
+  final Future<({int weekday, int hour, int minute})> Function() getSchedule;
+  final Future<void> Function(int weekday, int hour, int minute) setSchedule;
+
+  @override
+  State<_WeekdayTimeScheduleRow> createState() =>
+      _WeekdayTimeScheduleRowState();
+}
+
+class _WeekdayTimeScheduleRowState extends State<_WeekdayTimeScheduleRow> {
+  ({int weekday, int hour, int minute})? _schedule;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.getSchedule().then((value) {
+      if (mounted) setState(() => _schedule = value);
+    });
+  }
+
+  Future<void> _edit() async {
+    final schedule = _schedule;
+    if (schedule == null) return;
+    var weekday = schedule.weekday;
+    final time = await showDialog<TimeOfDay>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('通知タイミングを変更'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButton<int>(
+                value: weekday,
+                isExpanded: true,
+                items: [
+                  for (final entry in _weekdayLabels.entries)
+                    DropdownMenuItem(value: entry.key, child: Text(entry.value)),
+                ],
+                onChanged: (value) {
+                  if (value != null) setDialogState(() => weekday = value);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('キャンセル'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final picked = await showTimePicker(
+                  context: context,
+                  initialTime: TimeOfDay(hour: schedule.hour, minute: schedule.minute),
+                );
+                if (picked != null && context.mounted) {
+                  Navigator.pop(context, picked);
+                }
+              },
+              child: const Text('時刻を選ぶ'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (time == null) return;
+    await widget.setSchedule(weekday, time.hour, time.minute);
+    final updated = await widget.getSchedule();
+    if (mounted) setState(() => _schedule = updated);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final schedule = _schedule;
+    return Padding(
+      padding: const EdgeInsets.only(left: 16, bottom: 8),
+      child: InkWell(
+        onTap: schedule == null ? null : _edit,
+        child: Text(
+          schedule == null
+              ? ''
+              : '通知タイミング：${_weekdayLabels[schedule.weekday]} ${_timeLabel(schedule.hour, schedule.minute)}（変更する）',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+              ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 時刻のみの通知タイミング設定行（月末のふりかえり通知用）。
+class _TimeScheduleRow extends StatefulWidget {
+  const _TimeScheduleRow({required this.getSchedule, required this.setSchedule});
+
+  final Future<({int hour, int minute})> Function() getSchedule;
+  final Future<void> Function(int hour, int minute) setSchedule;
+
+  @override
+  State<_TimeScheduleRow> createState() => _TimeScheduleRowState();
+}
+
+class _TimeScheduleRowState extends State<_TimeScheduleRow> {
+  ({int hour, int minute})? _schedule;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.getSchedule().then((value) {
+      if (mounted) setState(() => _schedule = value);
+    });
+  }
+
+  Future<void> _edit() async {
+    final schedule = _schedule;
+    if (schedule == null) return;
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: schedule.hour, minute: schedule.minute),
+    );
+    if (picked == null) return;
+    await widget.setSchedule(picked.hour, picked.minute);
+    final updated = await widget.getSchedule();
+    if (mounted) setState(() => _schedule = updated);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final schedule = _schedule;
+    return Padding(
+      padding: const EdgeInsets.only(left: 16, bottom: 8),
+      child: InkWell(
+        onTap: schedule == null ? null : _edit,
+        child: Text(
+          schedule == null
+              ? ''
+              : '通知時刻：${_timeLabel(schedule.hour, schedule.minute)}（変更する）',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
+              ),
         ),
       ),
     );
