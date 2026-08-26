@@ -163,6 +163,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ref.invalidate(myProfileProvider);
   }
 
+  Future<void> _toggleNotifyNewLike(bool value) async {
+    await ref.read(socialRepositoryProvider).setNotifyNewLike(value);
+    ref.invalidate(myProfileProvider);
+  }
+
   Future<void> _confirmSignOut() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -408,6 +413,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 contentPadding: EdgeInsets.zero,
                 title: const Text('フォロー中ユーザーの週間ダイジェスト'),
                 subtitle: const Text('週1回、フォロー中のユーザーの新着記録をまとめてお知らせします'),
+              );
+            },
+          ),
+          Consumer(
+            builder: (context, ref, _) {
+              final profileAsync = ref.watch(myProfileProvider);
+              return SwitchListTile(
+                value: profileAsync.value?.notifyNewLike ?? true,
+                onChanged:
+                    profileAsync.isLoading ? null : _toggleNotifyNewLike,
+                contentPadding: EdgeInsets.zero,
+                title: const Text('いいね通知'),
+                subtitle: const Text('自分の記録にいいねされたときにお知らせします'),
               );
             },
           ),

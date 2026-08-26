@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+
 import '../../../core/supabase/supabase_client.dart';
 
 class LikeRepository {
@@ -35,6 +39,21 @@ class LikeRepository {
       'log_id': logId,
       'user_id': _myId,
     });
+    unawaited(_notifyNewLike(logId));
+  }
+
+  /// 記録の投稿者へ、いいねされたことをプッシュ通知する（notify-new-like
+  /// Edge Function）。ベストエフォートの副作用のため、失敗してもいいね自体の
+  /// 成功には影響させない。
+  Future<void> _notifyNewLike(String logId) async {
+    try {
+      await supabase.functions.invoke(
+        'notify-new-like',
+        body: {'log_id': logId},
+      );
+    } catch (error, stackTrace) {
+      debugPrint('notifyNewLike failed: $error\n$stackTrace');
+    }
   }
 
   Future<void> unlike(String logId) async {

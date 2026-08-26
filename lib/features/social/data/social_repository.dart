@@ -103,6 +103,14 @@ class SocialRepository {
         .update({'notify_weekly_digest': value}).eq('id', _myId);
   }
 
+  /// 自分の記録にいいねされた時の通知を受け取るかどうかを設定する。
+  /// サーバー側（notify-new-like Edge Function）が送信可否を判断する際に使う。
+  Future<void> setNotifyNewLike(bool value) async {
+    await supabase
+        .from('profiles')
+        .update({'notify_new_like': value}).eq('id', _myId);
+  }
+
   /// 「みんなのレビュー」でユーザー名・アバターなど身元がわかる情報を表示するかどうかを
   /// 設定する。デフォルトは非表示（匿名）。
   Future<void> setShowIdentityInPublicReviews(bool value) async {

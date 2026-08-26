@@ -43,6 +43,7 @@ class SocialProfile {
     this.notifyFollowingReviews = true,
     this.notifyNewFollower = true,
     this.notifyWeeklyDigest = true,
+    this.notifyNewLike = true,
     this.showIdentityInPublicReviews = true,
   });
 
@@ -70,6 +71,9 @@ class SocialProfile {
   /// 受け取るかどうか。[notifyFollowingReviews]と同様、自分のプロフィールでのみ
   /// 意味を持つ。
   final bool notifyWeeklyDigest;
+  /// 自分の記録にいいねされた時の通知を受け取るかどうか。[notifyFollowingReviews]と
+  /// 同様、自分のプロフィールでのみ意味を持つ。
+  final bool notifyNewLike;
   /// 「みんなのレビュー」（フォロー関係を問わない全公開レビュー一覧）で、
   /// ユーザー名・アバターなど身元がわかる情報を表示するかどうか。デフォルトは
   /// 表示（全公開）で、オフにした場合のみ匿名になる。
@@ -107,6 +111,7 @@ class SocialProfile {
           json['notify_following_reviews'] as bool? ?? true,
       notifyNewFollower: json['notify_new_follower'] as bool? ?? true,
       notifyWeeklyDigest: json['notify_weekly_digest'] as bool? ?? true,
+      notifyNewLike: json['notify_new_like'] as bool? ?? true,
       showIdentityInPublicReviews:
           json['show_identity_in_public_reviews'] as bool? ?? true,
     );
