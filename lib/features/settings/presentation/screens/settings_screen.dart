@@ -10,6 +10,7 @@ import '../../../../core/notifications/monthly_recap_reminder_service.dart';
 import '../../../../core/notifications/push_notification_service.dart';
 import '../../../../core/notifications/streak_reminder_service.dart';
 import '../../../../core/subscription/subscription_providers.dart';
+import '../../../../core/theme/theme_mode_service.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../game_log/presentation/providers/log_providers.dart';
 import '../../../social/presentation/providers/social_providers.dart';
@@ -223,6 +224,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Text('表示', style: Theme.of(context).textTheme.titleMedium),
+          Consumer(
+            builder: (context, ref, _) {
+              final themeMode = ref.watch(themeModeProvider);
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: SegmentedButton<ThemeMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: ThemeMode.system,
+                      label: Text('端末に合わせる'),
+                    ),
+                    ButtonSegment(value: ThemeMode.light, label: Text('ライト')),
+                    ButtonSegment(value: ThemeMode.dark, label: Text('ダーク')),
+                  ],
+                  selected: {themeMode},
+                  onSelectionChanged: (selection) => ref
+                      .read(themeModeProvider.notifier)
+                      .setThemeMode(selection.first),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          const Divider(),
+          const SizedBox(height: 8),
           Text('通知', style: Theme.of(context).textTheme.titleMedium),
           Consumer(
             builder: (context, ref, _) {

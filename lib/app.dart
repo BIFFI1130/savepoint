@@ -14,10 +14,12 @@ import 'core/notifications/monthly_recap_reminder_service.dart';
 import 'core/notifications/push_notification_service.dart';
 import 'core/notifications/streak_reminder_service.dart';
 import 'core/router/app_router.dart';
+import 'core/streak/app_open_streak_service.dart';
 import 'core/subscription/subscription_providers.dart';
 import 'core/subscription/subscription_service.dart';
 import 'core/supabase/supabase_client.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/theme_mode_service.dart';
 import 'features/auth/presentation/providers/auth_providers.dart';
 import 'features/game_log/presentation/providers/log_providers.dart';
 
@@ -42,6 +44,9 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
       _handleWidgetTap,
     );
     HomeWidget.initiallyLaunchedFromHomeWidget().then(_handleWidgetTap);
+
+    // アプリ起動ストリーク（記録の有無を問わない、単純な連続起動日数）。
+    unawaited(ref.read(appOpenStreakServiceProvider).ensureTodayCounted());
 
     // 積みゲーの中で発売が一番近い作品を、Androidのホーム画面ウィジェットに同期する。
     // myLogsProviderはHomeShellのIndexedStack上で常に監視され続けるため、
@@ -180,6 +185,7 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
       ],
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
+      themeMode: ref.watch(themeModeProvider),
       routerConfig: router,
     );
   }
