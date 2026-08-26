@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -85,16 +88,26 @@ class PushNotificationService {
         // 未設定のことがある。その状態でgetToken()を呼ぶと例外が発生し、この関数は
         // 何もせずに（下のcatchで握りつぶされて）終わってしまう——許可自体は得られている
         // ため設定画面のトグルは有効に見えるが、実際にはdevice_tokensに何も登録されない
-        // という紛らわしい状態になる。そのため、APNsトークンが設定されるまで最大10秒
+        // という紛らわしい状態になる。そのため、APNsトークンが設定されるまで最大20秒
         // ポーリングで待つ。
         var apnsToken = await FirebaseMessaging.instance.getAPNSToken();
         var attempts = 0;
-        while (apnsToken == null && attempts < 10) {
+        while (apnsToken == null && attempts < 20) {
           await Future.delayed(const Duration(seconds: 1));
           apnsToken = await FirebaseMessaging.instance.getAPNSToken();
           attempts++;
         }
         if (apnsToken == null) {
+          // 実機で発生した場合にXcodeコンソールが無くても原因追跡できるよう、
+          // Crashlyticsへ非致命的エラーとして記録する（fatal: falseなので
+          // クラッシュ扱いにはならない）。
+          unawaited(
+            FirebaseCrashlytics.instance.recordError(
+              'push token registration failed: APNs token timeout after 20s',
+              StackTrace.current,
+              fatal: false,
+            ),
+          );
           debugPrint('APNsトークンの取得がタイムアウトしました。');
           return;
         }
@@ -102,7 +115,16 @@ class PushNotificationService {
 
       final token = await FirebaseMessaging.instance.getToken();
       final userId = supabase.auth.currentUser?.id;
-      if (token == null || userId == null) return;
+      if (token == null || userId == null) {
+        unawaited(
+          FirebaseCrashlytics.instance.recordError(
+            'push token registration failed: getToken()=$token userId=$userId',
+            StackTrace.current,
+            fatal: false,
+          ),
+        );
+        return;
+      }
       await supabase.from('device_tokens').upsert({
         'user_id': userId,
         'token': token,
@@ -111,6 +133,14 @@ class PushNotificationService {
       }, onConflict: 'token');
     } catch (error, stackTrace) {
       debugPrint('push token registration failed: $error\n$stackTrace');
+      unawaited(
+        FirebaseCrashlytics.instance.recordError(
+          error,
+          stackTrace,
+          reason: 'push token registration failed',
+          fatal: false,
+        ),
+      );
     }
   }
 
