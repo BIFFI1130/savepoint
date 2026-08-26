@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_client.dart';
 import '../domain/follow_feed_entry.dart';
+import '../domain/leaderboard_entry.dart';
 import '../domain/report_reason.dart';
 import '../domain/social_profile.dart';
 
@@ -294,6 +295,20 @@ class SocialRepository {
     return (rows as List)
         .cast<Map<String, dynamic>>()
         .map(FollowFeedEntry.fromJson)
+        .toList(growable: false);
+  }
+
+  /// フォロー内リーダーボード（follow_feedベースのため自分自身は含まない、
+  /// 直近7日間の記録数ランキング上位）。
+  Future<List<LeaderboardEntry>> fetchFollowFeedLeaderboard({int limit = 5}) async {
+    final rows = await supabase
+        .from('follow_feed_leaderboard')
+        .select()
+        .order('log_count', ascending: false)
+        .limit(limit);
+    return (rows as List)
+        .cast<Map<String, dynamic>>()
+        .map(LeaderboardEntry.fromJson)
         .toList(growable: false);
   }
 

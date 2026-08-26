@@ -15,6 +15,7 @@ import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/igdb_footer.dart';
 import '../../../game_log/presentation/providers/log_providers.dart';
 import '../../../game_search/domain/genre_options.dart';
+import '../../../social/presentation/providers/social_providers.dart';
 import '../../domain/period_summary.dart';
 
 class SummaryScreen extends ConsumerStatefulWidget {
@@ -136,6 +137,10 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen> {
                   ),
                 ),
               ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: _LeaderboardCard(),
+              ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: SegmentedButton<SummaryPeriodType>(
@@ -206,6 +211,56 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// フォロー内リーダーボード（直近7日間の記録数ランキング上位5名）。
+/// 期間選択（月間/年間/すべて）とは独立して、常に直近7日固定で表示する。
+class _LeaderboardCard extends ConsumerWidget {
+  const _LeaderboardCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final leaderboardAsync = ref.watch(followFeedLeaderboardProvider);
+    final entries = leaderboardAsync.valueOrNull ?? const [];
+    if (leaderboardAsync.hasValue && entries.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'フォロー内ランキング（今週）',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            if (!leaderboardAsync.hasValue)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else
+              for (var i = 0; i < entries.length; i++)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Text(
+                    '${i + 1}',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  title: Text(entries[i].displayLabel),
+                  trailing: Text('${entries[i].logCount}本'),
+                  onTap: () => context.push('/users/${entries[i].userId}'),
+                ),
+          ],
+        ),
       ),
     );
   }

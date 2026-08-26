@@ -5,6 +5,7 @@ import '../../../../core/utils/age.dart';
 import '../../data/social_repository.dart';
 import '../../data/view_analytics_repository.dart';
 import '../../domain/follow_feed_entry.dart';
+import '../../domain/leaderboard_entry.dart';
 import '../../domain/social_profile.dart';
 
 final socialRepositoryProvider = Provider<SocialRepository>((ref) {
@@ -15,6 +16,13 @@ final viewAnalyticsRepositoryProvider = Provider<ViewAnalyticsRepository>((
   ref,
 ) {
   return ViewAnalyticsRepository();
+});
+
+/// フォロー内リーダーボード（直近7日間の記録数ランキング上位5名）。
+final followFeedLeaderboardProvider = FutureProvider<List<LeaderboardEntry>>((
+  ref,
+) async {
+  return ref.read(socialRepositoryProvider).fetchFollowFeedLeaderboard();
 });
 
 /// 自分のプロフィールの累計閲覧数（サブスク特典「閲覧数の分析」）。
