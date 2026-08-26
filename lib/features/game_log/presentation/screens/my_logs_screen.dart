@@ -226,6 +226,11 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
                 ? null
                 : () => _exportLogs(logsAsync.value!),
           ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: '設定',
+            onPressed: () => context.push('/settings'),
+          ),
         ],
       ),
       body: Column(

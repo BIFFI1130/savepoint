@@ -24,6 +24,7 @@ import '../../features/social/presentation/screens/user_list_screen.dart';
 import '../../features/social/presentation/screens/user_profile_screen.dart';
 import '../../features/social/presentation/screens/user_search_screen.dart';
 import '../../features/social/presentation/screens/username_onboarding_screen.dart';
+import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/subscription/presentation/screens/paywall_screen.dart';
 import '../../features/summary/presentation/screens/gamer_type_screen.dart';
 import '../../features/summary/presentation/screens/summary_screen.dart';
@@ -208,6 +209,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/favorites/edit',
         builder: (context, state) => const FavoriteGamesEditScreen(),
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => const SettingsScreen(),
       ),
       GoRoute(
         path: '/achievements',

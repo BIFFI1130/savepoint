@@ -5,11 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:home_widget/home_widget.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/ads/launch_ad_service.dart';
 import 'core/deep_links/deep_link_service.dart';
 import 'core/home_widget/backlog_widget_service.dart';
 import 'core/notifications/aged_backlog_reminder_service.dart';
+import 'core/notifications/backlog_reminder_service.dart';
 import 'core/notifications/monthly_recap_reminder_service.dart';
 import 'core/notifications/push_notification_service.dart';
 import 'core/notifications/streak_reminder_service.dart';
@@ -55,6 +57,14 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
         unawaited(ref.read(streakReminderServiceProvider).syncSchedule(logs));
         unawaited(
           ref.read(agedBacklogReminderServiceProvider).syncSchedule(logs),
+        );
+        // initState内（＝この直後）ではまだActivity/ウィンドウの準備が
+        // 整っておらず、通知許可ダイアログが表示されないまま拒否扱いに
+        // なってしまうことがあるため、初回フレーム描画後まで待ってから呼ぶ。
+        unawaited(
+          WidgetsBinding.instance.endOfFrame.then(
+            (_) => _ensureNotificationDefaultsInitialized(ref),
+          ),
         );
       });
     }, fireImmediately: true);
@@ -183,4 +193,23 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
       routerConfig: router,
     );
   }
+}
+
+const _notificationDefaultsInitializedKey = 'notification_defaults_initialized';
+
+/// 初回ログイン後（マイログの初回取得時）に一度だけ、通知系トグルを全てONに
+/// 初期化する。各サービスのenable()は端末の通知許可を要求するため、許可が
+/// 得られなかった場合はそのサービスだけOFFのまま残る（enable()自身の仕様）。
+/// SharedPreferencesのフラグで一度きりに制限し、ユーザーが後から手動でOFFに
+/// した設定を毎回のログイン時に勝手にONへ戻さないようにする。
+Future<void> _ensureNotificationDefaultsInitialized(WidgetRef ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  if (prefs.getBool(_notificationDefaultsInitializedKey) ?? false) return;
+  await prefs.setBool(_notificationDefaultsInitializedKey, true);
+
+  await ref.read(pushNotificationServiceProvider).enable();
+  await ref.read(backlogReminderServiceProvider).enable();
+  await ref.read(streakReminderServiceProvider).enable();
+  await ref.read(agedBacklogReminderServiceProvider).enable();
+  await ref.read(monthlyRecapReminderServiceProvider).enable();
 }
