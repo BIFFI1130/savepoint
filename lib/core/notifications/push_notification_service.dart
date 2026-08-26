@@ -35,9 +35,10 @@ class PushNotificationService {
     _localInitialized = true;
   }
 
+  /// 明示的にOFFにされていない限りtrue（初期値はON）。
   Future<bool> isEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_enabledKey) ?? false;
+    return prefs.getBool(_enabledKey) ?? true;
   }
 
   /// 通知の許可を求め、許可が得られればFCMトークンを取得してSupabaseに登録する。
