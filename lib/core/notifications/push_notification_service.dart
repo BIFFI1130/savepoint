@@ -78,6 +78,27 @@ class PushNotificationService {
 
   Future<void> _registerToken() async {
     try {
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        // iOSでは、FCMトークンを取得する前にAPNsトークンが端末に設定されている必要が
+        // あるが、requestPermission()の直後はまだiOS側の登録が終わっておらずAPNsトークンが
+        // 未設定のことがある。その状態でgetToken()を呼ぶと例外が発生し、この関数は
+        // 何もせずに（下のcatchで握りつぶされて）終わってしまう——許可自体は得られている
+        // ため設定画面のトグルは有効に見えるが、実際にはdevice_tokensに何も登録されない
+        // という紛らわしい状態になる。そのため、APNsトークンが設定されるまで最大10秒
+        // ポーリングで待つ。
+        var apnsToken = await FirebaseMessaging.instance.getAPNSToken();
+        var attempts = 0;
+        while (apnsToken == null && attempts < 10) {
+          await Future.delayed(const Duration(seconds: 1));
+          apnsToken = await FirebaseMessaging.instance.getAPNSToken();
+          attempts++;
+        }
+        if (apnsToken == null) {
+          debugPrint('APNsトークンの取得がタイムアウトしました。');
+          return;
+        }
+      }
+
       final token = await FirebaseMessaging.instance.getToken();
       final userId = supabase.auth.currentUser?.id;
       if (token == null || userId == null) return;
