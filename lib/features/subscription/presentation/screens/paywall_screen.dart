@@ -71,6 +71,23 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     }
   }
 
+  /// 無料トライアル期間のバッジ文言。App Store Connect / Google Play側で
+  /// 導入価格・無料トライアルが設定されている商品のみ表示される
+  /// （未設定の商品は`introductoryPrice`がnullのため何も表示しない）。
+  String? _trialLabel(StoreProduct product) {
+    final intro = product.introductoryPrice;
+    if (intro == null || intro.price != 0) return null;
+    final unitLabel = switch (intro.periodUnit) {
+      PeriodUnit.day => '日間',
+      PeriodUnit.week => '週間',
+      PeriodUnit.month => 'ヶ月間',
+      PeriodUnit.year => '年間',
+      PeriodUnit.unknown => '',
+    };
+    final totalUnits = intro.periodNumberOfUnits * intro.cycles;
+    return '$totalUnits$unitLabel無料でお試しいただけます';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isAdFree = ref.watch(isAdFreeProvider);
@@ -134,7 +151,24 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       Card(
                         child: ListTile(
                           title: Text(package.storeProduct.title),
-                          subtitle: Text(package.storeProduct.description),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(package.storeProduct.description),
+                              if (_trialLabel(package.storeProduct) != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    _trialLabel(package.storeProduct)!,
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          isThreeLine: _trialLabel(package.storeProduct) != null,
                           trailing: FilledButton(
                             onPressed: _isProcessing
                                 ? null
