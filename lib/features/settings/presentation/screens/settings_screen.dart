@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/notifications/aged_backlog_reminder_service.dart';
 import '../../../../core/notifications/backlog_reminder_service.dart';
+import '../../../../core/notifications/memories_reminder_service.dart';
 import '../../../../core/notifications/monthly_recap_reminder_service.dart';
 import '../../../../core/notifications/push_notification_service.dart';
 import '../../../../core/notifications/streak_reminder_service.dart';
@@ -112,6 +113,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await service.disable();
     }
     ref.invalidate(monthlyRecapEnabledProvider);
+  }
+
+  Future<void> _toggleMemoriesReminder(bool value) async {
+    final service = ref.read(memoriesReminderServiceProvider);
+    if (value) {
+      final granted = await service.enable();
+      if (!granted && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('通知の許可が必要です。端末の設定から許可してください')),
+        );
+      } else {
+        final logs = ref.read(myLogsProvider).valueOrNull;
+        if (logs != null) await service.syncSchedule(logs);
+      }
+    } else {
+      await service.disable();
+    }
+    ref.invalidate(memoriesReminderEnabledProvider);
   }
 
   Future<void> _toggleFollowPush(bool value) async {
@@ -297,6 +316,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 contentPadding: EdgeInsets.zero,
                 title: const Text('月末のふりかえり通知'),
                 subtitle: const Text('月末に今月の記録の振り返りをお知らせします'),
+              );
+            },
+          ),
+          Consumer(
+            builder: (context, ref, _) {
+              final enabledAsync = ref.watch(memoriesReminderEnabledProvider);
+              return SwitchListTile(
+                value: enabledAsync.value ?? false,
+                onChanged:
+                    enabledAsync.isLoading ? null : _toggleMemoriesReminder,
+                contentPadding: EdgeInsets.zero,
+                title: const Text('1年前の今日'),
+                subtitle: const Text('過去の同じ日に記録した作品があればお知らせします'),
               );
             },
           ),

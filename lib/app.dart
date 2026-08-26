@@ -10,6 +10,7 @@ import 'core/ads/launch_ad_service.dart';
 import 'core/deep_links/deep_link_service.dart';
 import 'core/home_widget/backlog_widget_service.dart';
 import 'core/notifications/aged_backlog_reminder_service.dart';
+import 'core/notifications/memories_reminder_service.dart';
 import 'core/notifications/monthly_recap_reminder_service.dart';
 import 'core/notifications/push_notification_service.dart';
 import 'core/notifications/streak_reminder_service.dart';
@@ -61,6 +62,7 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
         unawaited(
           ref.read(agedBacklogReminderServiceProvider).syncSchedule(logs),
         );
+        unawaited(ref.read(memoriesReminderServiceProvider).syncSchedule(logs));
       });
     }, fireImmediately: true);
 
