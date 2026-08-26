@@ -14,6 +14,7 @@ import 'core/notifications/memories_reminder_service.dart';
 import 'core/notifications/monthly_recap_reminder_service.dart';
 import 'core/notifications/push_notification_service.dart';
 import 'core/notifications/streak_reminder_service.dart';
+import 'core/preferences/content_filter_prefs.dart';
 import 'core/router/app_router.dart';
 import 'core/streak/app_open_streak_service.dart';
 import 'core/subscription/subscription_providers.dart';
@@ -22,6 +23,7 @@ import 'core/supabase/supabase_client.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_mode_service.dart';
 import 'features/auth/presentation/providers/auth_providers.dart';
+import 'features/calendar/presentation/providers/calendar_providers.dart';
 import 'features/game_log/presentation/providers/log_providers.dart';
 
 class SavePointApp extends ConsumerStatefulWidget {
@@ -71,6 +73,12 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
       ref.read(monthlyRecapReminderServiceProvider).ensureScheduled(),
     );
 
+    // 「本日発売」ウィジェットは自分の「遊びたい」リストに関わらず全ユーザー向けの
+    // 本日発売作品を表示するため、myLogsProviderとは独立に起動時1回だけ同期する
+    // （日付が変わるまで内容は変わらないため、ウィジェット自体の6時間ごとの
+    // 定期更新と合わせれば十分）。
+    unawaited(_syncTodayReleasesWidget());
+
     // 新しいフォロワーのプッシュ通知（サーバー起点）の受信・タップ処理。
     // 通知自体が無効（未許可）な端末では単にトークンが無いだけで、これらの
     // リスナー登録自体は無害なので常に行っておく。
@@ -91,6 +99,29 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
     if (ref.read(currentUserProvider) != null &&
         !ref.read(isAdFreeProvider)) {
       unawaited(ref.read(launchAdServiceProvider).maybeShow());
+    }
+  }
+
+  /// 「本日発売」ウィジェット向けに、全ユーザー向けの本日発売作品を取得して同期する。
+  Future<void> _syncTodayReleasesWidget() async {
+    try {
+      final contentFilterPrefs = ref.read(contentFilterPrefsProvider);
+      final today = DateTime.now();
+      final request = (
+        rangeStart: DateTime(today.year, today.month, today.day),
+        days: 1,
+        filter: (
+          platforms: const <String>{},
+          genres: const <String>{},
+          includeAdult: contentFilterPrefs.includeAdult,
+          includeIndie: contentFilterPrefs.includeIndie,
+        ),
+      );
+      final games =
+          await ref.read(calendarRangeReleasesProvider(request).future);
+      await const BacklogWidgetService().syncTodayReleases(games);
+    } catch (error, stackTrace) {
+      debugPrint('本日発売ウィジェットの同期に失敗しました: $error\n$stackTrace');
     }
   }
 

@@ -6,16 +6,17 @@ import 'package:home_widget/home_widget.dart';
 
 import '../../features/game_log/domain/game_log.dart';
 import '../../features/game_log/domain/weekly_streak.dart';
+import '../../features/game_search/domain/game.dart';
 import '../../features/summary/domain/period_summary.dart';
 import '../utils/nearest_upcoming_backlog_entry.dart';
-import '../utils/todays_releasing_backlog_entries.dart';
 
-/// 積みゲー（「遊びたい」）の中で発売が一番近い作品、本日発売の作品一覧、
-/// 週間記録ストリーク、今月の記録本数を、ホーム画面ウィジェット
-/// （Android: BacklogWidgetProvider/TodayReleasesWidgetProvider/
+/// 積みゲー（「遊びたい」）の中で発売が一番近い作品、週間記録ストリーク、今月の
+/// 記録本数を、ホーム画面ウィジェット（Android: BacklogWidgetProvider/
 /// StreakWidgetProvider/MonthlyStatsWidgetProvider、iOS: BacklogWidget/
-/// TodayReleasesWidget/StreakWidget/MonthlyStatsWidget）向けに同期する。
-/// 失敗しても握りつぶし、アプリの動作をブロックしない
+/// StreakWidget/MonthlyStatsWidget）向けに同期する。「本日発売」ウィジェット
+/// （TodayReleasesWidget）は自分の「遊びたい」リストに限らず全ユーザー向けの
+/// 本日発売作品を表示するため、ログに依存しない[syncTodayReleases]で別途同期する。
+/// いずれも失敗しても握りつぶし、アプリの動作をブロックしない
 /// （ReleaseReminderService等と同じ方針）。
 class BacklogWidgetService {
   const BacklogWidgetService();
@@ -37,16 +38,11 @@ class BacklogWidgetService {
   Future<void> sync(List<GameLogWithGame> logs) async {
     try {
       await _syncNearest(logs);
-      await _syncTodayReleases(logs);
       await _syncStreak(logs);
       await _syncMonthlyStats(logs);
       await HomeWidget.updateWidget(
         androidName: _androidProviderName,
         iOSName: _iosWidgetName,
-      );
-      await HomeWidget.updateWidget(
-        androidName: _androidTodayReleasesProviderName,
-        iOSName: _iosTodayReleasesWidgetName,
       );
       await HomeWidget.updateWidget(
         androidName: _androidStreakProviderName,
@@ -58,6 +54,41 @@ class BacklogWidgetService {
       );
     } catch (error, stackTrace) {
       debugPrint('BacklogWidgetService.sync failed: $error\n$stackTrace');
+    }
+  }
+
+  /// 全ユーザー向けの本日発売作品（自分の「遊びたい」リストへの追加有無を問わない）を
+  /// 「本日発売」ウィジェットへ同期する。[games]は呼び出し側
+  /// （calendarRangeReleasesProviderの当日1日分）が用意する。
+  Future<void> syncTodayReleases(List<Game> games) async {
+    try {
+      final items = <Map<String, String?>>[];
+      var index = 0;
+      for (final game in games.take(_maxTodayReleases)) {
+        final coverPath = await _saveCoverImage(
+          'today_release_image_$index',
+          game.coverUrl,
+        );
+        items.add({
+          'id': game.id.toString(),
+          'title': game.displayName,
+          'image': coverPath,
+        });
+        index++;
+      }
+
+      await HomeWidget.saveWidgetData<String>(
+        'today_releases_json',
+        jsonEncode(items),
+      );
+      await HomeWidget.updateWidget(
+        androidName: _androidTodayReleasesProviderName,
+        iOSName: _iosTodayReleasesWidgetName,
+      );
+    } catch (error, stackTrace) {
+      debugPrint(
+        'BacklogWidgetService.syncTodayReleases failed: $error\n$stackTrace',
+      );
     }
   }
 
@@ -131,32 +162,6 @@ class BacklogWidgetService {
     await HomeWidget.saveWidgetData<String>(
       'monthly_stats_want_to_play_count',
       summary.wantToPlayAddedCount.toString(),
-    );
-  }
-
-  Future<void> _syncTodayReleases(List<GameLogWithGame> logs) async {
-    final todaysReleases = todaysReleasingBacklogEntries(
-      logs,
-    ).take(_maxTodayReleases);
-
-    final items = <Map<String, String?>>[];
-    var index = 0;
-    for (final entry in todaysReleases) {
-      final coverPath = await _saveCoverImage(
-        'today_release_image_$index',
-        entry.game.coverUrl,
-      );
-      items.add({
-        'id': entry.game.id.toString(),
-        'title': entry.game.displayName,
-        'image': coverPath,
-      });
-      index++;
-    }
-
-    await HomeWidget.saveWidgetData<String>(
-      'today_releases_json',
-      jsonEncode(items),
     );
   }
 
