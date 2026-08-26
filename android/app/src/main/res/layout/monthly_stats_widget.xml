@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 今月「遊んだ」件数・「遊びたい」新規追加件数を表示するウィジェット。
+     RemoteViewsではConstraintLayout等が使えないため、LinearLayoutのみで構成する。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/monthly_stats_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_vertical"
+    android:background="@drawable/backlog_widget_background"
+    android:paddingLeft="16dp"
+    android:paddingRight="16dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp">
+
+    <TextView
+        android:id="@+id/monthly_stats_widget_month"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="今月"
+        android:textColor="#1A1A2E"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+    <TextView
+        android:id="@+id/monthly_stats_widget_played"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="遊んだ 0本"
+        android:textColor="#3D5AFE"
+        android:textSize="13sp"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+    <TextView
+        android:id="@+id/monthly_stats_widget_want_to_play"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="遊びたい追加 0本"
+        android:textColor="#1A1A2E"
+        android:textSize="12sp"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+</LinearLayout>

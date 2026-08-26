@@ -248,10 +248,158 @@ struct TodayReleasesWidget: Widget {
   }
 }
 
+// MARK: - 週間記録ストリークウィジェット
+
+struct StreakEntry: TimelineEntry {
+  let date: Date
+  let count: String
+  let label: String
+}
+
+struct StreakProvider: TimelineProvider {
+  func placeholder(in context: Context) -> StreakEntry {
+    StreakEntry(date: Date(), count: "3", label: "週間記録ストリーク")
+  }
+
+  func getSnapshot(in context: Context, completion: @escaping (StreakEntry) -> Void) {
+    completion(currentEntry())
+  }
+
+  func getTimeline(in context: Context, completion: @escaping (Timeline<StreakEntry>) -> Void) {
+    let entry = currentEntry()
+    let nextRefresh = Date().addingTimeInterval(6 * 60 * 60)
+    completion(Timeline(entries: [entry], policy: .after(nextRefresh)))
+  }
+
+  private func currentEntry() -> StreakEntry {
+    let data = UserDefaults(suiteName: widgetGroupId)
+    let count = data?.string(forKey: "streak_widget_count") ?? "0"
+    let label = data?.string(forKey: "streak_widget_label") ?? "週間記録ストリーク"
+    return StreakEntry(date: Date(), count: count, label: label)
+  }
+}
+
+struct StreakWidgetEntryView: View {
+  var entry: StreakProvider.Entry
+
+  var body: some View {
+    VStack(spacing: 2) {
+      Text(entry.count)
+        .font(.system(size: 32, weight: .bold))
+        .foregroundColor(Color(red: 0.10, green: 0.10, blue: 0.18))
+      Text(entry.label)
+        .font(.system(size: 12))
+        .foregroundColor(Color(red: 0.24, green: 0.35, blue: 1.0))
+        .lineLimit(1)
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .widgetURL(URL(string: "savepoint://home")!)
+  }
+}
+
+struct StreakWidget: Widget {
+  let kind: String = "StreakWidget"
+
+  var body: some WidgetConfiguration {
+    StaticConfiguration(kind: kind, provider: StreakProvider()) { entry in
+      if #available(iOSApplicationExtension 17.0, *) {
+        StreakWidgetEntryView(entry: entry)
+          .containerBackground(Color.white, for: .widget)
+      } else {
+        StreakWidgetEntryView(entry: entry)
+          .background(Color.white)
+      }
+    }
+    .configurationDisplayName("週間記録ストリーク")
+    .description("記録が連続している週数を表示します。")
+    .supportedFamilies([.systemSmall])
+  }
+}
+
+// MARK: - 今月の統計ウィジェット
+
+struct MonthlyStatsEntry: TimelineEntry {
+  let date: Date
+  let monthLabel: String
+  let playedCount: String
+  let wantToPlayCount: String
+}
+
+struct MonthlyStatsProvider: TimelineProvider {
+  func placeholder(in context: Context) -> MonthlyStatsEntry {
+    MonthlyStatsEntry(date: Date(), monthLabel: "今月", playedCount: "3", wantToPlayCount: "1")
+  }
+
+  func getSnapshot(in context: Context, completion: @escaping (MonthlyStatsEntry) -> Void) {
+    completion(currentEntry())
+  }
+
+  func getTimeline(in context: Context, completion: @escaping (Timeline<MonthlyStatsEntry>) -> Void) {
+    let entry = currentEntry()
+    let nextRefresh = Date().addingTimeInterval(6 * 60 * 60)
+    completion(Timeline(entries: [entry], policy: .after(nextRefresh)))
+  }
+
+  private func currentEntry() -> MonthlyStatsEntry {
+    let data = UserDefaults(suiteName: widgetGroupId)
+    let monthLabel = data?.string(forKey: "monthly_stats_month_label") ?? "今月"
+    let playedCount = data?.string(forKey: "monthly_stats_played_count") ?? "0"
+    let wantToPlayCount = data?.string(forKey: "monthly_stats_want_to_play_count") ?? "0"
+    return MonthlyStatsEntry(
+      date: Date(), monthLabel: monthLabel, playedCount: playedCount,
+      wantToPlayCount: wantToPlayCount)
+  }
+}
+
+struct MonthlyStatsWidgetEntryView: View {
+  var entry: MonthlyStatsProvider.Entry
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 4) {
+      Text(entry.monthLabel)
+        .font(.system(size: 14, weight: .bold))
+        .foregroundColor(Color(red: 0.10, green: 0.10, blue: 0.18))
+        .lineLimit(1)
+      Text("遊んだ \(entry.playedCount)本")
+        .font(.system(size: 13))
+        .foregroundColor(Color(red: 0.24, green: 0.35, blue: 1.0))
+        .lineLimit(1)
+      Text("遊びたい追加 \(entry.wantToPlayCount)本")
+        .font(.system(size: 12))
+        .foregroundColor(Color(red: 0.10, green: 0.10, blue: 0.18))
+        .lineLimit(1)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(12)
+    .widgetURL(URL(string: "savepoint://home")!)
+  }
+}
+
+struct MonthlyStatsWidget: Widget {
+  let kind: String = "MonthlyStatsWidget"
+
+  var body: some WidgetConfiguration {
+    StaticConfiguration(kind: kind, provider: MonthlyStatsProvider()) { entry in
+      if #available(iOSApplicationExtension 17.0, *) {
+        MonthlyStatsWidgetEntryView(entry: entry)
+          .containerBackground(Color.white, for: .widget)
+      } else {
+        MonthlyStatsWidgetEntryView(entry: entry)
+          .background(Color.white)
+      }
+    }
+    .configurationDisplayName("今月の統計")
+    .description("今月「遊んだ」「遊びたい」に追加した件数を表示します。")
+    .supportedFamilies([.systemSmall, .systemMedium])
+  }
+}
+
 @main
 struct BacklogWidgets: WidgetBundle {
   var body: some Widget {
     BacklogWidget()
     TodayReleasesWidget()
+    StreakWidget()
+    MonthlyStatsWidget()
   }
 }

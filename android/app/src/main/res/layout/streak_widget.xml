@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 週間記録ストリークの週数だけを大きく表示するシンプルなウィジェット。
+     RemoteViewsではConstraintLayout等が使えないため、LinearLayoutのみで構成する。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/streak_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="@drawable/backlog_widget_background"
+    android:padding="12dp">
+
+    <TextView
+        android:id="@+id/streak_widget_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="0"
+        android:textColor="#1A1A2E"
+        android:textSize="32sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/streak_widget_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="週間記録ストリーク"
+        android:textColor="#3D5AFE"
+        android:textSize="12sp"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+</LinearLayout>
