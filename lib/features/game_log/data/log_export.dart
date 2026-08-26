@@ -38,7 +38,11 @@ String buildLogsCsv(List<GameLogWithGame> logs) {
     buffer.writeln(
       [
         entry.game.displayName,
-        log.status == GameLogStatus.played ? '遊んだ' : '遊びたい',
+        switch (log.status) {
+          GameLogStatus.played => '遊んだ',
+          GameLogStatus.playing => 'プレイ中',
+          GameLogStatus.wantToPlay => '遊びたい',
+        },
         log.rating?.toString() ?? '',
         log.reviewText ?? '',
         log.isCleared ? 'はい' : 'いいえ',

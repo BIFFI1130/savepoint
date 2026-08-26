@@ -39,6 +39,11 @@ String _backlogDaysLabel(DateTime createdAt) {
   return days <= 0 ? '今日追加' : '$days日間 積んでいます';
 }
 
+String _playingDaysLabel(DateTime createdAt) {
+  final days = DateTime.now().difference(createdAt).inDays;
+  return days <= 0 ? '今日からプレイ中' : '$days日間 プレイ中';
+}
+
 /// 「遊びたい」リストの1件に表示するステータス文言。未発売作品は発売日までの
 /// 残り日数を優先して表示し（積みゲー扱いされると紛らわしいため）、発売済み・
 /// 発売日不明の作品は従来通り登録からの経過日数を表示する。
@@ -88,7 +93,7 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -257,6 +262,7 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
             controller: _tabController,
             tabs: const [
               Tab(text: '遊んだ'),
+              Tab(text: 'プレイ中'),
               Tab(text: '遊びたい'),
               Tab(text: 'オレの推しゲー'),
             ],
@@ -264,7 +270,7 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
           AnimatedBuilder(
             animation: _tabController.animation ?? _tabController,
             builder: (context, child) {
-              final isFavoritesTab = _tabController.index == 2;
+              final isFavoritesTab = _tabController.index == 3;
               return Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
                 child: Row(
@@ -324,6 +330,20 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
                   data: (logs) => _LogList(
                     logs: _filterAndSort(logs, GameLogStatus.played),
                     emptyMessage: 'まだ「遊んだ」記録がありません',
+                    onRefresh: () => ref.refresh(myLogsProvider.future),
+                    sortType: _sort,
+                    isGridView: _isGridView,
+                  ),
+                  loading: () => const LoadingView(),
+                  error: (error, _) => ErrorView(
+                    message: 'ログの取得に失敗しました',
+                    onRetry: () => ref.invalidate(myLogsProvider),
+                  ),
+                ),
+                logsAsync.when(
+                  data: (logs) => _LogList(
+                    logs: _filterAndSort(logs, GameLogStatus.playing),
+                    emptyMessage: 'まだ「プレイ中」の作品がありません',
                     onRefresh: () => ref.refresh(myLogsProvider.future),
                     sortType: _sort,
                     isGridView: _isGridView,
@@ -794,6 +814,7 @@ class _LogList extends StatelessWidget {
 
   Widget _buildListTile(BuildContext context, GameLogWithGame entry) {
     final isWantToPlay = entry.log.status == GameLogStatus.wantToPlay;
+    final isPlaying = entry.log.status == GameLogStatus.playing;
     return ListTile(
       leading: CoverImage(url: entry.game.coverUrl, width: 44, height: 60),
       title: Text(
@@ -815,6 +836,11 @@ class _LogList extends StatelessWidget {
                 ),
               ],
             )
+          else if (isPlaying)
+            Text(
+              _playingDaysLabel(entry.log.createdAt),
+              style: Theme.of(context).textTheme.bodySmall,
+            )
           else if (entry.log.rating != null)
             Row(
               children: [
@@ -830,6 +856,7 @@ class _LogList extends StatelessWidget {
               ],
             ),
           if (!isWantToPlay &&
+              !isPlaying &&
               entry.log.reviewText != null &&
               entry.log.reviewText!.isNotEmpty)
             Text(
@@ -841,6 +868,7 @@ class _LogList extends StatelessWidget {
       ),
       isThreeLine:
           !isWantToPlay &&
+          !isPlaying &&
           entry.log.reviewText != null &&
           entry.log.reviewText!.isNotEmpty,
       onTap: () => context.push('/games/${entry.game.id}'),

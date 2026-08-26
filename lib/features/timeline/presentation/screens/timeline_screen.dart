@@ -389,17 +389,21 @@ class _TimelineEntryTile extends ConsumerWidget {
                           Row(
                             children: [
                               Icon(
-                                entry.status == GameLogStatus.played
-                                    ? Icons.videogame_asset
-                                    : Icons.bookmark_outline,
+                                switch (entry.status) {
+                                  GameLogStatus.played => Icons.videogame_asset,
+                                  GameLogStatus.playing => Icons.sports_esports_outlined,
+                                  GameLogStatus.wantToPlay => Icons.bookmark_outline,
+                                },
                                 size: 14,
                                 color: outline,
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                entry.status == GameLogStatus.played
-                                    ? '遊んだ'
-                                    : '遊びたい',
+                                switch (entry.status) {
+                                  GameLogStatus.played => '遊んだ',
+                                  GameLogStatus.playing => 'プレイ中',
+                                  GameLogStatus.wantToPlay => '遊びたい',
+                                },
                                 style: Theme.of(
                                   context,
                                 ).textTheme.bodySmall?.copyWith(color: outline),

@@ -80,6 +80,36 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
     }
   }
 
+  /// 「プレイ中にする」ボタンのトグル動作。既に「プレイ中」登録済みなら記録ごと削除して解除する
+  /// （プレイ中の記録は評価・レビューを持たないため、解除＝削除で問題ない）。
+  /// それ以外（未登録・遊びたい登録済み・遊んだ済み）の場合は「プレイ中」として登録する。
+  Future<void> _togglePlaying(GameLog? log) async {
+    setState(() => _isUpdatingStatus = true);
+    try {
+      if (log != null && log.status == GameLogStatus.playing) {
+        await ref.read(logRepositoryProvider).deleteLog(log.id);
+        await ref.read(appAnalyticsProvider).logRecordDeleted();
+      } else {
+        await ref.read(logRepositoryProvider).markPlaying(widget.gameId);
+        await ref.read(appAnalyticsProvider).logRecordCreated(
+              status: 'playing',
+              hasRating: false,
+              hasReview: false,
+            );
+      }
+      ref.invalidate(existingLogProvider(widget.gameId));
+      ref.invalidate(myLogsProvider);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('更新に失敗しました')));
+      }
+    } finally {
+      if (mounted) setState(() => _isUpdatingStatus = false);
+    }
+  }
+
   Future<void> _deleteLog(GameLog log) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -304,6 +334,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                       releaseDate: game.firstReleaseDate,
                       isUpdatingStatus: _isUpdatingStatus,
                       onMarkWantToPlay: () => _toggleWantToPlay(log, game),
+                      onMarkPlaying: () => _togglePlaying(log),
                       onDelete: log == null ? null : () => _deleteLog(log),
                     ),
                     loading: () => const SizedBox(
@@ -656,6 +687,7 @@ class _StatusAndLogSection extends StatelessWidget {
     required this.releaseDate,
     required this.isUpdatingStatus,
     required this.onMarkWantToPlay,
+    required this.onMarkPlaying,
     required this.onDelete,
   });
 
@@ -664,11 +696,13 @@ class _StatusAndLogSection extends StatelessWidget {
   final DateTime? releaseDate;
   final bool isUpdatingStatus;
   final VoidCallback onMarkWantToPlay;
+  final VoidCallback onMarkPlaying;
   final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
     final isWantToPlay = log?.status == GameLogStatus.wantToPlay;
+    final isPlaying = log?.status == GameLogStatus.playing;
     final isPlayed = log?.status == GameLogStatus.played;
     final isUnreleased = releaseDate != null && releaseDate!.isAfter(DateTime.now());
 
@@ -708,6 +742,20 @@ class _StatusAndLogSection extends StatelessWidget {
             ),
           ],
         ),
+        if (!isPlayed) ...[
+          const SizedBox(height: 8),
+          isPlaying
+              ? FilledButton.icon(
+                  onPressed: isUpdatingStatus ? null : onMarkPlaying,
+                  icon: const Icon(Icons.sports_esports),
+                  label: const Text('プレイ中'),
+                )
+              : OutlinedButton.icon(
+                  onPressed: isUpdatingStatus ? null : onMarkPlaying,
+                  icon: const Icon(Icons.sports_esports_outlined),
+                  label: const Text('プレイ中にする'),
+                ),
+        ],
         const SizedBox(height: 8),
         OutlinedButton.icon(
           onPressed: () => CollectionPickerSheet.show(context, gameId),

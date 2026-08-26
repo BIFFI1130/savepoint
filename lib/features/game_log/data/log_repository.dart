@@ -104,6 +104,21 @@ class LogRepository {
     );
   }
 
+  /// 「プレイ中」としてワンタップで記録する。既存の評価・レビューがあれば保持される
+  /// （upsertのペイロードに含めない列はON CONFLICT時に上書きされないため）。
+  Future<void> markPlaying(int gameId) async {
+    final userId = supabase.auth.currentUser!.id;
+    await supabase.from('game_logs').upsert(
+      {
+        'user_id': userId,
+        'game_id': gameId,
+        'status': GameLogStatus.playing.toDb(),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      },
+      onConflict: 'user_id,game_id',
+    );
+  }
+
   Future<void> deleteLog(String logId) async {
     await supabase.from('game_logs').delete().eq('id', logId);
   }

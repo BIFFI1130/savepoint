@@ -1,15 +1,24 @@
 import '../../game_search/domain/game.dart';
 
-/// 「遊んだ」か「遊びたい」かのステータス。
+/// 「遊んだ」「プレイ中」「遊びたい」のステータス。
 enum GameLogStatus {
   played,
+  playing,
   wantToPlay;
 
   static GameLogStatus fromDb(String value) {
-    return value == 'want_to_play' ? GameLogStatus.wantToPlay : GameLogStatus.played;
+    return switch (value) {
+      'want_to_play' => GameLogStatus.wantToPlay,
+      'playing' => GameLogStatus.playing,
+      _ => GameLogStatus.played,
+    };
   }
 
-  String toDb() => this == GameLogStatus.wantToPlay ? 'want_to_play' : 'played';
+  String toDb() => switch (this) {
+        GameLogStatus.wantToPlay => 'want_to_play',
+        GameLogStatus.playing => 'playing',
+        GameLogStatus.played => 'played',
+      };
 }
 
 /// 記録（レビュー）ごとの公開範囲。「共有するかどうか」だけを持ち、「誰に共有するか」は
@@ -58,8 +67,8 @@ enum BacklogPriority {
 
 /// ユーザーが投稿した「記録」（ステータス・評価・レビュー）。
 ///
-/// [status] が [GameLogStatus.wantToPlay] の場合、[rating] は null になりうる
-/// （未プレイのため評価がまだ無い）。
+/// [status] が [GameLogStatus.wantToPlay] または [GameLogStatus.playing] の場合、
+/// [rating] は null になりうる（未プレイ・プレイ中のため評価がまだ無い）。
 class GameLog {
   const GameLog({
     required this.id,

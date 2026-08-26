@@ -303,16 +303,20 @@ class _UserFeedTabs extends ConsumerWidget {
         final played = entries
             .where((e) => e.status == GameLogStatus.played)
             .toList();
+        final playing = entries
+            .where((e) => e.status == GameLogStatus.playing)
+            .toList();
         final wantToPlay = entries
             .where((e) => e.status == GameLogStatus.wantToPlay)
             .toList();
         return DefaultTabController(
-          length: 3,
+          length: 4,
           child: Column(
             children: [
               TabBar(
                 tabs: [
                   Tab(text: '遊んだ（${played.length}）'),
+                  Tab(text: 'プレイ中（${playing.length}）'),
                   Tab(text: '遊びたい（${wantToPlay.length}）'),
                   const Tab(text: 'オレの推しゲー'),
                 ],
@@ -321,6 +325,7 @@ class _UserFeedTabs extends ConsumerWidget {
                 child: TabBarView(
                   children: [
                     _UserGameList(entries: played, isGridView: isGridView),
+                    _UserGameList(entries: playing, isGridView: isGridView),
                     _UserGameList(entries: wantToPlay, isGridView: isGridView),
                     _UserFavoritesTab(userId: userId, isGridView: isGridView),
                   ],
