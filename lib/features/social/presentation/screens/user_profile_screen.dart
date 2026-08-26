@@ -172,6 +172,20 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('プロフィール'),
+        // プッシュ通知のタップやQRコード/招待リンクの深いリンクなど、遷移スタックを
+        // 持たずにこの画面へ直接遷移してきた場合（context.canPop()がfalse）は
+        // 戻る先が無いため、ホームへ移動するボタンを代わりに出す。
+        leading: context.canPop()
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: '戻る',
+                onPressed: () => context.pop(),
+              )
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'ホームに戻る',
+                onPressed: () => context.go('/home'),
+              ),
         actions: [
           IconButton(
             onPressed: () => setState(() => _isGridView = !_isGridView),
