@@ -1,9 +1,9 @@
 import '../../game_search/domain/genre_options.dart';
 import '../../game_log/domain/game_log.dart';
 
-enum SummaryPeriodType { month, year, all }
+enum SummaryPeriodType { week, month, year, all }
 
-/// 指定期間（月・年・すべて）内の記録をまとめた集計結果。
+/// 指定期間（週・月・年・すべて）内の記録をまとめた集計結果。
 class PeriodSummary {
   const PeriodSummary({
     required this.periodStart,
@@ -42,6 +42,7 @@ class PeriodSummary {
   }
 
   DateTime get periodEnd => switch (periodType) {
+        SummaryPeriodType.week => periodStart.add(const Duration(days: 7)),
         SummaryPeriodType.month =>
           DateTime(periodStart.year, periodStart.month + 1),
         SummaryPeriodType.year =>
@@ -50,6 +51,8 @@ class PeriodSummary {
       };
 
   String get periodLabel => switch (periodType) {
+        SummaryPeriodType.week =>
+          '${periodStart.year}年${periodStart.month}月${periodStart.day}日の週',
         SummaryPeriodType.month => '${periodStart.year}年${periodStart.month}月',
         SummaryPeriodType.year => '${periodStart.year}年',
         SummaryPeriodType.all => 'すべての記録',
@@ -63,9 +66,13 @@ PeriodSummary summarizePeriod(
   required DateTime periodStart,
   required SummaryPeriodType periodType,
 }) {
-  final periodEnd = periodType == SummaryPeriodType.month
-      ? DateTime(periodStart.year, periodStart.month + 1)
-      : DateTime(periodStart.year + 1, periodStart.month);
+  final periodEnd = switch (periodType) {
+    SummaryPeriodType.week => periodStart.add(const Duration(days: 7)),
+    SummaryPeriodType.month =>
+      DateTime(periodStart.year, periodStart.month + 1),
+    SummaryPeriodType.year || SummaryPeriodType.all =>
+      DateTime(periodStart.year + 1, periodStart.month),
+  };
 
   bool inPeriod(DateTime dt) =>
       periodType == SummaryPeriodType.all ||

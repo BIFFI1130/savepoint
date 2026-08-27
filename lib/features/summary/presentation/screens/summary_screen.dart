@@ -25,16 +25,32 @@ class SummaryScreen extends ConsumerStatefulWidget {
   ConsumerState<SummaryScreen> createState() => _SummaryScreenState();
 }
 
-class _SummaryScreenState extends ConsumerState<SummaryScreen> {
+class _SummaryScreenState extends ConsumerState<SummaryScreen>
+    with SingleTickerProviderStateMixin {
   SummaryPeriodType _periodType = SummaryPeriodType.month;
   late DateTime _periodStart = _currentPeriodStart(_periodType);
+  late final TabController _tabController =
+      TabController(length: 3, vsync: this);
   final _shareCardKey = GlobalKey();
   PeriodSummary? _lastSummary;
   bool _isSharing = false;
 
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  /// 週間表示の開始日（その週の月曜日）。他機能（週間記録ストリーク等）と
+  /// 同じ「月曜始まり」の考え方に揃えている。
+  DateTime _weekStart(DateTime date) =>
+      DateTime(date.year, date.month, date.day)
+          .subtract(Duration(days: date.weekday - 1));
+
   DateTime _currentPeriodStart(SummaryPeriodType type) {
     final now = DateTime.now();
     return switch (type) {
+      SummaryPeriodType.week => _weekStart(now),
       SummaryPeriodType.month => DateTime(now.year, now.month),
       SummaryPeriodType.year => DateTime(now.year),
       SummaryPeriodType.all => DateTime(now.year),
@@ -53,13 +69,20 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen> {
 
   void _shiftPeriod(int direction) {
     setState(() {
-      _periodStart = _periodType == SummaryPeriodType.month
-          ? DateTime(_periodStart.year, _periodStart.month + direction)
-          : DateTime(_periodStart.year + direction);
+      _periodStart = switch (_periodType) {
+        SummaryPeriodType.week =>
+          _periodStart.add(Duration(days: 7 * direction)),
+        SummaryPeriodType.month =>
+          DateTime(_periodStart.year, _periodStart.month + direction),
+        SummaryPeriodType.year || SummaryPeriodType.all =>
+          DateTime(_periodStart.year + direction),
+      };
     });
   }
 
   String get _periodLabel => switch (_periodType) {
+        SummaryPeriodType.week =>
+          '${_periodStart.year}年${_periodStart.month}月${_periodStart.day}日の週',
         SummaryPeriodType.month => '${_periodStart.year}年${_periodStart.month}月',
         SummaryPeriodType.year => '${_periodStart.year}年',
         SummaryPeriodType.all => 'すべての記録',
@@ -125,26 +148,10 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen> {
           Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: Card(
-                  margin: EdgeInsets.zero,
-                  child: ListTile(
-                    leading: const Text('🎮', style: TextStyle(fontSize: 24)),
-                    title: const Text('プレイ傾向診断'),
-                    subtitle: const Text('あなたのゲーマータイプを診断してシェアしよう'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.push('/summary/gamer-type'),
-                  ),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: _LeaderboardCard(),
-              ),
-              Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: SegmentedButton<SummaryPeriodType>(
                   segments: const [
+                    ButtonSegment(value: SummaryPeriodType.week, label: Text('週間')),
                     ButtonSegment(value: SummaryPeriodType.month, label: Text('月間')),
                     ButtonSegment(value: SummaryPeriodType.year, label: Text('年間')),
                     ButtonSegment(value: SummaryPeriodType.all, label: Text('すべて')),
@@ -161,34 +168,47 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen> {
                       icon: const Icon(Icons.chevron_left),
                       onPressed: () => _shiftPeriod(-1),
                     ),
-                    Text(
-                      _periodType == SummaryPeriodType.month
-                          ? '${_periodStart.year}年${_periodStart.month}月'
-                          : '${_periodStart.year}年',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
+                    Text(_periodLabel, style: Theme.of(context).textTheme.titleMedium),
                     IconButton(
                       icon: const Icon(Icons.chevron_right),
                       onPressed: _isAtCurrentPeriod ? null : () => _shiftPeriod(1),
                     ),
                   ],
                 ),
+              const Divider(height: 1),
+              TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                tabs: const [
+                  Tab(text: '記録'),
+                  Tab(text: 'フォロー内ランキング'),
+                  Tab(text: 'プレイ傾向診断'),
+                ],
+              ),
               Expanded(
-                child: logsAsync.when(
-                  data: (logs) {
-                    final summary = summarizePeriod(
-                      logs,
-                      periodStart: _periodStart,
-                      periodType: _periodType,
-                    );
-                    _lastSummary = summary;
-                    return _SummaryBody(summary: summary);
-                  },
-                  loading: () => const LoadingView(),
-                  error: (error, _) => ErrorView(
-                    message: 'まとめの取得に失敗しました',
-                    onRetry: () => ref.invalidate(myLogsProvider),
-                  ),
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    logsAsync.when(
+                      data: (logs) {
+                        final summary = summarizePeriod(
+                          logs,
+                          periodStart: _periodStart,
+                          periodType: _periodType,
+                        );
+                        _lastSummary = summary;
+                        return _SummaryBody(summary: summary);
+                      },
+                      loading: () => const LoadingView(),
+                      error: (error, _) => ErrorView(
+                        message: 'まとめの取得に失敗しました',
+                        onRetry: () => ref.invalidate(myLogsProvider),
+                      ),
+                    ),
+                    const _LeaderboardTab(),
+                    _GamerTypeTab(onTap: () => context.push('/summary/gamer-type')),
+                  ],
                 ),
               ),
               const IgdbFooter(),
@@ -216,8 +236,63 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen> {
   }
 }
 
+/// 「フォロー内ランキング」タブの中身。期間選択（週間/月間/年間/すべて）とは
+/// 独立して、常に直近7日固定で表示する。
+class _LeaderboardTab extends ConsumerWidget {
+  const _LeaderboardTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final leaderboardAsync = ref.watch(followFeedLeaderboardProvider);
+    return leaderboardAsync.when(
+      data: (entries) {
+        if (entries.isEmpty) {
+          return const EmptyView(
+            message: 'フォロー中のユーザーの記録がまだありません',
+            icon: Icons.leaderboard_outlined,
+          );
+        }
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: const [_LeaderboardCard()],
+        );
+      },
+      loading: () => const LoadingView(),
+      error: (error, _) => ErrorView(
+        message: 'ランキングの取得に失敗しました',
+        onRetry: () => ref.invalidate(followFeedLeaderboardProvider),
+      ),
+    );
+  }
+}
+
+/// 「プレイ傾向診断」タブの中身。診断結果は別画面（gamer-type）に持つため、
+/// ここは導線カードのみを表示する。
+class _GamerTypeTab extends StatelessWidget {
+  const _GamerTypeTab({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: ListTile(
+          leading: const Text('🎮', style: TextStyle(fontSize: 24)),
+          title: const Text('プレイ傾向診断'),
+          subtitle: const Text('あなたのゲーマータイプを診断してシェアしよう'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: onTap,
+        ),
+      ),
+    );
+  }
+}
+
 /// フォロー内リーダーボード（直近7日間の記録数ランキング上位5名）。
-/// 期間選択（月間/年間/すべて）とは独立して、常に直近7日固定で表示する。
+/// 期間選択（週間/月間/年間/すべて）とは独立して、常に直近7日固定で表示する。
 class _LeaderboardCard extends ConsumerWidget {
   const _LeaderboardCard();
 
@@ -656,7 +731,8 @@ class _DetailedStats extends StatelessWidget {
           _RatingBreakdown(ratingCounts: summary.ratingCounts),
           const SizedBox(height: 20),
         ],
-        if (summary.periodType != SummaryPeriodType.month) ...[
+        if (summary.periodType != SummaryPeriodType.week &&
+            summary.periodType != SummaryPeriodType.month) ...[
           Text('記録数の推移', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
           _TrendChart(summary: summary),
