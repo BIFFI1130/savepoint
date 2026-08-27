@@ -13,11 +13,13 @@ class StatsRepository {
     return GameLogStats.fromJson(row);
   }
 
-  /// [genres] は複数選択可能で、選択されたうちどれか1つでも当てはまればOR条件で含める。
+  /// [genres] は複数選択可能。[matchAllGenres] がfalse（既定）なら選択されたうちどれか
+  /// 1つでも当てはまればOR条件で、trueなら選択された全てに当てはまるものだけAND条件で含める。
   Future<List<GameLogStats>> fetchTopWantToPlay({
     int limit = 20,
     bool includeAdult = false,
     Set<String> genres = const {},
+    bool matchAllGenres = false,
   }) async {
     var query = supabase
         .from('game_log_stats')
@@ -27,7 +29,9 @@ class StatsRepository {
       query = query.eq('is_adult', false);
     }
     if (genres.isNotEmpty) {
-      query = query.overlaps('genres', genres.toList());
+      query = matchAllGenres
+          ? query.contains('genres', genres.toList())
+          : query.overlaps('genres', genres.toList());
     }
     final rows =
         await query.order('want_to_play_count', ascending: false).limit(limit);
@@ -37,11 +41,13 @@ class StatsRepository {
         .toList(growable: false);
   }
 
-  /// [genres] は複数選択可能で、選択されたうちどれか1つでも当てはまればOR条件で含める。
+  /// [genres] は複数選択可能。[matchAllGenres] がfalse（既定）なら選択されたうちどれか
+  /// 1つでも当てはまればOR条件で、trueなら選択された全てに当てはまるものだけAND条件で含める。
   Future<List<GameLogStats>> fetchTopPlayed({
     int limit = 20,
     bool includeAdult = false,
     Set<String> genres = const {},
+    bool matchAllGenres = false,
   }) async {
     var query =
         supabase.from('game_log_stats').select().gt('played_count', 0);
@@ -49,7 +55,9 @@ class StatsRepository {
       query = query.eq('is_adult', false);
     }
     if (genres.isNotEmpty) {
-      query = query.overlaps('genres', genres.toList());
+      query = matchAllGenres
+          ? query.contains('genres', genres.toList())
+          : query.overlaps('genres', genres.toList());
     }
     final rows =
         await query.order('played_count', ascending: false).limit(limit);

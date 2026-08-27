@@ -38,6 +38,7 @@ class _ReleaseCalendarScreenState
   // 持たないためProviderが「引数が変わっていない」と誤認し、再フェッチされなくなる）。
   Set<String> _selectedPlatforms = {};
   Set<String> _selectedGenres = {};
+  bool _matchAllGenres = false;
   late bool _includeAdult;
   late bool _includeIndie;
 
@@ -101,6 +102,7 @@ class _ReleaseCalendarScreenState
                             onPressed: () {
                               setState(() {
                                 _selectedGenres = {};
+                                _matchAllGenres = false;
                                 _selectedPlatforms = {};
                                 _includeAdult = false;
                                 _includeIndie = true;
@@ -118,6 +120,11 @@ class _ReleaseCalendarScreenState
                       GenreFilterSection(
                         selectedGenres: _selectedGenres,
                         onToggle: toggleGenre,
+                        matchAllGenres: _matchAllGenres,
+                        onMatchAllChanged: (value) {
+                          setState(() => _matchAllGenres = value);
+                          setSheetState(() {});
+                        },
                       ),
                       const SizedBox(height: 16),
                       Text('対応ハード', style: Theme.of(context).textTheme.labelMedium),
@@ -217,6 +224,7 @@ class _ReleaseCalendarScreenState
       genres: _selectedGenres,
       includeAdult: _includeAdult,
       includeIndie: _includeIndie,
+      matchAllGenres: _matchAllGenres,
     );
 
     return Column(

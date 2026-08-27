@@ -62,6 +62,7 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
   Set<String> _platforms = {};
   String _developer = '';
   Set<String> _genres = {};
+  bool _matchAllGenres = false;
   GameSortType _sort = GameSortType.releaseDate;
   bool _sortAscending = false;
   bool _includeUpcoming = false;
@@ -96,6 +97,12 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
   /// カテゴリ（ジャンル）チップも選ぶだけなので即時反映する。
   void setGenres(Set<String> genres) {
     _genres = genres;
+    _schedule(immediate: true);
+  }
+
+  /// 複数ジャンル選択時の判定切り替え（すべて当てはまる/いずれかが当てはまる）。
+  void setGenreMatchAll(bool value) {
+    _matchAllGenres = value;
     _schedule(immediate: true);
   }
 
@@ -160,6 +167,7 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
             platforms: _platforms,
             developer: _developer.isEmpty ? null : _developer,
             genres: _genres,
+            matchAllGenres: _matchAllGenres,
             sort: _sort.value,
             sortAscending: _sortAscending,
             includeUpcoming: _includeUpcoming,
@@ -185,6 +193,7 @@ class GameSearchNotifier extends AsyncNotifier<GameSearchResults> {
             platforms: _platforms,
             developer: _developer.isEmpty ? null : _developer,
             genres: _genres,
+            matchAllGenres: _matchAllGenres,
             sort: _sort.value,
             sortAscending: _sortAscending,
             includeUpcoming: _includeUpcoming,

@@ -24,6 +24,7 @@ class IgdbRepository {
     Set<String> platforms = const {},
     String? developer,
     Set<String> genres = const {},
+    bool matchAllGenres = false,
     String? sort,
     bool sortAscending = false,
     bool includeUpcoming = false,
@@ -45,6 +46,7 @@ class IgdbRepository {
         if (platforms.isNotEmpty) 'platforms': platforms.toList(),
         if (developer != null && developer.isNotEmpty) 'developer': developer,
         if (genres.isNotEmpty) 'genres': genres.toList(),
+        if (genres.length > 1) 'genreMatchAll': matchAllGenres,
         if (trimmedQuery.isEmpty && sort != null) 'sort': sort,
         if (trimmedQuery.isEmpty && sort != null) 'sortAscending': sortAscending,
         if (trimmedQuery.isEmpty && includeUpcoming) 'includeUpcoming': true,
@@ -81,6 +83,7 @@ class IgdbRepository {
     Set<String> genres = const {},
     bool includeAdult = false,
     bool includeIndie = false,
+    bool matchAllGenres = false,
   }) async {
     final response = await supabase.functions.invoke(
       'igdb-proxy',
@@ -88,6 +91,7 @@ class IgdbRepository {
         'action': 'weekly_releases',
         if (platforms.isNotEmpty) 'platforms': platforms.toList(),
         if (genres.isNotEmpty) 'genres': genres.toList(),
+        if (genres.length > 1) 'genreMatchAll': matchAllGenres,
         if (includeAdult) 'includeAdult': true,
         if (includeIndie) 'includeIndie': true,
       },
@@ -109,6 +113,7 @@ class IgdbRepository {
     Set<String> genres = const {},
     bool includeAdult = false,
     bool includeIndie = false,
+    bool matchAllGenres = false,
   }) async {
     final response = await supabase.functions.invoke(
       'igdb-proxy',
@@ -116,6 +121,7 @@ class IgdbRepository {
         'action': 'monthly_releases',
         if (platforms.isNotEmpty) 'platforms': platforms.toList(),
         if (genres.isNotEmpty) 'genres': genres.toList(),
+        if (genres.length > 1) 'genreMatchAll': matchAllGenres,
         if (includeAdult) 'includeAdult': true,
         if (includeIndie) 'includeIndie': true,
       },
@@ -138,6 +144,7 @@ class IgdbRepository {
     Set<String> genres = const {},
     bool includeAdult = false,
     bool includeIndie = false,
+    bool matchAllGenres = false,
   }) async {
     final response = await supabase.functions.invoke(
       'igdb-proxy',
@@ -145,6 +152,7 @@ class IgdbRepository {
         'action': 'top100',
         if (platforms.isNotEmpty) 'platforms': platforms.toList(),
         if (genres.isNotEmpty) 'genres': genres.toList(),
+        if (genres.length > 1) 'genreMatchAll': matchAllGenres,
         if (includeAdult) 'includeAdult': true,
         if (includeIndie) 'includeIndie': true,
       },
@@ -170,6 +178,7 @@ class IgdbRepository {
     Set<String> genres = const {},
     bool includeAdult = false,
     bool includeIndie = false,
+    bool matchAllGenres = false,
   }) async {
     final rangeStartStr =
         '${rangeStart.year.toString().padLeft(4, '0')}-'
@@ -183,6 +192,7 @@ class IgdbRepository {
         'days': days,
         if (platforms.isNotEmpty) 'platforms': platforms.toList(),
         if (genres.isNotEmpty) 'genres': genres.toList(),
+        if (genres.length > 1) 'genreMatchAll': matchAllGenres,
         if (includeAdult) 'includeAdult': true,
         if (includeIndie) 'includeIndie': true,
       },

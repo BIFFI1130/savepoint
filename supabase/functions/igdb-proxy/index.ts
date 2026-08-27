@@ -565,6 +565,13 @@ function buildPlatformFilter(platformList: string[]): string | null {
 /**
  * ジャンル名の配列からIGDBのwhere句断片を作る（OR条件）。複数選択時は
  * 選択されたうちどれか1つでも当てはまれば一覧に含める。空配列ならnullを返す。
+ *
+ * 注意: to-many関係（genres）に対して`genres.name = "A" & genres.name = "B"`の
+ * ようにANDで繋いでも、IGDB側は「1件の紐づくジャンル行がAでもありBでもある」
+ * という（常に偽になる）判定をしてしまい、「AとBの両方を持つ」の意味にならない
+ * （実機検証で確認済み：両方のジャンルを持つことが確実なタイトルでもAND指定では
+ * 0件になった）。そのためwhere句は常にOR（ここ）で広めに取得し、「すべて当てはまる」
+ * （AND）の絞り込みは[applyGenreMatchAllFilter]で取得後にJavaScript側で行う。
  */
 function buildGenreFilter(genreList: string[]): string | null {
   if (genreList.length === 0) return null;
@@ -572,6 +579,21 @@ function buildGenreFilter(genreList: string[]): string | null {
     .map((g) => `genres.name = "${g.trim().replace(/"/g, '\\"')}"`)
     .join(' | ');
   return genreList.length > 1 ? `(${clause})` : clause;
+}
+
+/**
+ * 複数ジャンル選択時の「すべて当てはまる」（AND）判定を、取得済みの行に対して
+ * 事後フィルタする。[matchAll]がfalseまたは選択が1件以下なら（where句のOR条件で
+ * 既に十分なため）何もしない。IGDBのwhere句ではto-many関係のAND表現ができない
+ * ため（[buildGenreFilter]参照）、この方式を取る。
+ */
+function applyGenreMatchAllFilter<T extends { genres: string[] }>(
+  rows: T[],
+  genreList: string[],
+  matchAll: boolean,
+): T[] {
+  if (!matchAll || genreList.length <= 1) return rows;
+  return rows.filter((row) => genreList.every((g) => row.genres.includes(g)));
 }
 
 /**
@@ -662,7 +684,7 @@ Deno.serve(async (req) => {
 
   try {
     const {
-      action, query, id, platform, platforms, developer, genre, genres,
+      action, query, id, platform, platforms, developer, genre, genres, genreMatchAll,
       offset, sort, sortAscending, includeUpcoming, includeAdult, includeIndie, year, month, weekStart, days,
     } = await req.json();
     const accessToken = await getTwitchAccessToken(db);
@@ -812,7 +834,12 @@ Deno.serve(async (req) => {
         }
       }
       const rowsWithDevFlag = await mergeCachedIsJapaneseDeveloper(db, rows);
-      return new Response(JSON.stringify(rowsWithDevFlag), {
+      const filteredRows = applyGenreMatchAllFilter(
+        rowsWithDevFlag,
+        genreList,
+        genreMatchAll === true,
+      );
+      return new Response(JSON.stringify(filteredRows), {
         headers: { 'Content-Type': 'application/json' },
       });
     }
@@ -898,7 +925,12 @@ Deno.serve(async (req) => {
         }
       }
       const rowsWithDevFlag = await mergeCachedIsJapaneseDeveloper(db, rows);
-      return new Response(JSON.stringify(rowsWithDevFlag), {
+      const filteredRows = applyGenreMatchAllFilter(
+        rowsWithDevFlag,
+        releaseGenreList,
+        genreMatchAll === true,
+      );
+      return new Response(JSON.stringify(filteredRows), {
         headers: { 'Content-Type': 'application/json' },
       });
     }
@@ -929,7 +961,12 @@ Deno.serve(async (req) => {
         }
       }
       const rowsWithDevFlag = await mergeCachedIsJapaneseDeveloper(db, rows);
-      return new Response(JSON.stringify(rowsWithDevFlag), {
+      const filteredRows = applyGenreMatchAllFilter(
+        rowsWithDevFlag,
+        releaseGenreList,
+        genreMatchAll === true,
+      );
+      return new Response(JSON.stringify(filteredRows), {
         headers: { 'Content-Type': 'application/json' },
       });
     }
@@ -988,7 +1025,12 @@ Deno.serve(async (req) => {
         }
       }
       const rowsWithDevFlag = await mergeCachedIsJapaneseDeveloper(db, rows);
-      return new Response(JSON.stringify(rowsWithDevFlag), {
+      const filteredRows = applyGenreMatchAllFilter(
+        rowsWithDevFlag,
+        releaseGenreList,
+        genreMatchAll === true,
+      );
+      return new Response(JSON.stringify(filteredRows), {
         headers: { 'Content-Type': 'application/json' },
       });
     }
@@ -1031,7 +1073,12 @@ Deno.serve(async (req) => {
         }
       }
       const rowsWithDevFlag = await mergeCachedIsJapaneseDeveloper(db, rows);
-      return new Response(JSON.stringify(rowsWithDevFlag), {
+      const filteredRows = applyGenreMatchAllFilter(
+        rowsWithDevFlag,
+        releaseGenreList,
+        genreMatchAll === true,
+      );
+      return new Response(JSON.stringify(filteredRows), {
         headers: { 'Content-Type': 'application/json' },
       });
     }

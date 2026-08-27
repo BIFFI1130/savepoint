@@ -47,6 +47,7 @@ class _ReleaseListScreenState extends ConsumerState<ReleaseListScreen> {
   late Set<String> _selectedGenres = {
     ...?widget.initialFilter?.genres,
   };
+  late bool _matchAllGenres = widget.initialFilter?.matchAllGenres ?? false;
   late bool _includeAdult;
   late bool _includeIndie;
   bool _isGridView = false;
@@ -119,6 +120,7 @@ class _ReleaseListScreenState extends ConsumerState<ReleaseListScreen> {
                             onPressed: () {
                               setState(() {
                                 _selectedGenres = {};
+                                _matchAllGenres = false;
                                 _selectedPlatforms = {};
                                 _includeAdult = false;
                                 _includeIndie = true;
@@ -136,6 +138,11 @@ class _ReleaseListScreenState extends ConsumerState<ReleaseListScreen> {
                       GenreFilterSection(
                         selectedGenres: _selectedGenres,
                         onToggle: toggleGenre,
+                        matchAllGenres: _matchAllGenres,
+                        onMatchAllChanged: (value) {
+                          setState(() => _matchAllGenres = value);
+                          setSheetState(() {});
+                        },
                       ),
                       const SizedBox(height: 16),
                       Text('対応ハード', style: Theme.of(context).textTheme.labelMedium),
@@ -185,6 +192,7 @@ class _ReleaseListScreenState extends ConsumerState<ReleaseListScreen> {
       genres: _selectedGenres,
       includeAdult: _includeAdult,
       includeIndie: _includeIndie,
+      matchAllGenres: _matchAllGenres,
     );
     final provider = switch (widget.type) {
       ReleaseListType.weekly => weeklyReleasesProvider(filter),

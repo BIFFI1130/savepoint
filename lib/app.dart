@@ -115,6 +115,7 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
           genres: const <String>{},
           includeAdult: contentFilterPrefs.includeAdult,
           includeIndie: contentFilterPrefs.includeIndie,
+          matchAllGenres: false,
         ),
       );
       final games =

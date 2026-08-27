@@ -29,6 +29,7 @@ class _RecommendedGamesScreenState
     extends ConsumerState<RecommendedGamesScreen> {
   Set<String> _selectedPlatforms = {};
   Set<String> _selectedGenres = {};
+  bool _matchAllGenres = false;
   late bool _includeAdult;
   bool _isGridView = false;
 
@@ -47,9 +48,11 @@ class _RecommendedGamesScreenState
           !game.platforms.any(_selectedPlatforms.contains)) {
         return false;
       }
-      if (_selectedGenres.isNotEmpty &&
-          !game.genres.any(_selectedGenres.contains)) {
-        return false;
+      if (_selectedGenres.isNotEmpty) {
+        final matches = _matchAllGenres
+            ? _selectedGenres.every(game.genres.contains)
+            : game.genres.any(_selectedGenres.contains);
+        if (!matches) return false;
       }
       if (!_includeAdult && game.isAdult) return false;
       return true;
@@ -102,6 +105,7 @@ class _RecommendedGamesScreenState
                             onPressed: () {
                               setState(() {
                                 _selectedGenres = {};
+                                _matchAllGenres = false;
                                 _selectedPlatforms = {};
                                 _includeAdult = false;
                               });
@@ -116,6 +120,11 @@ class _RecommendedGamesScreenState
                       GenreFilterSection(
                         selectedGenres: _selectedGenres,
                         onToggle: toggleGenre,
+                        matchAllGenres: _matchAllGenres,
+                        onMatchAllChanged: (value) {
+                          setState(() => _matchAllGenres = value);
+                          setSheetState(() {});
+                        },
                       ),
                       const SizedBox(height: 16),
                       Text('対応ハード', style: Theme.of(context).textTheme.labelMedium),

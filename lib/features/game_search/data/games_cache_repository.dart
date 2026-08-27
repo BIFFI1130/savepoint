@@ -15,12 +15,14 @@ class GamesCacheRepository {
     Set<String> genres = const {},
     bool includeAdult = false,
     bool includeIndie = false,
+    bool matchAllGenres = false,
   }) async {
     final data = await supabase.rpc('igdb_weekly_releases', params: {
       'p_platforms': platforms.toList(),
       'p_genres': genres.toList(),
       'p_include_adult': includeAdult,
       'p_include_indie': includeIndie,
+      'p_match_all_genres': matchAllGenres,
     });
     return _toGames(data);
   }
@@ -30,12 +32,14 @@ class GamesCacheRepository {
     Set<String> genres = const {},
     bool includeAdult = false,
     bool includeIndie = false,
+    bool matchAllGenres = false,
   }) async {
     final data = await supabase.rpc('igdb_monthly_releases', params: {
       'p_platforms': platforms.toList(),
       'p_genres': genres.toList(),
       'p_include_adult': includeAdult,
       'p_include_indie': includeIndie,
+      'p_match_all_genres': matchAllGenres,
     });
     return _toGames(data);
   }
@@ -45,12 +49,14 @@ class GamesCacheRepository {
     Set<String> genres = const {},
     bool includeAdult = false,
     bool includeIndie = false,
+    bool matchAllGenres = false,
   }) async {
     final data = await supabase.rpc('igdb_top100', params: {
       'p_platforms': platforms.toList(),
       'p_genres': genres.toList(),
       'p_include_adult': includeAdult,
       'p_include_indie': includeIndie,
+      'p_match_all_genres': matchAllGenres,
     });
     return _toGames(data);
   }
@@ -62,6 +68,7 @@ class GamesCacheRepository {
     Set<String> genres = const {},
     bool includeAdult = false,
     bool includeIndie = false,
+    bool matchAllGenres = false,
   }) async {
     final rangeStartStr =
         '${rangeStart.year.toString().padLeft(4, '0')}-'
@@ -74,6 +81,7 @@ class GamesCacheRepository {
       'p_genres': genres.toList(),
       'p_include_adult': includeAdult,
       'p_include_indie': includeIndie,
+      'p_match_all_genres': matchAllGenres,
     });
     return _toGames(data);
   }

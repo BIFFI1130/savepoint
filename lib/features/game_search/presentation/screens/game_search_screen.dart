@@ -30,6 +30,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
   final _scrollController = ScrollController();
   final Set<String> _selectedPlatforms = {};
   final Set<String> _selectedGenres = {};
+  bool _matchAllGenres = false;
   String _queryText = '';
   GameSortType _sort = GameSortType.releaseDate;
   bool _sortAscending = false;
@@ -171,6 +172,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
                             onPressed: () {
                               setState(() {
                                 _selectedGenres.clear();
+                                _matchAllGenres = false;
                                 _selectedPlatforms.clear();
                                 _includeAdult = false;
                                 _includeIndie = true;
@@ -178,6 +180,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
                               });
                               ref.read(gameSearchProvider.notifier)
                                 ..setGenres(_selectedGenres)
+                                ..setGenreMatchAll(false)
                                 ..setPlatforms(_selectedPlatforms)
                                 ..setIncludeAdult(false)
                                 ..setIncludeIndie(true)
@@ -192,6 +195,12 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
                       GenreFilterSection(
                         selectedGenres: _selectedGenres,
                         onToggle: toggleGenre,
+                        matchAllGenres: _matchAllGenres,
+                        onMatchAllChanged: (value) {
+                          setState(() => _matchAllGenres = value);
+                          ref.read(gameSearchProvider.notifier).setGenreMatchAll(value);
+                          setSheetState(() {});
+                        },
                       ),
                       const SizedBox(height: 16),
                       Text('対応ハード', style: Theme.of(context).textTheme.labelMedium),

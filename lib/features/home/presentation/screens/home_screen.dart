@@ -29,6 +29,7 @@ class HomeScreen extends ConsumerWidget {
       genres: const <String>{},
       includeAdult: contentFilterPrefs.includeAdult,
       includeIndie: contentFilterPrefs.includeIndie,
+      matchAllGenres: false,
     );
     final releasesAsync = ref.watch(weeklyReleasesProvider(noFilter));
     final monthlyReleasesAsync = ref.watch(monthlyReleasesProvider(noFilter));

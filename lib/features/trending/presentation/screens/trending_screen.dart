@@ -27,6 +27,7 @@ class _TrendingScreenState extends ConsumerState<TrendingScreen> {
   // 差し替える（同一インスタンスをin-placeでadd/removeすると、DartのSetは値の等価性を
   // 持たないためProviderが「引数が変わっていない」と誤認し、再フェッチされなくなる）。
   Set<String> _selectedGenres = {};
+  bool _matchAllGenres = false;
   bool _isGridView = false;
 
   bool get _hasActiveFilter => _includeAdult || _selectedGenres.isNotEmpty;
@@ -68,6 +69,7 @@ class _TrendingScreenState extends ConsumerState<TrendingScreen> {
                             onPressed: () {
                               setState(() {
                                 _selectedGenres = {};
+                                _matchAllGenres = false;
                                 _includeAdult = false;
                               });
                               setSheetState(() {});
@@ -80,6 +82,11 @@ class _TrendingScreenState extends ConsumerState<TrendingScreen> {
                       GenreFilterSection(
                         selectedGenres: _selectedGenres,
                         onToggle: toggleGenre,
+                        matchAllGenres: _matchAllGenres,
+                        onMatchAllChanged: (value) {
+                          setState(() => _matchAllGenres = value);
+                          setSheetState(() {});
+                        },
                       ),
                       AdvancedFiltersSection(
                         includeAdult: _includeAdult,
@@ -102,7 +109,11 @@ class _TrendingScreenState extends ConsumerState<TrendingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filter = (includeAdult: _includeAdult, genres: _selectedGenres);
+    final filter = (
+      includeAdult: _includeAdult,
+      genres: _selectedGenres,
+      matchAllGenres: _matchAllGenres,
+    );
 
     return DefaultTabController(
       length: 2,

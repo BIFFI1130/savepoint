@@ -65,6 +65,7 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
   MyLogSortType _sort = MyLogSortType.addedOrder;
   bool _includeAdult = false;
   final Set<String> _selectedGenres = {};
+  bool _matchAllGenres = false;
   bool _isGridView = false;
   bool _isExporting = false;
 
@@ -112,7 +113,9 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
               e.log.status == status &&
               (_includeAdult || !e.game.isAdult) &&
               (_selectedGenres.isEmpty ||
-                  e.game.genres.any(_selectedGenres.contains)),
+                  (_matchAllGenres
+                      ? _selectedGenres.every(e.game.genres.contains)
+                      : e.game.genres.any(_selectedGenres.contains))),
         )
         .toList();
     filtered.sort((a, b) {
@@ -179,6 +182,7 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
                             onPressed: () {
                               setState(() {
                                 _selectedGenres.clear();
+                                _matchAllGenres = false;
                                 _includeAdult = false;
                               });
                               setSheetState(() {});
@@ -191,6 +195,11 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
                       GenreFilterSection(
                         selectedGenres: _selectedGenres,
                         onToggle: toggleGenre,
+                        matchAllGenres: _matchAllGenres,
+                        onMatchAllChanged: (value) {
+                          setState(() => _matchAllGenres = value);
+                          setSheetState(() {});
+                        },
                       ),
                       AdvancedFiltersSection(
                         includeAdult: _includeAdult,

@@ -13,6 +13,7 @@ typedef HomeReleasesFilter = ({
   Set<String> genres,
   bool includeAdult,
   bool includeIndie,
+  bool matchAllGenres,
 });
 
 /// 今週発売のゲーム一覧。IGDB Data Dumpsのローカルミラーが新しければそちらから、
@@ -26,12 +27,14 @@ final weeklyReleasesProvider =
       genres: filter.genres,
       includeAdult: filter.includeAdult,
       includeIndie: filter.includeIndie,
+      matchAllGenres: filter.matchAllGenres,
     ),
     live: () => ref.read(igdbRepositoryProvider).weeklyReleases(
           platforms: filter.platforms,
           genres: filter.genres,
           includeAdult: filter.includeAdult,
           includeIndie: filter.includeIndie,
+          matchAllGenres: filter.matchAllGenres,
         ),
   );
 });
@@ -46,12 +49,14 @@ final monthlyReleasesProvider =
       genres: filter.genres,
       includeAdult: filter.includeAdult,
       includeIndie: filter.includeIndie,
+      matchAllGenres: filter.matchAllGenres,
     ),
     live: () => ref.read(igdbRepositoryProvider).monthlyReleases(
           platforms: filter.platforms,
           genres: filter.genres,
           includeAdult: filter.includeAdult,
           includeIndie: filter.includeIndie,
+          matchAllGenres: filter.matchAllGenres,
         ),
   );
 });
@@ -66,12 +71,14 @@ final top100Provider =
       genres: filter.genres,
       includeAdult: filter.includeAdult,
       includeIndie: filter.includeIndie,
+      matchAllGenres: filter.matchAllGenres,
     ),
     live: () => ref.read(igdbRepositoryProvider).top100(
           platforms: filter.platforms,
           genres: filter.genres,
           includeAdult: filter.includeAdult,
           includeIndie: filter.includeIndie,
+          matchAllGenres: filter.matchAllGenres,
         ),
   );
 });

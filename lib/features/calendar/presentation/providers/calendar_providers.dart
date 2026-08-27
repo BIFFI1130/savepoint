@@ -11,6 +11,7 @@ typedef CalendarFilter = ({
   Set<String> genres,
   bool includeAdult,
   bool includeIndie,
+  bool matchAllGenres,
 });
 
 /// 表示中の日付範囲の開始日＋日数＋絞り込み条件。この組み合わせ単位でリクエストを
@@ -33,6 +34,7 @@ final calendarRangeReleasesProvider =
       genres: request.filter.genres,
       includeAdult: request.filter.includeAdult,
       includeIndie: request.filter.includeIndie,
+      matchAllGenres: request.filter.matchAllGenres,
     ),
     live: () => ref.read(igdbRepositoryProvider).calendarRangeReleases(
           rangeStart: request.rangeStart,
@@ -41,6 +43,7 @@ final calendarRangeReleasesProvider =
           genres: request.filter.genres,
           includeAdult: request.filter.includeAdult,
           includeIndie: request.filter.includeIndie,
+          matchAllGenres: request.filter.matchAllGenres,
         ),
   );
 });
