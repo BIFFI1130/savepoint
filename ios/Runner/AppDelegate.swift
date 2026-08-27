@@ -1,6 +1,7 @@
 import Flutter
 import GoogleMobileAds
 import UIKit
+import firebase_messaging
 import google_mobile_ads
 
 @main
@@ -9,6 +10,13 @@ import google_mobile_ads
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    // UIScene（FlutterImplicitEngineDelegate）方式ではFlutterプラグインの登録が
+    // didInitializeImplicitFlutterEngine（このメソッドの後）まで遅延される。しかしAppleは
+    // UNUserNotificationCenter.delegateをdidFinishLaunchingWithOptions内で（returnする前に）
+    // 設定することを要求するため、firebase_messaging側の自動セットアップでは間に合わず、
+    // APNsトークンが永久に取得できない不具合になる
+    // （https://github.com/firebase/flutterfire/pull/18501）。そのため明示的に先に呼んでおく。
+    FLTFirebaseMessagingPlugin.configureNotificationCenterDelegate()
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
