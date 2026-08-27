@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/streak/app_open_streak_service.dart';
 import '../../../../core/utils/release_countdown.dart';
 import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
@@ -221,10 +220,6 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
           ),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: _AppOpenStreakBadge(),
-          ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: _HubRow(),
           ),
           const Divider(height: 1),
@@ -393,31 +388,6 @@ class _MyFavoritesTab extends ConsumerWidget {
           onRetry: () => ref.invalidate(myFavoritesProvider),
         ),
       ),
-    );
-  }
-}
-
-/// アプリを開いた連続日数のバッジ。記録の有無を問わない指標なので、
-/// 「記録ストリーク」（🔥）とは別のアイコン・文言にして混同を避ける。
-class _AppOpenStreakBadge extends ConsumerWidget {
-  const _AppOpenStreakBadge();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final streak = ref.watch(appOpenStreakProvider).valueOrNull ?? 0;
-    if (streak <= 1) return const SizedBox.shrink();
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Text('📅', style: TextStyle(fontSize: 14)),
-        const SizedBox(width: 2),
-        Text(
-          '$streak日連続起動',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.outline,
-              ),
-        ),
-      ],
     );
   }
 }

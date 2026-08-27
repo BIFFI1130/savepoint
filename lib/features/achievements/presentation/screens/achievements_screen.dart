@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/analytics/analytics_service.dart';
+import '../../../../core/streak/app_open_streak_service.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../collections/presentation/providers/collection_providers.dart';
 import '../../../game_log/presentation/providers/log_providers.dart';
@@ -55,10 +56,17 @@ class _AchievementList extends StatelessWidget {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            '$unlockedCount / ${statuses.length} 達成',
-            style: Theme.of(context).textTheme.titleMedium,
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$unlockedCount / ${statuses.length} 達成',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              const _AppOpenStreakBadge(),
+            ],
           ),
         ),
         Expanded(
@@ -67,6 +75,31 @@ class _AchievementList extends StatelessWidget {
             separatorBuilder: (context, index) => const Divider(height: 1),
             itemBuilder: (context, index) => _AchievementTile(status: statuses[index]),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// アプリを開いた連続日数のバッジ。記録の有無を問わない指標なので、
+/// 「記録ストリーク」（🔥）とは別のアイコン・文言にして混同を避ける。
+class _AppOpenStreakBadge extends ConsumerWidget {
+  const _AppOpenStreakBadge();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final streak = ref.watch(appOpenStreakProvider).valueOrNull ?? 0;
+    if (streak <= 1) return const SizedBox.shrink();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('📅', style: TextStyle(fontSize: 14)),
+        const SizedBox(width: 2),
+        Text(
+          '$streak日連続起動',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.outline,
+              ),
         ),
       ],
     );
