@@ -1,4 +1,5 @@
 import Flutter
+import FirebaseCrashlytics
 import FirebaseMessaging
 import GoogleMobileAds
 import UIKit
@@ -30,7 +31,22 @@ import google_mobile_ads
     // getAPNSToken()が永久にnullのままタイムアウトする事象を実機で確認した
     // （https://github.com/firebase/flutterfire/issues/18204）。明示的に設定して回避する。
     Messaging.messaging().apnsToken = deviceToken
+    // このコールバック自体が実際に呼ばれているかどうかをCrashlyticsで確認できるようにする
+    // （Dart側の20秒タイムアウトだけでは、そもそも呼ばれていないのか／呼ばれても
+    // Dart側に伝わっていないのかを切り分けられないため）。
+    Crashlytics.crashlytics().log(
+      "didRegisterForRemoteNotificationsWithDeviceToken fired (\(deviceToken.count) bytes)")
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+  }
+
+  override func application(
+    _ application: UIApplication,
+    didFailToRegisterForRemoteNotificationsWithError error: Error
+  ) {
+    // APNsへの登録がOS側で明示的に失敗した場合、これまでのDart側「20秒タイムアウト」の
+    // ログだけでは分からなかった実際の失敗理由（NSError）をCrashlyticsに記録する。
+    Crashlytics.crashlytics().record(error: error)
+    super.application(application, didFailToRegisterForRemoteNotificationsWithError: error)
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
