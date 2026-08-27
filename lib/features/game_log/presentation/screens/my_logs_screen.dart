@@ -226,7 +226,7 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
           TabBar(
             controller: _tabController,
             isScrollable: true,
-            tabAlignment: TabAlignment.start,
+            tabAlignment: TabAlignment.center,
             tabs: const [
               Tab(text: '遊んだ'),
               Tab(text: 'プレイ中'),

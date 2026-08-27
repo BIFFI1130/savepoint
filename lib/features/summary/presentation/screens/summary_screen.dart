@@ -179,7 +179,7 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen>
               TabBar(
                 controller: _tabController,
                 isScrollable: true,
-                tabAlignment: TabAlignment.start,
+                tabAlignment: TabAlignment.center,
                 tabs: const [
                   Tab(text: '記録'),
                   Tab(text: 'フォロー内ランキング'),
