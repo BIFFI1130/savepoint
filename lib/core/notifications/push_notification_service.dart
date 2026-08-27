@@ -5,11 +5,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:permission_handler/permission_handler.dart' as ph;
 
 import '../supabase/supabase_client.dart';
-
-const _enabledKey = 'follow_push_enabled';
 
 /// 新しいフォロワー（誰かに新しくフォローされたこと）をサーバー起点の
 /// プッシュ通知（FCM/APNs）で受け取るための登録・解除・受信表示をまとめて扱う。
@@ -19,6 +17,11 @@ const _enabledKey = 'follow_push_enabled';
 /// （notify-new-follower Edge Function）から送信される通知を受け取る。
 /// フォアグラウンド受信時の表示にはflutter_local_notificationsをそのまま流用する
 /// （FCMはフォアグラウンド中は自動でシステム通知を出さないため）。
+///
+/// 有効・無効は、アプリ独自のON/OFFフラグを持たず、常にOS側（端末の通知設定）の
+/// 許可状態をそのまま反映する（[authorizationStatus]）。アプリ内で「無効にする」
+/// 操作は提供せず、無効にしたい場合は端末の設定アプリから行ってもらう
+/// （[openSystemSettings]でその画面を直接開ける）。
 class PushNotificationService {
   PushNotificationService();
 
@@ -38,15 +41,18 @@ class PushNotificationService {
     _localInitialized = true;
   }
 
-  /// 明示的にOFFにされていない限りtrue（初期値はON）。
-  Future<bool> isEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_enabledKey) ?? true;
-  }
+  /// OS側（端末の通知設定）の許可状態を、許可ダイアログを出さずに確認する。
+  Future<ph.PermissionStatus> authorizationStatus() =>
+      ph.Permission.notification.status;
 
-  /// 通知の許可を求め、許可が得られればFCMトークンを取得してSupabaseに登録する。
-  /// 許可が得られなかった場合はfalseを返し、設定側の状態も有効にしない。
-  Future<bool> enable() async {
+  /// 端末の設定アプリの、本アプリの通知設定画面を直接開く。
+  Future<void> openSystemSettings() => ph.openAppSettings();
+
+  /// まだOSに一度も許可を求めていない場合のみ、許可ダイアログを表示する
+  /// （iOSは一度拒否/許可が確定すると、二度目以降はダイアログを出せず即座に
+  /// 同じ結果が返るだけのため、その場合は[openSystemSettings]で設定アプリへ誘導する）。
+  /// 許可が得られればトークンを登録する。
+  Future<bool> requestPermission() async {
     final settings = await FirebaseMessaging.instance.requestPermission(
       alert: true,
       badge: true,
@@ -55,29 +61,11 @@ class PushNotificationService {
     final granted =
         settings.authorizationStatus == AuthorizationStatus.authorized ||
             settings.authorizationStatus == AuthorizationStatus.provisional;
-    if (!granted) return false;
-
-    await _ensureLocalInitialized();
-    await _registerToken();
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_enabledKey, true);
-    return true;
-  }
-
-  /// 通知を無効化し、Supabase上の自分のトークンも削除する。
-  Future<void> disable() async {
-    try {
-      final token = await FirebaseMessaging.instance.getToken();
-      if (token != null) {
-        await supabase.from('device_tokens').delete().eq('token', token);
-      }
-      await FirebaseMessaging.instance.deleteToken();
-    } catch (error, stackTrace) {
-      debugPrint('push notification disable failed: $error\n$stackTrace');
+    if (granted) {
+      await _ensureLocalInitialized();
+      await _registerToken();
     }
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_enabledKey, false);
+    return granted;
   }
 
   Future<void> _registerToken() async {
@@ -87,7 +75,7 @@ class PushNotificationService {
         // あるが、requestPermission()の直後はまだiOS側の登録が終わっておらずAPNsトークンが
         // 未設定のことがある。その状態でgetToken()を呼ぶと例外が発生し、この関数は
         // 何もせずに（下のcatchで握りつぶされて）終わってしまう——許可自体は得られている
-        // ため設定画面のトグルは有効に見えるが、実際にはdevice_tokensに何も登録されない
+        // ため設定画面の表示は有効に見えるが、実際にはdevice_tokensに何も登録されない
         // という紛らわしい状態になる。そのため、APNsトークンが設定されるまで最大20秒
         // ポーリングで待つ。
         var apnsToken = await FirebaseMessaging.instance.getAPNSToken();
@@ -144,11 +132,30 @@ class PushNotificationService {
     }
   }
 
-  /// アプリ起動時、通知が既に有効な場合にトークンを最新化する
-  /// （再インストール・機種変更等でトークンが変わっている場合に備える）。
-  Future<void> reregisterIfEnabled() async {
-    if (!await isEnabled()) return;
-    await _registerToken();
+  /// [token]をSupabase上の自分のトークン一覧から削除する。
+  Future<void> _clearToken() async {
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await supabase.from('device_tokens').delete().eq('token', token);
+      }
+    } catch (error, stackTrace) {
+      debugPrint('push token clear failed: $error\n$stackTrace');
+    }
+  }
+
+  /// アプリ起動時、OS側の許可状態とdevice_tokensの登録状態を同期する
+  /// （許可されていればトークンを最新化、許可されていなければ登録済みトークンを削除）。
+  /// 再インストール・機種変更・端末設定での許可取り消し等、いずれの場合にも
+  /// アプリを開き直せば正しい状態に揃う。
+  Future<void> syncWithSystemPermission() async {
+    final status = await authorizationStatus();
+    if (status.isGranted || status.isLimited || status.isProvisional) {
+      await _ensureLocalInitialized();
+      await _registerToken();
+    } else if (status.isDenied || status.isPermanentlyDenied || status.isRestricted) {
+      await _clearToken();
+    }
   }
 
   Stream<String> get onTokenRefresh => FirebaseMessaging.instance.onTokenRefresh;
@@ -179,8 +186,9 @@ final pushNotificationServiceProvider = Provider<PushNotificationService>((ref) 
   return PushNotificationService();
 });
 
-/// 設定画面のトグル表示用。有効・無効を切り替えたら
-/// `ref.invalidate(followPushEnabledProvider)` で再取得する。
-final followPushEnabledProvider = FutureProvider<bool>((ref) async {
-  return ref.watch(pushNotificationServiceProvider).isEnabled();
+/// 設定画面の表示用。端末側の通知許可状態（OS設定に依存、アプリ独自のON/OFFは持たない）。
+/// 端末の設定画面から変更して戻ってきた場合に再取得できるよう、呼び出し側で
+/// `ref.invalidate(pushAuthorizationStatusProvider)` を呼ぶこと。
+final pushAuthorizationStatusProvider = FutureProvider<ph.PermissionStatus>((ref) async {
+  return ref.watch(pushNotificationServiceProvider).authorizationStatus();
 });

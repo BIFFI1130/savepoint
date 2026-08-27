@@ -39,7 +39,9 @@ dependencies {
 
 android {
     namespace = "com.biffi.savepoint"
-    compileSdk = flutter.compileSdkVersion
+    // permission_handler_androidがSDK 37でのコンパイルを要求するため、Flutter既定値
+    // （flutter.compileSdkVersion）より明示的に高いバージョンを指定する。
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

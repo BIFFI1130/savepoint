@@ -61,6 +61,9 @@ dependencies:
   # IGDB帰属表示（データ提供元へのリンク）を開くために使用
   url_launcher: ^6.3.1
 
+  # 通知のOS許可状態の確認・端末の通知設定画面を開くために使用
+  permission_handler: ^13.0.1
+
   # プロフィール画像の選択（ギャラリー/カメラ）に使用
   image_picker: ^1.1.2
 

@@ -83,14 +83,14 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
     // 通知自体が無効（未許可）な端末では単にトークンが無いだけで、これらの
     // リスナー登録自体は無害なので常に行っておく。
     final pushService = ref.read(pushNotificationServiceProvider);
-    unawaited(pushService.reregisterIfEnabled());
+    unawaited(pushService.syncWithSystemPermission());
     _foregroundPushSubscription =
         FirebaseMessaging.onMessage.listen(pushService.showForeground);
     _pushTapSubscription =
         FirebaseMessaging.onMessageOpenedApp.listen(_handlePushTap);
     FirebaseMessaging.instance.getInitialMessage().then(_handlePushTap);
     _pushTokenRefreshSubscription = pushService.onTokenRefresh.listen(
-      (_) => pushService.reregisterIfEnabled(),
+      (_) => pushService.syncWithSystemPermission(),
     );
 
     // 起動時広告（1日1回、サブスク加入者には表示しない）。「遊んだ／遊びたい」を

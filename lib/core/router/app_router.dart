@@ -24,6 +24,11 @@ import '../../features/social/presentation/screens/user_list_screen.dart';
 import '../../features/social/presentation/screens/user_profile_screen.dart';
 import '../../features/social/presentation/screens/user_search_screen.dart';
 import '../../features/social/presentation/screens/username_onboarding_screen.dart';
+import '../../features/settings/presentation/screens/settings_about_screen.dart';
+import '../../features/settings/presentation/screens/settings_account_screen.dart';
+import '../../features/settings/presentation/screens/settings_display_screen.dart';
+import '../../features/settings/presentation/screens/settings_notifications_screen.dart';
+import '../../features/settings/presentation/screens/settings_premium_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/subscription/presentation/screens/paywall_screen.dart';
 import '../../features/summary/presentation/screens/gamer_type_screen.dart';
@@ -213,6 +218,26 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings',
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/settings/display',
+        builder: (context, state) => const SettingsDisplayScreen(),
+      ),
+      GoRoute(
+        path: '/settings/notifications',
+        builder: (context, state) => const SettingsNotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/settings/premium',
+        builder: (context, state) => const SettingsPremiumScreen(),
+      ),
+      GoRoute(
+        path: '/settings/about',
+        builder: (context, state) => const SettingsAboutScreen(),
+      ),
+      GoRoute(
+        path: '/settings/account',
+        builder: (context, state) => const SettingsAccountScreen(),
       ),
       GoRoute(
         path: '/achievements',
