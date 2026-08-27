@@ -133,6 +133,10 @@ class _SettingsNotificationsScreenState
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          const _PushPermissionTile(),
+          const SizedBox(height: 8),
+          const Divider(),
+          const SizedBox(height: 8),
           Consumer(
             builder: (context, ref, _) {
               final enabledAsync = ref.watch(backlogReminderEnabledProvider);
@@ -222,7 +226,6 @@ class _SettingsNotificationsScreenState
               );
             },
           ),
-          const _PushPermissionTile(),
           Consumer(
             builder: (context, ref, _) {
               final profileAsync = ref.watch(myProfileProvider);
