@@ -314,6 +314,8 @@ class _UserFeedTabs extends ConsumerWidget {
           child: Column(
             children: [
               TabBar(
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
                 tabs: [
                   Tab(text: '遊んだ（${played.length}）'),
                   Tab(text: 'プレイ中（${playing.length}）'),

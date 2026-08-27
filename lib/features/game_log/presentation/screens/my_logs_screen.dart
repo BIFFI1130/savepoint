@@ -1,10 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/streak/app_open_streak_service.dart';
 import '../../../../core/utils/release_countdown.dart';
@@ -19,7 +15,6 @@ import '../../../favorites/presentation/providers/favorite_providers.dart';
 import '../../../favorites/presentation/widgets/favorite_games_list.dart';
 import '../../../game_search/domain/game.dart';
 import '../../../social/presentation/providers/social_providers.dart';
-import '../../data/log_export.dart';
 import '../../domain/game_log.dart';
 import '../providers/log_providers.dart';
 
@@ -67,29 +62,8 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
   final Set<String> _selectedGenres = {};
   bool _matchAllGenres = false;
   bool _isGridView = false;
-  bool _isExporting = false;
 
   bool get _hasActiveFilter => _includeAdult || _selectedGenres.isNotEmpty;
-
-  /// 現在保持している全記録（「遊んだ／遊びたい」両方、絞り込み条件を無視した全件）を
-  /// CSVでエクスポートし、共有シートを開く。
-  Future<void> _exportLogs(List<GameLogWithGame> logs) async {
-    if (_isExporting) return;
-    setState(() => _isExporting = true);
-    try {
-      final csv = buildLogsCsv(logs);
-      final dir = await getTemporaryDirectory();
-      final file = File(
-        '${dir.path}/savepoint_logs_${DateTime.now().millisecondsSinceEpoch}.csv',
-      );
-      await file.writeAsString(csv);
-      await SharePlus.instance.share(
-        ShareParams(files: [XFile(file.path)], text: 'SavePointの記録一覧'),
-      );
-    } finally {
-      if (mounted) setState(() => _isExporting = false);
-    }
-  }
 
   @override
   void initState() {
@@ -229,19 +203,6 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
         title: const Text('マイログ'),
         actions: [
           IconButton(
-            icon: _isExporting
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.ios_share),
-            tooltip: '記録をエクスポート',
-            onPressed: _isExporting || !logsAsync.hasValue
-                ? null
-                : () => _exportLogs(logsAsync.value!),
-          ),
-          IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: '設定',
             onPressed: () => context.push('/settings'),
@@ -269,6 +230,8 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
           const Divider(height: 1),
           TabBar(
             controller: _tabController,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
             tabs: const [
               Tab(text: '遊んだ'),
               Tab(text: 'プレイ中'),
