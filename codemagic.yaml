@@ -70,6 +70,26 @@ definitions:
         else
           echo "ANDROID_SIGNINGが未設定のため、debug鍵で署名します。"
         fi
+    android_sdk_preinstall: &step_android_sdk_preinstall
+      name: Pre-install Android SDK Platform 37
+      script: |
+        set -euo pipefail
+        # permission_handler_androidがcompileSdk 37でのコンパイルを要求するため
+        # android/app/build.gradle.ktsでcompileSdk = 37を指定しているが、Gradle実行中に
+        # このSDKコンポーネントをオンデマンドで自動ダウンロードさせると、「Failed to find
+        # target with hash string 'android-37'」でl8DexDesugarLibReleaseタスクが失敗する
+        # 事象を確認した（2026-08-27、ビルド#25で実際に発生。使い捨てのCI機械では
+        # ローカル開発機と違い毎回このSDKが未インストールの状態からビルドが始まるため、
+        # ビルド中の遅延インストールとAGPのSDKターゲット解決が競合しているとみられる）。
+        # Gradle起動前に明示的にインストールしておくことで、この遅延ダウンロードそのものを
+        # 回避する。
+        SDKMANAGER=$(command -v sdkmanager || find "${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/share/android-sdk}}" -maxdepth 4 -name sdkmanager -type f 2>/dev/null | head -n 1)
+        if [ -z "$SDKMANAGER" ]; then
+          echo "sdkmanagerが見つからなかったため、プリインストールをスキップします（Gradle実行中の自動ダウンロードに委ねます）。"
+        else
+          yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+          "$SDKMANAGER" "platforms;android-37.0"
+        fi
     build_ios_ipa: &step_build_ios_ipa
       name: Build iOS ipa
       script: |
@@ -415,6 +435,7 @@ workflows:
       - *step_unit_tests
       - *step_resolve_android_build_number
       - *step_android_signing_setup
+      - *step_android_sdk_preinstall
       - *step_build_android_apk
       - name: Notify Discord
         script: |
@@ -459,6 +480,7 @@ workflows:
       - *step_unit_tests
       - *step_resolve_android_build_number
       - *step_android_signing_setup
+      - *step_android_sdk_preinstall
       - *step_build_android_apk
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
@@ -580,6 +602,7 @@ workflows:
           else
             echo "ANDROID_SIGNINGが未設定のため、debug鍵で署名します。"
           fi
+      - *step_android_sdk_preinstall
       - name: Build iOS ipa and Android APK in parallel
         script: |
           # iOS（xcodebuild）とAndroid（Gradle）は別ツールチェーンのため、同一マシン上でも
