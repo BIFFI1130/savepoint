@@ -14,6 +14,7 @@ import '../../../../core/utils/release_countdown.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/avatar_image.dart';
 import '../../../../core/widgets/cover_image.dart';
+import '../../../../core/widgets/igdb_footer.dart';
 import '../../../../core/widgets/star_rating.dart';
 import '../../../collections/presentation/widgets/collection_picker_sheet.dart';
 import '../../../game_log/domain/game_log.dart';
@@ -392,6 +393,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                     ),
                   ],
                   _PublicReviewsSection(gameId: widget.gameId),
+                  const IgdbFooter(),
                 ],
               ),
             );
