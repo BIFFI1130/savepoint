@@ -40,7 +40,17 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         );
       }
     } on AuthException catch (e) {
-      _showError(e.message);
+      // メール確認を無効化している設定（config.tomlのenable_confirmations=false）
+      // では、既に登録済みのメールアドレスでサインアップすると専用のエラーコードが
+      // 返る。これをそのまま表示すると、第三者が任意のメールアドレスを試すだけで
+      // 「このアプリに登録済みかどうか」を判定できてしまう（アカウント列挙）。
+      // 他の入力エラー（パスワードが弱い等）はそのまま表示して問題ないため、
+      // この場合のみ他の失敗と見分けが付かない汎用メッセージに差し替える。
+      if (e.code == 'user_already_exists' || e.code == 'email_exists') {
+        _showError('登録に失敗しました。時間をおいて再度お試しください。');
+      } else {
+        _showError(e.message);
+      }
     } catch (_) {
       _showError('登録に失敗しました。時間をおいて再度お試しください。');
     } finally {

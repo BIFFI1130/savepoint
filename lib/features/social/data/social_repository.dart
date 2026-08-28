@@ -277,12 +277,17 @@ class SocialRepository {
     required ReportReason reason,
     String? detail,
   }) async {
-    await supabase.from('reports').insert({
-      'reporter_id': _myId,
-      'reported_user_id': reportedUserId,
-      'reason': reason.dbValue,
-      'detail': (detail == null || detail.isEmpty) ? null : detail,
-    });
+    // reportsテーブルへの直接insertはレート制限を掛けられないため、SECURITY DEFINER
+    // RPC（submit_report）経由に一本化している（テーブルへの直接insert権限自体を
+    // 剥奪済み）。
+    await supabase.rpc(
+      'submit_report',
+      params: {
+        'p_reported_user_id': reportedUserId,
+        'p_reason': reason.dbValue,
+        'p_detail': (detail == null || detail.isEmpty) ? null : detail,
+      },
+    );
   }
 
   /// 特定のフォロー中ユーザーのステータス一覧（プロフィール画面用）。

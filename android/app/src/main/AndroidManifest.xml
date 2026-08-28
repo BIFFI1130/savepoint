@@ -7,7 +7,12 @@
     <application
         android:label="savepoint"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false">
+        <!-- allowBackup未指定時の既定値（true）だと、Android標準の自動クラウド
+             バックアップ経由でSharedPreferences（Supabaseのセッション情報を含む）が
+             ユーザーのGoogleアカウントへ同期されてしまう。root化やADBアクセス不要で、
+             Googleアカウント側が侵害されただけでセッションを読み取られうるため無効化する。 -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
