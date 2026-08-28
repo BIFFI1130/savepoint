@@ -40,7 +40,12 @@ class SocialRepository {
   Future<List<SocialProfile>> searchUsers(String query) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return [];
-    final escaped = trimmed.replaceAll(',', '');
+    // PostgRESTの.or()フィルタ構文はカンマで条件を区切り、丸カッコでANDのネストを
+    // 表現するため、検索文字列にこれらを含めるとフィルタ構造そのものを改変されうる
+    // （フィルタインジェクション）。検索用途でこれらの記号を保持する必要はないため
+    // 単純に取り除く。
+    final escaped = trimmed.replaceAll(RegExp('[,()]'), '');
+    if (escaped.isEmpty) return [];
     final rows = await supabase
         .from('profiles_public')
         .select()
