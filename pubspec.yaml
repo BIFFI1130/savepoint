@@ -40,6 +40,10 @@ dependencies:
   # Backend (Supabase: Auth / Postgres / Edge Functions)
   supabase_flutter: ^2.8.0
 
+  # Supabaseのセッション（リフレッシュトークン含む）をKeychain（iOS）/
+  # Android Keystore連携の暗号化ストレージに保存するため。
+  flutter_secure_storage: ^9.2.4
+
   # Navigation
   go_router: ^14.8.1
 
