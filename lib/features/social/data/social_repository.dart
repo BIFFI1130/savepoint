@@ -44,7 +44,15 @@ class SocialRepository {
     // 表現するため、検索文字列にこれらを含めるとフィルタ構造そのものを改変されうる
     // （フィルタインジェクション）。検索用途でこれらの記号を保持する必要はないため
     // 単純に取り除く。
-    final escaped = trimmed.replaceAll(RegExp('[,()]'), '');
+    // 加えて、ilikeが解釈するSQLワイルドカード（%・_）はエスケープしないと、
+    // 例えば検索語が`%`単体の場合に「全ユーザー名にマッチ」するような意図しない
+    // 全件列挙が可能になってしまうため、リテラル文字として扱われるようバックスラッシュで
+    // エスケープする（バックスラッシュ自身も先にエスケープする必要がある）。
+    final escaped = trimmed
+        .replaceAll(RegExp('[,()]'), '')
+        .replaceAll('\\', '\\\\')
+        .replaceAll('%', '\\%')
+        .replaceAll('_', '\\_');
     if (escaped.isEmpty) return [];
     final rows = await supabase
         .from('profiles_public')

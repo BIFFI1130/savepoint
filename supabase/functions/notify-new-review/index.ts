@@ -86,6 +86,26 @@ async function getAccessToken(serviceAccount: ServiceAccount): Promise<string> {
   return data.access_token as string;
 }
 
+/** 1分あたりの許容通知送信リクエスト数。全フォロワーへfan-outするため他のnotify-*より低めに絞る。 */
+const RATE_LIMIT_PER_MINUTE = 10;
+
+async function checkRateLimit(
+  db: ReturnType<typeof createClient>,
+  key: string,
+): Promise<boolean> {
+  const { data, error } = await db.rpc('check_rate_limit', {
+    p_key: key,
+    p_limit: RATE_LIMIT_PER_MINUTE,
+    p_window_seconds: 60,
+  });
+  if (error) {
+    // レート制限の判定自体が失敗した場合は、機能を止めないよう許可する側に倒す。
+    console.error('check_rate_limit failed', error);
+    return true;
+  }
+  return data === true;
+}
+
 /// 1件のFCMメッセージを送信する。戻り値は「無効化されたトークンとして削除すべきか」。
 async function sendFcmMessage(
   accessToken: string,
@@ -175,6 +195,35 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
+
+    // 呼び出し元が実際にそのゲームの「遊んだ」記録を持っているかを確認する。これが
+    // 無いと、有効なJWTさえあれば任意のgame_idを指定して「レビューを投稿しました」
+    // という偽の通知を、実際には記録していなくても全フォロワーへ送りつけられてしまう
+    // （fan-outするため被害範囲が他のnotify-*関数より大きい）。
+    const logExistsResult = await adminClient
+      .from('game_logs')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('game_id', body.game_id)
+      .eq('status', 'played')
+      .maybeSingle();
+    if (logExistsResult.error) throw new Error(logExistsResult.error.message);
+    if (!logExistsResult.data) {
+      return new Response(JSON.stringify({ success: true, sent: 0 }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // 同じ理由（有効なJWTさえあれば高速に繰り返し呼び出せる、かつ全フォロワーへ
+    // fan-outするため被害が大きい）で、通知スパムを防ぐため呼び出し元ごとに
+    // レート制限をかける。
+    const rateLimitOk = await checkRateLimit(adminClient, `notify-new-review:user:${user.id}`);
+    if (!rateLimitOk) {
+      return new Response(JSON.stringify({ success: true, sent: 0 }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
     const followsResult = await adminClient
       .from('follows')
