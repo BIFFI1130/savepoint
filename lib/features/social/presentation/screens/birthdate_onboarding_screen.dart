@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/onboarding/birthdate_gate.dart';
+import '../../../../core/utils/age.dart';
 import '../providers/social_providers.dart';
 
 /// アプリ起動時に生年月が未設定の場合に必ず経由させる、生年月入力画面。
@@ -29,6 +30,14 @@ class _BirthdateOnboardingScreenState
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('生年月を選択してください')));
+      return;
+    }
+    // 本アプリはプライバシーポリシー・利用規約で「13歳未満の方の利用を想定していない」
+    // としているため、自己申告ベースではあるが最低限の年齢確認として入力を止める。
+    if (isDefinitelyUnder13(year, month)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('本アプリは13歳未満の方はご利用いただけません')),
+      );
       return;
     }
     setState(() => _isSaving = true);

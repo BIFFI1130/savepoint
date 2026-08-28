@@ -22,6 +22,7 @@ import '../../../game_log/presentation/providers/like_providers.dart';
 import '../../../game_log/presentation/providers/log_providers.dart';
 import '../../../social/domain/follow_feed_entry.dart';
 import '../../../social/presentation/providers/social_providers.dart';
+import '../../../social/presentation/widgets/report_user_dialog.dart';
 import '../../domain/game.dart';
 import '../../domain/genre_options.dart';
 import '../providers/game_search_providers.dart';
@@ -952,32 +953,57 @@ class _PublicReviewTileState extends ConsumerState<_PublicReviewTile> {
             ),
           Padding(
             padding: const EdgeInsets.only(top: 4),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () => ref.read(likesProvider.notifier).toggle(entry.logId),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isLiked ? Icons.favorite : Icons.favorite_border,
-                      size: 16,
-                      color: isLiked ? Theme.of(context).colorScheme.error : outline,
+            child: Row(
+              children: [
+                InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () =>
+                      ref.read(likesProvider.notifier).toggle(entry.logId),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isLiked ? Icons.favorite : Icons.favorite_border,
+                          size: 16,
+                          color: isLiked
+                              ? Theme.of(context).colorScheme.error
+                              : outline,
+                        ),
+                        if (likeCount > 0) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            '$likeCount',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: outline),
+                          ),
+                        ],
+                      ],
                     ),
-                    if (likeCount > 0) ...[
-                      const SizedBox(width: 4),
-                      Text(
-                        '$likeCount',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: outline),
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
-              ),
+                const Spacer(),
+                // 匿名表示中（身元非表示）でも投稿者のuser_idは保持されているため、
+                // 表示名を出さずに通報だけは可能にする。
+                InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () =>
+                      showReportUserDialog(context, ref, entry.userId),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+                    child: Icon(
+                      Icons.flag_outlined,
+                      size: 16,
+                      color: outline,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

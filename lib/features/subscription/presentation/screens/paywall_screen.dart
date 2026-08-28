@@ -2,10 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/subscription/subscription_providers.dart';
 import '../../../../core/subscription/subscription_service.dart';
 import '../../../../core/widgets/async_state_views.dart';
+
+const _privacyPolicyUrl =
+    'https://biffi1130.github.io/savepoint/privacy-policy.html';
+const _termsOfServiceUrl =
+    'https://biffi1130.github.io/savepoint/terms-of-service.html';
+
+Future<void> _openUrl(String url) async {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return;
+  await launchUrl(uri, mode: LaunchMode.externalApplication);
+}
 
 /// 「広告を非表示にする」等の課金プランを提示し、購入・復元を行う画面。
 /// RevenueCatのAPIキーが未設定の間（事前準備が未完了の間）は、クラッシュせず
@@ -185,6 +197,30 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                         onPressed: _isProcessing ? null : _restore,
                         child: const Text('購入を復元'),
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '購入したプランは自動更新されます。無料トライアル終了後は自動的に課金が開始されます。'
+                      'iOSではApp Storeの「サブスクリプション」、AndroidではGoogle Playの'
+                      '「お支払いと定期購入」から、次回更新の24時間前までにいつでも解約できます。',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        TextButton(
+                          onPressed: () => _openUrl(_termsOfServiceUrl),
+                          child: const Text('利用規約'),
+                        ),
+                        TextButton(
+                          onPressed: () => _openUrl(_privacyPolicyUrl),
+                          child: const Text('プライバシーポリシー'),
+                        ),
+                      ],
                     ),
                   ],
                 );
