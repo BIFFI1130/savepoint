@@ -6,7 +6,8 @@
 // なので、ユーザーJWTではなく共有シークレット（x-cron-secretヘッダ）で検証する。
 //
 // 必要なSecrets: FCM_SERVICE_ACCOUNT_JSON（既存2関数と共通）、CRON_SECRET
-// （supabase secrets set CRON_SECRET=... で、migrationに埋め込んだ値と同じものを設定する）。
+// （supabase secrets set CRON_SECRET=... で、Supabase Vaultに登録した値
+// （supabase/SECRETS.local.md参照）と同じものを設定する）。
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -14,6 +15,19 @@ interface ServiceAccount {
   client_email: string;
   private_key: string;
   project_id: string;
+}
+
+/// x-cron-secretヘッダの比較を定数時間で行う。単純な`!==`比較は理論上、
+/// 不一致が見つかった時点で早期リターンするため、応答時間差から1バイトずつ
+/// シークレットを推測されるタイミングサイドチャネルの余地がある
+/// （ネットワーク越しでは実用上ほぼ悪用不可能だが、対策コストが低いため入れておく）。
+function timingSafeEqual(a: string, b: string): boolean {
+  const aBytes = new TextEncoder().encode(a);
+  const bBytes = new TextEncoder().encode(b);
+  if (aBytes.length !== bBytes.length) return false;
+  let diff = 0;
+  for (let i = 0; i < aBytes.length; i++) diff |= aBytes[i] ^ bBytes[i];
+  return diff === 0;
 }
 
 function base64url(input: ArrayBuffer | string): string {
@@ -118,7 +132,8 @@ Deno.serve(async (req) => {
   }
 
   const cronSecret = Deno.env.get('CRON_SECRET');
-  if (!cronSecret || req.headers.get('x-cron-secret') !== cronSecret) {
+  const providedSecret = req.headers.get('x-cron-secret');
+  if (!cronSecret || !providedSecret || !timingSafeEqual(providedSecret, cronSecret)) {
     return new Response(JSON.stringify({ error: '認証に失敗しました' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
