@@ -64,6 +64,18 @@ const UNOFFICIAL_KEYWORD_IDS = [2004, 16696, 24124];
 const INDIE_GENRE_ID = 32;
 
 /**
+ * IGDBのApicalypseクエリの二重引用符文字列リテラル内に埋め込むための文字列エスケープ。
+ * バックスラッシュを先にエスケープしてから二重引用符をエスケープする必要がある
+ * （逆順、またはバックスラッシュ未エスケープだと、例えば検索語が`\"`を含む場合に
+ * 文字列リテラルを早期に閉じられ、後続の断片が別のwhere句として注入されてしまう
+ * ——IGDB（サードパーティAPI）向けのクエリなので自前DBへの影響は無いが、
+ * 成人向け除外フィルタ等の絞り込み条件を迂回されうるため、必ずこの関数を経由する）。
+ */
+function escapeApicalypseString(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+/**
  * 「MonsterHunter」のようにスペースなしで詰めて入力された検索語に、
  * 単語境界と思われる位置（小文字/数字→大文字の切り替わり）でスペースを挿入する。
  * 挿入の必要がない（既にスペースを含む、境界が見つからない）場合はnullを返す。
@@ -469,7 +481,7 @@ async function fetchGameIdsByJapaneseLocalizedTitle(
   accessToken: string,
   query: string,
 ): Promise<number[]> {
-  const escaped = query.replace(/"/g, '\\"');
+  const escaped = escapeApicalypseString(query);
   const rows = await queryIgdbEndpoint<{ game: number }>(
     accessToken,
     'game_localizations',
@@ -557,7 +569,7 @@ async function queryIgdbEndpoint<T>(
 function buildPlatformFilter(platformList: string[]): string | null {
   if (platformList.length === 0) return null;
   const clause = platformList
-    .map((p) => `platforms.name ~ *"${p.trim().replace(/"/g, '\\"')}"*`)
+    .map((p) => `platforms.name ~ *"${escapeApicalypseString(p.trim())}"*`)
     .join(' | ');
   return platformList.length > 1 ? `(${clause})` : clause;
 }
@@ -576,7 +588,7 @@ function buildPlatformFilter(platformList: string[]): string | null {
 function buildGenreFilter(genreList: string[]): string | null {
   if (genreList.length === 0) return null;
   const clause = genreList
-    .map((g) => `genres.name = "${g.trim().replace(/"/g, '\\"')}"`)
+    .map((g) => `genres.name = "${escapeApicalypseString(g.trim())}"`)
     .join(' | ');
   return genreList.length > 1 ? `(${clause})` : clause;
 }
@@ -648,7 +660,7 @@ async function resolveCompanyIds(
   accessToken: string,
   name: string,
 ): Promise<number[]> {
-  const escaped = name.replace(/"/g, '\\"');
+  const escaped = escapeApicalypseString(name);
 
   // 完全一致を優先する。あいまい一致だけだと「Nintendo」で検索したときに
   // 本家(id=70)より先に子会社（Nintendo R&D4 等）がヒットしてしまい、
@@ -749,7 +761,7 @@ Deno.serve(async (req) => {
       let translatedQuery = '';
       if (hasQuery) {
         translatedQuery = await translateQueryToEnglish((query as string).trim());
-        const escaped = translatedQuery.replace(/"/g, '\\"');
+        const escaped = escapeApicalypseString(translatedQuery);
         clauses.unshift(`search "${escaped}"`);
       }
       if (filters.length > 0) clauses.push(`where ${filters.join(' & ')}`);
@@ -770,7 +782,7 @@ Deno.serve(async (req) => {
         const spaced = insertWordBoundarySpaces(translatedQuery);
         if (spaced) {
           const retryClauses = [...clauses];
-          retryClauses[0] = `search "${spaced.replace(/"/g, '\\"')}"`;
+          retryClauses[0] = `search "${escapeApicalypseString(spaced)}"`;
           raws = await queryIgdb(accessToken, `${retryClauses.join('; ')};`);
         }
       }
