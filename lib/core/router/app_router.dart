@@ -181,14 +181,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/games/:id',
         builder: (context, state) {
-          final gameId = int.parse(state.pathParameters['id']!);
+          // プッシュ通知タップ等、外部由来の値がここに渡る経路があるため、
+          // 数値でない場合にクラッシュせず「見つからない」扱いになるようフォールバックする
+          // （実在しないIDのため、画面側の通常の未取得・エラー表示に委ねられる）。
+          final gameId = int.tryParse(state.pathParameters['id']!) ?? -1;
           return GameDetailScreen(gameId: gameId);
         },
       ),
       GoRoute(
         path: '/games/:id/log',
         builder: (context, state) {
-          final gameId = int.parse(state.pathParameters['id']!);
+          final gameId = int.tryParse(state.pathParameters['id']!) ?? -1;
           return LogReviewScreen(gameId: gameId);
         },
       ),

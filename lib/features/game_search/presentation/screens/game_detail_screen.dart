@@ -607,7 +607,9 @@ class _OfficialSiteLink extends StatelessWidget {
     final value = url;
     if (value == null) return;
     final uri = Uri.tryParse(value);
-    if (uri != null) {
+    // urlはIGDB由来（igdb-proxy経由で取得・キャッシュ）で、ユーザーが直接編集できる
+    // フィールドではないが、多層防御としてhttp/https以外のスキームは開かない。
+    if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
@@ -657,7 +659,8 @@ class _IgdbAttribution extends StatelessWidget {
     final url = igdbUrl;
     if (url == null) return;
     final uri = Uri.tryParse(url);
-    if (uri != null) {
+    // 同上（_OfficialSiteLink._open参照）。IGDB由来のURLでもスキームを検証する。
+    if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
