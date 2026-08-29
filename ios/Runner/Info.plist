@@ -98,10 +98,12 @@
 			</array>
 		</dict>
 	</array>
-	<!-- AdMob（アプリ内バナー広告）。現在はGoogle公式のテスト用App IDを設定している。
-	     TODO(BIFFI): 正式リリース前に、AdMobで発行した本番用のApp IDへ差し替えること。 -->
+	<!-- AdMob（アプリ内バナー広告）。本番App ID（AdMobで「SavePoint (iOS)」として発行済み）。
+	     広告ユニットID自体はCodemagicの環境変数（ADMOB_BANNER_AD_UNIT_ID等、
+	     lib/core/config/env.dart参照）で切り替える方式のため、テスト広告のまま運用したい
+	     間は環境変数側を未設定にしておけばよい。 -->
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<string>ca-app-pub-7923845788845154~3399185882</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>広告の表示に利用します。許可しない場合も、興味関心に基づかない広告が表示されます。</string>
 	<key>SKAdNetworkItems</key>
