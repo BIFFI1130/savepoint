@@ -18,6 +18,15 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 class AdConsentService {
   const AdConsentService();
 
+  // 本番の広告ユニットIDでもテスト広告が表示されるようにする実機の端末ID一覧。
+  // 「invalid traffic」（自己クリック等による無効なトラフィック）と判定されAdMob
+  // アカウントが停止されるリスクを避けるため、動作確認に使う実機は必ずここに登録する。
+  // 各IDはGMA SDKが初回広告リクエスト時にLogcat（Androidタグ"Ads"）へ
+  // 「Use RequestConfiguration.Builder().setTestDeviceIds(...)」として出力するもの。
+  static const _testDeviceIds = [
+    '02796F0FFB3695C59C194221C8CCFCDE', // ZY22HLN9KX（動作確認用Android実機）
+  ];
+
   Future<void> requestConsentAndInitialize() async {
     final completer = Completer<void>();
 
@@ -57,6 +66,9 @@ class AdConsentService {
     final canRequestAds = await ConsentInformation.instance.canRequestAds();
     if (canRequestAds) {
       await MobileAds.instance.initialize();
+      await MobileAds.instance.updateRequestConfiguration(
+        RequestConfiguration(testDeviceIds: _testDeviceIds),
+      );
     }
   }
 }
