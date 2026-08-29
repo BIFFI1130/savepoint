@@ -94,11 +94,13 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-        <!-- AdMob（アプリ内バナー広告）。現在はGoogle公式のテスト用App IDを設定している。
-             TODO(BIFFI): 正式リリース前に、AdMobで発行した本番用のApp IDへ差し替えること。 -->
+        <!-- AdMob（アプリ内バナー広告）。本番App ID（AdMobで「SavePoint (Android)」として
+             2026-08-29に発行）。広告ユニットID自体はCodemagicの環境変数
+             （ADMOB_BANNER_AD_UNIT_ID等、lib/core/config/env.dart参照）で切り替える方式
+             のため、テスト広告のまま運用したい間は環境変数側を未設定にしておけばよい。 -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713" />
+            android:value="ca-app-pub-7923845788845154~3419395439" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
