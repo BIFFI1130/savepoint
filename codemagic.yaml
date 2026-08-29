@@ -112,9 +112,9 @@ definitions:
           --build-number=$APP_BUILD_NUMBER \
           --dart-define=SUPABASE_URL=$SUPABASE_URL \
           --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
-          --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID:-} \
-          --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID:-} \
-          --dart-define=ADMOB_INTERSTITIAL_AD_UNIT_ID=${ADMOB_INTERSTITIAL_AD_UNIT_ID:-} \
+          --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID_IOS:-} \
+          --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID_IOS:-} \
+          --dart-define=ADMOB_INTERSTITIAL_AD_UNIT_ID=${ADMOB_INTERSTITIAL_AD_UNIT_ID_IOS:-} \
           --dart-define=REVENUECAT_IOS_API_KEY=${REVENUECAT_IOS_API_KEY:-} \
           --dart-define=GOOGLE_IOS_CLIENT_ID=${GOOGLE_IOS_CLIENT_ID:-} \
           --dart-define=GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID:-}
@@ -169,9 +169,9 @@ definitions:
           --target-platform=android-arm64 \
           --dart-define=SUPABASE_URL=$SUPABASE_URL \
           --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
-          --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID:-} \
-          --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID:-} \
-          --dart-define=ADMOB_INTERSTITIAL_AD_UNIT_ID=${ADMOB_INTERSTITIAL_AD_UNIT_ID:-} \
+          --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID_ANDROID:-} \
+          --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID_ANDROID:-} \
+          --dart-define=ADMOB_INTERSTITIAL_AD_UNIT_ID=${ADMOB_INTERSTITIAL_AD_UNIT_ID_ANDROID:-} \
           --dart-define=REVENUECAT_ANDROID_API_KEY=${REVENUECAT_ANDROID_API_KEY:-} \
           --dart-define=GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID:-}
 
@@ -189,9 +189,9 @@ definitions:
         flutter build appbundle --release \
           --dart-define=SUPABASE_URL=$SUPABASE_URL \
           --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
-          --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID:-} \
-          --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID:-} \
-          --dart-define=ADMOB_INTERSTITIAL_AD_UNIT_ID=${ADMOB_INTERSTITIAL_AD_UNIT_ID:-} \
+          --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID_ANDROID:-} \
+          --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID_ANDROID:-} \
+          --dart-define=ADMOB_INTERSTITIAL_AD_UNIT_ID=${ADMOB_INTERSTITIAL_AD_UNIT_ID_ANDROID:-} \
           --dart-define=REVENUECAT_ANDROID_API_KEY=${REVENUECAT_ANDROID_API_KEY:-} \
           --dart-define=GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID:-}
 
@@ -308,7 +308,10 @@ definitions:
       SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEYを含む。2026-08-29、Codemagic側で
       このグループの値自体をdevプロジェクト（lsitiazbafrgeyklcckc）向けからprod向けへ
       上書きする形で切り替えた（グループ名は変更していない）。
-      AdMob本番広告ユニットID・RevenueCat公開SDKキーもこのグループに相乗りさせている。
+      AdMob本番広告ユニットID（`ADMOB_BANNER_AD_UNIT_ID_ANDROID`/`_IOS`のようにプラット
+      フォームごとに末尾で分ける。AndroidとiOSはAdMob上で別アプリ・別広告ユニットのため、
+      dart-define側は共通名（env.dart参照）でもCodemagic変数は分ける必要がある）・
+      RevenueCat公開SDKキーもこのグループに相乗りさせている。
       未設定の項目はテスト広告IDへのフォールバックや機能無効化に留まり、ビルド自体は失敗しない。
     DISCORD_VARIABLES: DISCORD_WEBHOOK_URL を含む。
     FIREBASE_VARIABLES: FIREBASE_TOKEN（firebase appdistribution:distribute の認証用）を含む。
@@ -726,9 +729,9 @@ workflows:
               --build-number=$APP_BUILD_NUMBER \
               --dart-define=SUPABASE_URL=$SUPABASE_URL \
               --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
-              --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID:-} \
-              --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID:-} \
-              --dart-define=ADMOB_INTERSTITIAL_AD_UNIT_ID=${ADMOB_INTERSTITIAL_AD_UNIT_ID:-} \
+              --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID_IOS:-} \
+              --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID_IOS:-} \
+              --dart-define=ADMOB_INTERSTITIAL_AD_UNIT_ID=${ADMOB_INTERSTITIAL_AD_UNIT_ID_IOS:-} \
               --dart-define=REVENUECAT_IOS_API_KEY=${REVENUECAT_IOS_API_KEY:-} \
               --dart-define=GOOGLE_IOS_CLIENT_ID=${GOOGLE_IOS_CLIENT_ID:-} \
               --dart-define=GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID:-}
@@ -779,9 +782,9 @@ workflows:
               --target-platform=android-arm64 \
               --dart-define=SUPABASE_URL=$SUPABASE_URL \
               --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
-              --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID:-} \
-              --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID:-} \
-              --dart-define=ADMOB_INTERSTITIAL_AD_UNIT_ID=${ADMOB_INTERSTITIAL_AD_UNIT_ID:-} \
+              --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID_ANDROID:-} \
+              --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID_ANDROID:-} \
+              --dart-define=ADMOB_INTERSTITIAL_AD_UNIT_ID=${ADMOB_INTERSTITIAL_AD_UNIT_ID_ANDROID:-} \
               --dart-define=REVENUECAT_ANDROID_API_KEY=${REVENUECAT_ANDROID_API_KEY:-} \
               --dart-define=GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID:-}
           ) > /tmp/android_build.log 2>&1 &
