@@ -83,9 +83,22 @@ definitions:
         # ビルド中の遅延インストールとAGPのSDKターゲット解決が競合しているとみられる）。
         # Gradle起動前に明示的にインストールしておくことで、この遅延ダウンロードそのものを
         # 回避する。
-        SDKMANAGER=$(command -v sdkmanager || find "${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/share/android-sdk}}" -maxdepth 4 -name sdkmanager -type f 2>/dev/null | head -n 1)
+        #
+        # 追記（2026-08-29、android_playstore_publishワークフローのビルド#1で実際に発生）:
+        # `command -v sdkmanager`やAndroid SDKツリー全体をたどる`find`は、Android SDK
+        # Tools（廃止済み、tools/bin/sdkmanager）に含まれる旧Java実装のsdkmanagerを
+        # 拾ってしまうことがある。この旧実装はJDK 11以降でjavax.xml.bind（JAXB）が
+        # 標準ライブラリから削除された影響を受け、
+        # 「NoClassDefFoundError: javax/xml/bind/annotation/XmlSchema」で即座に落ちる。
+        # 新しいAndroid SDK Command-line Tools（cmdline-tools配下、Kotlin実装）の
+        # sdkmanagerはこの問題が無いため、探索対象をcmdline-tools配下だけに限定する。
+        SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/share/android-sdk}}"
+        SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+        if [ ! -f "$SDKMANAGER" ]; then
+          SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" -maxdepth 3 -name sdkmanager -type f 2>/dev/null | sort -V | tail -n 1)
+        fi
         if [ -z "$SDKMANAGER" ]; then
-          echo "sdkmanagerが見つからなかったため、プリインストールをスキップします（Gradle実行中の自動ダウンロードに委ねます）。"
+          echo "cmdline-tools配下にsdkmanagerが見つからなかったため、プリインストールをスキップします（Gradle実行中の自動ダウンロードに委ねます）。"
         else
           yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
           "$SDKMANAGER" "platforms;android-37.0"
