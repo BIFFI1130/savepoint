@@ -166,6 +166,24 @@ definitions:
       # ビルドが失敗しても後続のDiscord通知は実行し、失敗をDiscordに通知できるように
       # する（/tmp/android_build_successの有無で成否を判定する）。
       ignore_failure: true
+    build_android_appbundle: &step_build_android_appbundle
+      name: Build Android App Bundle
+      script: |
+        set -euo pipefail
+        # Google Playへの提出には.apkではなく.aab（App Bundle）が必須。Play Store側で
+        # 端末ごとに最適なABIを配信するため、Firebase App Distribution向けAPKと違い
+        # --target-platform=android-arm64には絞らない（全ABIを含める）。
+        flutter build appbundle --release \
+          --dart-define=SUPABASE_URL=$SUPABASE_URL \
+          --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
+          --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID:-} \
+          --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID:-} \
+          --dart-define=ADMOB_INTERSTITIAL_AD_UNIT_ID=${ADMOB_INTERSTITIAL_AD_UNIT_ID:-} \
+          --dart-define=REVENUECAT_ANDROID_API_KEY=${REVENUECAT_ANDROID_API_KEY:-} \
+          --dart-define=GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID:-}
+
+        touch /tmp/android_appbundle_build_success
+      ignore_failure: true
     publish_ios_testflight: &step_publish_ios_testflight
       name: Publish to TestFlight
       script: |
@@ -280,7 +298,13 @@ definitions:
     DISCORD_VARIABLES: DISCORD_WEBHOOK_URL を含む。
     FIREBASE_VARIABLES: FIREBASE_TOKEN（firebase appdistribution:distribute の認証用）を含む。
     ANDROID_SIGNING: CM_KEYSTORE / CM_KEYSTORE_PASSWORD / CM_KEY_ALIAS / CM_KEY_PASSWORD を含む。
-      未設定の場合はdebug鍵にフォールバックする（ビルド自体は失敗しない）。
+      未設定の場合はdebug鍵にフォールバックする（ビルド自体は失敗しない）。ただしPlay Storeは
+      debug鍵での提出を受け付けないため、android_playstore_publishワークフローでは
+      このグループの設定が事実上必須。
+    GOOGLE_PLAY_VARIABLES: GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS（Google Play Console
+      「API アクセス」で発行したサービスアカウントのJSONキーファイルの中身をそのまま、
+      Secret変数として登録する。base64化は不要）を含む。Play Console側でこの
+      サービスアカウントに「製品版・テスト版へのリリースの管理」権限を付与しておくこと。
 
   ios_signing_block: &ios_signing_block
     distribution_type: app_store
@@ -497,6 +521,70 @@ workflows:
             fi
             MESSAGE="SavePointのAndroidビルドが完了しました。
             ${ANDROID_LINE}
+            Commit：${COMMIT_HASH}"
+            JSON_PAYLOAD=$(jq -n --arg content "$MESSAGE" '{content: $content}')
+            curl -H "Content-Type: application/json" -X POST -d "$JSON_PAYLOAD" "$DISCORD_WEBHOOK_URL"
+
+  # ---------------------------------------------------------------
+  # Android Play Store Publish: .aab（App Bundle）をビルドし、Google Playへ
+  # パブリッシュする。Firebase App Distribution向け（android_build_publish）とは
+  # 別workflowにしている。配布先が「社内テスター」から「Google Playのテストトラック
+  # /本番」に変わる、性質の異なる操作を毎回のテストビルドと同じ引き金で走らせたくない
+  # ため（意図的に分離）。
+  #
+  # 事前準備（BIFFI本人の作業、コード側では代行できない）:
+  #   1. Google Play Console → 設定 → API アクセス で、Google Cloudの新規サービス
+  #      アカウントを作成しリンクする。作成したサービスアカウントのJSONキーを発行する。
+  #   2. Play Console → ユーザーとアクセス権 で、そのサービスアカウントに
+  #      「製品版・テスト版へのリリースの管理」権限を付与する。
+  #   3. JSONキーの中身をそのままCodemagicのGOOGLE_PLAY_VARIABLESグループの
+  #      GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALSに登録する（base64化不要、Secret推奨）。
+  #   4. 【重要】Google PlayはAPI経由での「新規アプリの初回アップロード」を許可していない。
+  #      アプリ自体をPlay Consoleでまだ作成していない場合は、最初の1回だけ手動で
+  #      .aabをアップロードしてアプリを作成し、その後このworkflowに引き継ぐ必要がある。
+  # ---------------------------------------------------------------
+  android_playstore_publish:
+    name: Android Play Store Publish
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      groups:
+        - SUPABASE_VARIABLES
+        - ANDROID_SIGNING
+        - GOOGLE_PLAY_VARIABLES
+        - DISCORD_VARIABLES
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+        - $HOME/.gradle/wrapper
+        - $HOME/.pub-cache
+        - $CM_BUILD_DIR/.dart_tool
+        - $CM_BUILD_DIR/android/.gradle
+    scripts:
+      - *step_flutter_packages
+      - *step_unit_tests
+      - *step_resolve_android_build_number
+      - *step_android_signing_setup
+      - *step_android_sdk_preinstall
+      - *step_build_android_appbundle
+    artifacts:
+      - build/app/outputs/bundle/release/*.aab
+    publishing:
+      google_play:
+        credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS
+        # 初回運用時の事故を避けるため、内部テストトラック・ドラフト提出をデフォルトにする。
+        # 動作に慣れてきたら track を alpha/beta/production に、submit_as_draft を
+        # false に変更する（本番へ出す場合はrollout_fractionで段階的公開も検討する）。
+        track: internal
+        submit_as_draft: true
+      scripts:
+        - name: Notify Discord
+          script: |
+            set -euo pipefail
+            COMMIT_HASH=$(echo "${CM_COMMIT}" | cut -c 1-7)
+            MESSAGE="SavePointのAndroidアプリバンドルをGoogle Play（internalトラック・ドラフト）に提出しました。
+            Version：${APP_VERSION} / Build：${ANDROID_BUILD_NUMBER}
             Commit：${COMMIT_HASH}"
             JSON_PAYLOAD=$(jq -n --arg content "$MESSAGE" '{content: $content}')
             curl -H "Content-Type: application/json" -X POST -d "$JSON_PAYLOAD" "$DISCORD_WEBHOOK_URL"
