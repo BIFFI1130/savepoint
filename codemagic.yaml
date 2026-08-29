@@ -304,9 +304,10 @@ definitions:
 
   # 変数グループの説明（各workflowで実際に使う分だけ参照する）。
   groups_doc: &groups_doc |
-    SUPABASE_VARIABLES_PROD: 本番Supabaseプロジェクト（hjqgeewbuwuxwyorceog）のSUPABASE_URL /
-      SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEYを含む。2026-08-29、devプロジェクト
-      （lsitiazbafrgeyklcckc）向けのSUPABASE_VARIABLESから全ワークフローで切り替えた。
+    SUPABASE_VARIABLES: 本番Supabaseプロジェクト（hjqgeewbuwuxwyorceog）のSUPABASE_URL /
+      SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEYを含む。2026-08-29、Codemagic側で
+      このグループの値自体をdevプロジェクト（lsitiazbafrgeyklcckc）向けからprod向けへ
+      上書きする形で切り替えた（グループ名は変更していない）。
       AdMob本番広告ユニットID・RevenueCat公開SDKキーもこのグループに相乗りさせている。
       未設定の項目はテスト広告IDへのフォールバックや機能無効化に留まり、ビルド自体は失敗しない。
     DISCORD_VARIABLES: DISCORD_WEBHOOK_URL を含む。
@@ -368,7 +369,7 @@ workflows:
       ios_signing:
         <<: *ios_signing_block
       groups:
-        - SUPABASE_VARIABLES_PROD
+        - SUPABASE_VARIABLES
         - DISCORD_VARIABLES
     cache:
       cache_paths:
@@ -414,7 +415,7 @@ workflows:
       ios_signing:
         <<: *ios_signing_block
       groups:
-        - SUPABASE_VARIABLES_PROD
+        - SUPABASE_VARIABLES
         - DISCORD_VARIABLES
     cache:
       cache_paths:
@@ -458,7 +459,7 @@ workflows:
     environment:
       flutter: stable
       groups:
-        - SUPABASE_VARIABLES_PROD
+        - SUPABASE_VARIABLES
         - ANDROID_SIGNING
         - DISCORD_VARIABLES
     cache:
@@ -502,7 +503,7 @@ workflows:
     environment:
       flutter: stable
       groups:
-        - SUPABASE_VARIABLES_PROD
+        - SUPABASE_VARIABLES
         - ANDROID_SIGNING
         - FIREBASE_VARIABLES
         - DISCORD_VARIABLES
@@ -564,7 +565,7 @@ workflows:
     environment:
       flutter: stable
       groups:
-        - SUPABASE_VARIABLES_PROD
+        - SUPABASE_VARIABLES
         - ANDROID_SIGNING
         - GOOGLE_PLAY_VARIABLES
         - DISCORD_VARIABLES
@@ -623,7 +624,7 @@ workflows:
       ios_signing:
         <<: *ios_signing_block
       groups:
-        - SUPABASE_VARIABLES_PROD
+        - SUPABASE_VARIABLES
         # DISCORD_WEBHOOK_URL を含むCodemagic側の変数グループ（ダッシュボード名と完全一致させてください）
         - DISCORD_VARIABLES
         # FIREBASE_TOKEN（firebase appdistribution:distribute の認証用）を含むCodemagic側の変数グループ
