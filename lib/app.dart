@@ -24,7 +24,10 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/theme_mode_service.dart';
 import 'features/auth/presentation/providers/auth_providers.dart';
 import 'features/calendar/presentation/providers/calendar_providers.dart';
+import 'features/collections/presentation/providers/collection_providers.dart';
+import 'features/favorites/presentation/providers/favorite_providers.dart';
 import 'features/game_log/presentation/providers/log_providers.dart';
+import 'features/social/presentation/providers/social_providers.dart';
 
 class SavePointApp extends ConsumerStatefulWidget {
   const SavePointApp({super.key});
@@ -84,8 +87,12 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
     // リスナー登録自体は無害なので常に行っておく。
     final pushService = ref.read(pushNotificationServiceProvider);
     unawaited(pushService.syncWithSystemPermission());
-    _foregroundPushSubscription =
-        FirebaseMessaging.onMessage.listen(pushService.showForeground);
+    _foregroundPushSubscription = FirebaseMessaging.onMessage.listen((
+      message,
+    ) {
+      _invalidateProvidersForPush(message);
+      pushService.showForeground(message);
+    });
     _pushTapSubscription =
         FirebaseMessaging.onMessageOpenedApp.listen(_handlePushTap);
     FirebaseMessaging.instance.getInitialMessage().then(_handlePushTap);
@@ -142,6 +149,7 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
   /// - weekly_digest: ホーム画面（タイムラインサブタブへの直接遷移は未対応）
   /// - new_like: いいねされた記録のゲーム詳細画面
   void _handlePushTap(RemoteMessage? message) {
+    _invalidateProvidersForPush(message);
     final data = message?.data;
     if (data == null) return;
     try {
@@ -163,9 +171,22 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
     }
   }
 
+  /// サーバー起点のプッシュ通知は、フォロー・いいね・レビューなど他ユーザーの
+  /// 操作によって届くため、通知を受け取った時点（フォアグラウンド表示時・タップ時
+  /// どちらでも）で該当データのプロバイダを無効化し、次にその画面を開いたときに
+  /// 再取得を実行させる。これが無いと、アプリを再起動するまでフォロワー数・
+  /// フォロワー一覧などが更新されない（実機で確認済みの不具合）。
+  void _invalidateProvidersForPush(RemoteMessage? message) {
+    if (message?.data['type'] == 'new_follower') {
+      ref.invalidate(followersListProvider);
+    }
+  }
+
   /// カスタムURLスキーム（`savepoint://`）経由のリンクを受け取る。
   /// - `savepoint://reset-password?code=...`: パスワード再設定メールのリンク。
   ///   セッションを確立してから再設定画面へ遷移する。
+  /// - `savepoint://email-confirmed?code=...`: 新規登録時のメール確認リンク。
+  ///   セッションを確立し、通常のログイン後と同じ導線（オンボーディング等）に乗せる。
   /// - `savepoint://user/{userId}`: プロフィール共有リンク（QRコード/招待リンク）。
   ///   該当ユーザーのプロフィール画面へ遷移する。
   Future<void> _handleDeepLink(Uri uri) async {
@@ -174,6 +195,9 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
       if (uri.host == 'reset-password') {
         await supabase.auth.getSessionFromUrl(uri);
         ref.read(routerProvider).go('/reset-password');
+      } else if (uri.host == 'email-confirmed') {
+        await supabase.auth.getSessionFromUrl(uri);
+        ref.read(routerProvider).go('/home');
       } else if (uri.host == 'user' && uri.pathSegments.isNotEmpty) {
         ref.read(routerProvider).go('/users/${uri.pathSegments.first}');
       }
@@ -208,6 +232,28 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
         SubscriptionService.logIn(next.id);
       } else if (previous != null) {
         SubscriptionService.logOut();
+      }
+
+      // ログインユーザーが切り替わった場合（別アカウントへのサインイン、または
+      // サインアウト）、本人専用のFutureProvider群を無効化する。これらは
+      // `ref.watch`で現在ユーザーIDの変化を監視していないため、明示的な
+      // invalidateなしには前のユーザーのキャッシュ済みデータ（プロフィール・
+      // マイログ・フォロー関係など）が次のユーザーの画面にそのまま表示され
+      // 続けてしまう（実機で確認済みの不具合）。
+      if (previous?.id != next?.id) {
+        ref.invalidate(myProfileProvider);
+        ref.invalidate(myProfileViewCountProvider);
+        ref.invalidate(myReviewViewCountProvider);
+        ref.invalidate(myLogsProvider);
+        ref.invalidate(myCollectionsProvider);
+        ref.invalidate(myFavoritesProvider);
+        ref.invalidate(followingListProvider);
+        ref.invalidate(followersListProvider);
+        ref.invalidate(blockedUsersListProvider);
+        ref.invalidate(followingFeedProvider);
+        ref.invalidate(isFollowingProvider);
+        ref.invalidate(isFollowedByProvider);
+        ref.invalidate(isBlockedProvider);
       }
     });
 

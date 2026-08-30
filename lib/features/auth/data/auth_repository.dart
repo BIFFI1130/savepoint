@@ -20,14 +20,31 @@ class AuthRepository {
     required String email,
     required String password,
   }) async {
-    await _auth.signUp(email: email, password: password);
+    await _auth.signUp(
+      email: email,
+      password: password,
+      emailRedirectTo: _emailConfirmedUrl,
+    );
   }
 
-  Future<void> signInWithEmail({
-    required String email,
+  /// メールアドレスまたはユーザーIDでサインインする。ユーザーIDの場合の
+  /// メールアドレスへの解決はEdge Function `sign-in`（service role）側だけで
+  /// 完結させ、クライアントにはメールアドレスを返さない（ユーザーIDから
+  /// メールアドレスを特定できてしまうことを防ぐため）。
+  Future<void> signInWithIdentifier({
+    required String identifier,
     required String password,
   }) async {
-    await _auth.signInWithPassword(email: email, password: password);
+    final response = await supabase.functions.invoke(
+      'sign-in',
+      body: {'identifier': identifier, 'password': password},
+    );
+    final data = response.data;
+    final refreshToken = data is Map ? data['refresh_token'] as String? : null;
+    if (refreshToken == null) {
+      throw const AuthException('メールアドレス（またはユーザーID）かパスワードが正しくありません。');
+    }
+    await _auth.setSession(refreshToken);
   }
 
   /// パスワード再設定メールを送信する。メール内のリンクはディープリンク
@@ -43,6 +60,7 @@ class AuthRepository {
   }
 
   static const _resetPasswordUrl = 'savepoint://reset-password';
+  static const _emailConfirmedUrl = 'savepoint://email-confirmed';
 
   /// Apple のネイティブサインインシートを表示し、取得した ID トークンで Supabase にサインインする。
   Future<void> signInWithApple() async {

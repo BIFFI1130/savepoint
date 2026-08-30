@@ -38,28 +38,39 @@ class UserListScreen extends ConsumerWidget {
       body: usersAsync.when(
         data: (users) {
           if (users.isEmpty) {
-            return EmptyView(
-              message: _emptyMessage,
-              icon: Icons.people_outline,
+            return RefreshIndicator(
+              onRefresh: () => ref.refresh(provider.future),
+              child: ListView(
+                children: [
+                  const SizedBox(height: 120),
+                  EmptyView(
+                    message: _emptyMessage,
+                    icon: Icons.people_outline,
+                  ),
+                ],
+              ),
             );
           }
-          return ListView.separated(
-            itemCount: users.length,
-            separatorBuilder: (context, index) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final profile = users[index];
-              return ListTile(
-                leading: AvatarImage(url: profile.avatarUrl),
-                title: Text(profile.publicDisplayLabel),
-                trailing: mode == UserListMode.blocked
-                    ? TextButton(
-                        onPressed: () => _unblock(context, ref, profile),
-                        child: const Text('解除'),
-                      )
-                    : null,
-                onTap: () => context.push('/users/${profile.id}'),
-              );
-            },
+          return RefreshIndicator(
+            onRefresh: () => ref.refresh(provider.future),
+            child: ListView.separated(
+              itemCount: users.length,
+              separatorBuilder: (context, index) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final profile = users[index];
+                return ListTile(
+                  leading: AvatarImage(url: profile.avatarUrl),
+                  title: Text(profile.publicDisplayLabel),
+                  trailing: mode == UserListMode.blocked
+                      ? TextButton(
+                          onPressed: () => _unblock(context, ref, profile),
+                          child: const Text('解除'),
+                        )
+                      : null,
+                  onTap: () => context.push('/users/${profile.id}'),
+                );
+              },
+            ),
           );
         },
         loading: () => const LoadingView(),

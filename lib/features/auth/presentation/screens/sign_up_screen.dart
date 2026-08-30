@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/analytics/analytics_service.dart';
@@ -36,16 +37,16 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       await ref.read(appAnalyticsProvider).logSignUp('email');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('登録が完了しました')),
+          const SnackBar(content: Text('確認メールを送信しました。メール内のリンクを開いて登録を完了してください')),
         );
+        context.pop();
       }
     } on AuthException catch (e) {
-      // メール確認を無効化している設定（config.tomlのenable_confirmations=false）
-      // では、既に登録済みのメールアドレスでサインアップすると専用のエラーコードが
-      // 返る。これをそのまま表示すると、第三者が任意のメールアドレスを試すだけで
-      // 「このアプリに登録済みかどうか」を判定できてしまう（アカウント列挙）。
-      // 他の入力エラー（パスワードが弱い等）はそのまま表示して問題ないため、
-      // この場合のみ他の失敗と見分けが付かない汎用メッセージに差し替える。
+      // メール確認を有効化している場合、既に確認済みのメールアドレスで再度サインアップ
+      // しても専用のエラーコードは返らない（GoTrue側がアカウント列挙対策として、
+      // 未登録の場合と同じ「確認メールを送信した」という見た目の応答を返すため）。
+      // ただしAPIバージョンによっては引き続きエラーコードが返るケースもあるため、
+      // 念のため他の失敗と見分けが付かない汎用メッセージに差し替える処理は残す。
       if (e.code == 'user_already_exists' || e.code == 'email_exists') {
         _showError('登録に失敗しました。時間をおいて再度お試しください。');
       } else {

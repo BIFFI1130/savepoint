@@ -90,4 +90,4 @@ App Store Connect / Google Play Console（IARC）の質問票はストア側の�
 
 - サポートURL: `https://biffi1130.github.io/savepoint/`（プライバシーポリシー・利用規約と同じ場所。専用の問い合わせページが欲しくなったら別途用意）
 - プライバシーポリシーURL: `https://biffi1130.github.io/savepoint/privacy-policy.html`
-- 連絡先メールアドレス: yuichirobiffi@gmail.com
+- 連絡先メールアドレス: savepoint.record.game@gmail.com

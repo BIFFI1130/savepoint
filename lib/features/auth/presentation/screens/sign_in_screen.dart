@@ -17,23 +17,23 @@ class SignInScreen extends ConsumerStatefulWidget {
 
 class _SignInScreenState extends ConsumerState<SignInScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _signInWithEmail() async {
+  Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
     try {
-      await ref.read(authRepositoryProvider).signInWithEmail(
-            email: _emailController.text.trim(),
+      await ref.read(authRepositoryProvider).signInWithIdentifier(
+            identifier: _identifierController.text.trim(),
             password: _passwordController.text,
           );
       await ref.read(appAnalyticsProvider).logLogin('email');
@@ -120,14 +120,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   ),
                   const SizedBox(height: 32),
                   TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
+                    controller: _identifierController,
                     decoration: const InputDecoration(
-                      labelText: 'メールアドレス',
+                      labelText: 'メールアドレスまたはユーザーID',
                       border: OutlineInputBorder(),
                     ),
-                    validator: (value) => (value == null || !value.contains('@'))
-                        ? '有効なメールアドレスを入力してください'
+                    validator: (value) => (value == null || value.trim().isEmpty)
+                        ? 'メールアドレスまたはユーザーIDを入力してください'
                         : null,
                   ),
                   const SizedBox(height: 12),
@@ -144,14 +143,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   ),
                   const SizedBox(height: 16),
                   FilledButton(
-                    onPressed: _isLoading ? null : _signInWithEmail,
+                    onPressed: _isLoading ? null : _signIn,
                     child: _isLoading
                         ? const SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('メールでサインイン'),
+                        : const Text('サインイン'),
                   ),
                   TextButton(
                     onPressed: _isLoading ? null : () => context.push('/sign-up'),

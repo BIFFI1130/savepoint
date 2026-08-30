@@ -94,4 +94,4 @@ BIFFI（以下「当方」といいます）は、当方が提供するアプリ
 本ポリシーに関するお問い合わせは、下記までご連絡ください。
 
 - 運営者：BIFFI
-- 連絡先：196482015+BIFFI1130@users.noreply.github.com
+- 連絡先：savepoint.record.game@gmail.com
