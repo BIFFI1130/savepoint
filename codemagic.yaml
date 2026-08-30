@@ -22,9 +22,9 @@ definitions:
     ios_signing_settings: &step_ios_signing_settings
       name: Set up code signing settings on Xcode project
       script: |
-        # testFlightInternalTestingOnly を付けることで、外部向けベータ版レビューへの
-        # 自動提出を行わず、内部テストグループへの配布だけにする。
-        xcode-project use-profiles --custom-export-options='{"testFlightInternalTestingOnly": true}'
+        # 外部テスターへの配布・ベータ版App Reviewへの提出を行うため
+        # testFlightInternalTestingOnly はfalseにする（内部テスト限定にしない）。
+        xcode-project use-profiles --custom-export-options='{"testFlightInternalTestingOnly": false}'
     resolve_ios_build_number: &step_resolve_ios_build_number
       name: Resolve iOS build number
       script: |
@@ -670,9 +670,9 @@ workflows:
         # パブリッシュ工程は実行されずビルド全体が失敗扱いになる（意図した挙動）。
       - name: Set up code signing settings on Xcode project
         script: |
-          # testFlightInternalTestingOnly を付けることで、外部向けベータ版レビューへの
-          # 自動提出を行わず、内部テストグループへの配布だけにする。
-          xcode-project use-profiles --custom-export-options='{"testFlightInternalTestingOnly": true}'
+          # 外部テスターへの配布・ベータ版App Reviewへの提出を行うため
+          # testFlightInternalTestingOnly はfalseにする（内部テスト限定にしない）。
+          xcode-project use-profiles --custom-export-options='{"testFlightInternalTestingOnly": false}'
       - name: Resolve build numbers
         script: |
           set -euo pipefail
