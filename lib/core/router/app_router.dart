@@ -84,7 +84,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           state.matchedLocation == '/forgot-password';
       final isOnboardingRoute = state.matchedLocation == '/onboarding/username';
 
-      if (!isLoggedIn && !isAuthRoute) return '/sign-in';
+      if (!isLoggedIn && !isAuthRoute && !isUpdateRoute) return '/sign-in';
       if (isLoggedIn && isAuthRoute) return '/home';
 
       if (isLoggedIn) {
