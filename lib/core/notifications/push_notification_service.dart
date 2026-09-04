@@ -152,6 +152,20 @@ class PushNotificationService {
     final status = await authorizationStatus();
     if (status.isGranted || status.isLimited || status.isProvisional) {
       await _ensureLocalInitialized();
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        // iOSでは、OS側の通知許可が既に得られていても、
+        // UIApplication.registerForRemoteNotifications()はFirebaseMessagingの
+        // requestPermission()を呼んだときの副作用としてのみ発火する。ここをスキップして
+        // 直接_registerToken()を呼ぶと、APNsトークンがそもそも要求されないまま
+        // getAPNSToken()が永久にタイムアウトする（実機のCrashlyticsで確認した不具合の
+        // 根本原因）。許可が既に確定している状態でrequestPermission()を呼んでも
+        // ダイアログは再表示されず、現在の状態が即座に返るだけなので安全。
+        await FirebaseMessaging.instance.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+      }
       await _registerToken();
     } else if (status.isDenied || status.isPermanentlyDenied || status.isRestricted) {
       await _clearToken();

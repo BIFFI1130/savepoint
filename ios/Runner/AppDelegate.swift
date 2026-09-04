@@ -19,7 +19,15 @@ import google_mobile_ads
     // APNsトークンが永久に取得できない不具合になる
     // （https://github.com/firebase/flutterfire/pull/18501）。そのため明示的に先に呼んでおく。
     FLTFirebaseMessagingPlugin.configureNotificationCenterDelegate()
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    // requestPermission()経由でも登録が保証されないことが実機で確認されたため
+    // （didRegisterForRemoteNotificationsWithDeviceToken/didFailToRegisterForRemoteNotificationsWithError
+    // のいずれもCrashlyticsに一度も記録されなかった＝そもそもregisterForRemoteNotifications()が
+    // 呼ばれていなかった）、起動時に無条件で直接呼ぶ。通知許可の有無に関わらず安全に呼び出せる
+    // （未許可の場合もAPNsトークン自体は取得できる。実際にアラート等が表示されるかは
+    // 別途UNUserNotificationCenterの許可状態に従う）。
+    application.registerForRemoteNotifications()
+    return result
   }
 
   override func application(
