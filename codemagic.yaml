@@ -107,6 +107,9 @@ definitions:
       name: Build iOS ipa
       script: |
         set -euo pipefail
+        # 有料アプリ契約が未締結でRevenueCatが商品を取得できないため、REVENUECAT_IOS_API_KEYを
+        # 空にしてSubscriptionService.isConfiguredをfalseに保ち、ペイウォールを「準備中です」表示に
+        # フォールバックさせている（契約締結後、下のdart-defineを${REVENUECAT_IOS_API_KEY:-}に戻すこと）。
         flutter build ipa --release \
           --export-options-plist=/Users/builder/export_options.plist \
           --build-number=$APP_BUILD_NUMBER \
@@ -115,7 +118,7 @@ definitions:
           --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID_IOS:-} \
           --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID_IOS:-} \
           --dart-define=ADMOB_INTERSTITIAL_AD_UNIT_ID=${ADMOB_INTERSTITIAL_AD_UNIT_ID_IOS:-} \
-          --dart-define=REVENUECAT_IOS_API_KEY=${REVENUECAT_IOS_API_KEY:-} \
+          --dart-define=REVENUECAT_IOS_API_KEY= \
           --dart-define=GOOGLE_IOS_CLIENT_ID=${GOOGLE_IOS_CLIENT_ID:-} \
           --dart-define=GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID:-}
 
@@ -724,6 +727,9 @@ workflows:
 
           (
             set -euo pipefail
+            # 有料アプリ契約が未締結でRevenueCatが商品を取得できないため、REVENUECAT_IOS_API_KEYを
+            # 空にしてペイウォールを「準備中です」表示にフォールバックさせている
+            # （契約締結後、下のdart-defineを${REVENUECAT_IOS_API_KEY:-}に戻すこと）。
             flutter build ipa --release \
               --export-options-plist=/Users/builder/export_options.plist \
               --build-number=$APP_BUILD_NUMBER \
@@ -732,7 +738,7 @@ workflows:
               --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID_IOS:-} \
               --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID_IOS:-} \
               --dart-define=ADMOB_INTERSTITIAL_AD_UNIT_ID=${ADMOB_INTERSTITIAL_AD_UNIT_ID_IOS:-} \
-              --dart-define=REVENUECAT_IOS_API_KEY=${REVENUECAT_IOS_API_KEY:-} \
+              --dart-define=REVENUECAT_IOS_API_KEY= \
               --dart-define=GOOGLE_IOS_CLIENT_ID=${GOOGLE_IOS_CLIENT_ID:-} \
               --dart-define=GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID:-}
 

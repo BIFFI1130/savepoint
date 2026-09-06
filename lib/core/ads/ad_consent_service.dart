@@ -21,10 +21,12 @@ class AdConsentService {
   // 本番の広告ユニットIDでもテスト広告が表示されるようにする実機の端末ID一覧。
   // 「invalid traffic」（自己クリック等による無効なトラフィック）と判定されAdMob
   // アカウントが停止されるリスクを避けるため、動作確認に使う実機は必ずここに登録する。
-  // 各IDはGMA SDKが初回広告リクエスト時にLogcat（Androidタグ"Ads"）へ
-  // 「Use RequestConfiguration.Builder().setTestDeviceIds(...)」として出力するもの。
+  // 各IDはGMA SDKが初回広告リクエスト時にLogcat（Androidタグ"Ads"）または
+  // Xcodeのデバッグコンソール（<UMP SDK> To enable debug mode for this device...）へ
+  // 出力するもの。
   static const _testDeviceIds = [
     '02796F0FFB3695C59C194221C8CCFCDE', // ZY22HLN9KX（動作確認用Android実機）
+    '09774D38-03DE-4719-B504-C5A91F01CDBF', // DEV1（動作確認用iOS実機）
   ];
 
   Future<void> requestConsentAndInitialize() async {

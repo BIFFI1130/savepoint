@@ -126,7 +126,7 @@ class SocialRepository {
   }
 
   /// 「みんなのレビュー」でユーザー名・アバターなど身元がわかる情報を表示するかどうかを
-  /// 設定する。デフォルトは非表示（匿名）。
+  /// 設定する。デフォルトは表示（全公開）で、オフにした場合のみ匿名になる。
   Future<void> setShowIdentityInPublicReviews(bool value) async {
     await supabase
         .from('profiles')
