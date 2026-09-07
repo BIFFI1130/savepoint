@@ -59,7 +59,8 @@ class GenreFilterSection extends ConsumerWidget {
           ],
         ] else
           OutlinedButton.icon(
-            onPressed: () => context.push('/subscription/paywall'),
+            onPressed: () =>
+                context.push('/subscription/paywall?source=genre_filter'),
             icon: const Icon(Icons.workspace_premium_outlined),
             label: const Text('サブスクに加入してジャンルから探す'),
           ),

@@ -8,36 +8,33 @@
 
 ---
 
-## 現在の状態
+## 現在の状態（2026-09-07更新）
 
-コード側の雛形（Flutter画面一式・Supabase SQLマイグレーション・IGDB連携Edge Function）は実装済みです。
-まだ**BIFFI自身が行う必要のあるアカウント作成・キー取得**が残っています。それが終わり次第、実際に動かせます。
+Flutter画面一式・Supabase本番/開発環境・IGDB連携Edge Function・Firebase・AdMob・RevenueCatはすべて実装・設定済みで、
+Apple Developer Program / Supabase / Twitch Developer / Google Playの各アカウント登録もすべて完了しています。
+iOS/AndroidともCodemagic CIは使わず、このMacBook上でのローカルビルド・署名・ストア提出に一本化しています
+（詳細は各種セットアップ手順を参照。以下の「あなたがやること」節・Codemagic関連の記述は初期構築時のもので、現在は運用していません）。
 
-### あなたがやること（未着手）
+### 残っている主なブロッカー
 
-1. **Apple Developer Program登録**（https://developer.apple.com/programs/enroll/ 、年間$99、承認に24〜48時間以上）
-2. **Supabaseプロジェクト作成**（https://supabase.com）→ Project URL・anon public key・service_role keyを控える
-3. **Twitch Developer登録**（https://dev.twitch.tv/console/apps）→ IGDB用のClient ID / Client Secretを発行
-4. **Codemagicアカウント作成**（https://codemagic.io）→ このGitHubリポジトリと連携（iOSビルド・TestFlight配信用）
-
-これらが揃ったら、URLやキーを教えてください。以下のセットアップ手順に反映します。
+1. **iOS: 有料アプリ契約（Paid Applications Agreement）がApple側のバグで未締結** — Legal Entity住所編集画面の不具合により署名できない状態。Apple Developer Supportへ報告済み（Case-ID 22046905）、回答待ち。解決するまでRevenueCatの購読機能は無効化（`REVENUECAT_IOS_API_KEY`を空文字にしたビルド）でストア提出している。
+2. **Android: Google Play製品版（本番）は未申請** — ストア掲載情報の審査は完了しているが、製品版アクセスの申請には「12人以上のテスターがクローズドテストにオプトインし、14日間以上継続」という条件が必要（現在0人）。参加リンク: `https://play.google.com/apps/testing/com.biffi.savepoint`
+3. **Twitch/IGDBパートナーシップ契約** — BIFFI本人は署名済みだが、Twitch側からの締結完了の返信が未着で停止中。広告収益化を伴うストア正式配信はこの返信待ち。
 
 ---
 
 ## ローカル開発環境（セットアップ済み）
 
-このマシンには以下がインストール・設定済みです。
+このMacBookには以下がインストール・設定済みです。
 
-| ツール | 場所 | 備考 |
-|---|---|---|
-| Flutter SDK | `C:\src\flutter` | ユーザーPATHに追加済み。`flutter --version` で確認可能 |
-| Node.js (LTS) | 標準インストール先 | winget経由でインストール |
-| Supabase CLI | `C:\src\supabase-cli` | ユーザーPATHに追加済み。`supabase --version` で確認可能 |
+| ツール | 備考 |
+|---|---|
+| Flutter SDK | `flutter --version` で確認可能 |
+| Xcode | Apple ID（yuichirobiffi@icloud.com）でサインイン済み。iOSビルド・署名・App Store Connectへの直接アップロードに使用 |
+| Android SDK / JDK 17 | Homebrew経由でインストール済み（`openjdk@17` `android-commandlinetools`） |
+| Supabase CLI | `supabase --version` で確認可能 |
 
-新しいターミナルを開けば `flutter` `supabase` コマンドがそのまま使えます（PATHはユーザー環境変数に永続化済み）。
-
-Android SDK（Android Studio）は未導入です。今回はiOS優先のため必須ではありませんが、Androidでも動作確認したくなったら
-[Android Studio](https://developer.android.com/studio) をインストールしてください。
+`flutter` `supabase` コマンドはそのまま使えます。
 
 ---
 
@@ -111,14 +108,15 @@ Windows上ではChrome（Web）やWindowsデスクトップ向けにまず起動
 
 ---
 
-## iPhoneでの実行（Codemagic経由）
+## iPhoneでの実行（ローカルビルド）
 
-Windows環境ではiOSのビルド（Xcode / `pod install`）ができないため、Codemagic（クラウドMac CI）を使います。
+このMacBook上のXcodeでビルド・署名し、App Store Connectへ直接アップロードします（Codemagicは使用していません）。
 
-1. Codemagicで本リポジトリを連携
-2. iOSワークフローを作成し、App Store Connect APIキーで自動署名を設定
-3. `ios/Runner.xcodeproj` のbundle identifierをApple DeveloperのApp IDと一致させる（Codemagic上、またはXcodeで設定）
-4. ビルド実行 → TestFlightへ配信 → BIFFIのiPhone 17にTestFlightアプリ経由でインストール
+```bash
+flutter build ipa --release --export-options-plist=<path> --build-number=<N> --dart-define-from-file=env/prod.json
+```
+
+`exportOptionsPlist`の`destination`を`upload`にすると、Xcodeの既にサインイン済みのセッションを使ってApp Store Connectへ直接アップロードできます（パスワード・APIキーの追加入力不要）。TestFlightまたはApp Review提出後、実機にインストールできます。
 
 ---
 

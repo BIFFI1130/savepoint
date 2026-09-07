@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/subscription/subscription_providers.dart';
 import '../../../../core/subscription/subscription_service.dart';
 import '../../../../core/widgets/async_state_views.dart';
@@ -23,7 +26,11 @@ Future<void> _openUrl(String url) async {
 /// RevenueCatのAPIキーが未設定の間（事前準備が未完了の間）は、クラッシュせず
 /// 「準備中」の無効化状態を表示する。
 class PaywallScreen extends ConsumerStatefulWidget {
-  const PaywallScreen({super.key});
+  const PaywallScreen({super.key, this.source = 'unknown'});
+
+  /// 遷移元の画面・導線を表す識別子(例: 'favorites_limit'、'genre_filter')。
+  /// どの導線が購読に繋がりやすいかを計測するためAnalyticsイベントに添える。
+  final String source;
 
   @override
   ConsumerState<PaywallScreen> createState() => _PaywallScreenState();
@@ -32,11 +39,30 @@ class PaywallScreen extends ConsumerStatefulWidget {
 class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   bool _isProcessing = false;
 
+  @override
+  void initState() {
+    super.initState();
+    ref.read(appAnalyticsProvider).logPaywallShown(source: widget.source);
+  }
+
   Future<void> _purchase(Package package) async {
     setState(() => _isProcessing = true);
+    final productId = package.storeProduct.identifier;
+    unawaited(
+      ref.read(appAnalyticsProvider).logPaywallPurchaseTapped(
+            source: widget.source,
+            productId: productId,
+          ),
+    );
     try {
       await Purchases.purchase(PurchaseParams.package(package));
       ref.invalidate(customerInfoProvider);
+      unawaited(
+        ref.read(appAnalyticsProvider).logPaywallPurchaseSucceeded(
+              source: widget.source,
+              productId: productId,
+            ),
+      );
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -64,9 +90,15 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
   Future<void> _restore() async {
     setState(() => _isProcessing = true);
+    unawaited(
+      ref.read(appAnalyticsProvider).logPaywallRestoreTapped(source: widget.source),
+    );
     try {
       await Purchases.restorePurchases();
       ref.invalidate(customerInfoProvider);
+      unawaited(
+        ref.read(appAnalyticsProvider).logPaywallRestoreSucceeded(source: widget.source),
+      );
       if (mounted) {
         ScaffoldMessenger.of(
           context,

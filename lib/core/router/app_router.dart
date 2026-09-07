@@ -248,7 +248,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/subscription/paywall',
-        builder: (context, state) => const PaywallScreen(),
+        builder: (context, state) => PaywallScreen(
+          source: state.uri.queryParameters['source'] ?? 'unknown',
+        ),
       ),
       GoRoute(
         path: '/social',

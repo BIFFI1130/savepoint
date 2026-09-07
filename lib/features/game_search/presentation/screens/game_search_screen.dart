@@ -439,7 +439,9 @@ class _SortSelector extends StatelessWidget {
                           if (value == null) return;
                           if (value == GameSortType.popularity &&
                               !isSubscribed) {
-                            context.push('/subscription/paywall');
+                            context.push(
+                              '/subscription/paywall?source=search_sort_popularity',
+                            );
                             return;
                           }
                           onChanged(value);

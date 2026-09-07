@@ -307,7 +307,8 @@ class _FavoriteGamesEditScreenState
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     child: OutlinedButton.icon(
-                      onPressed: () => context.push('/subscription/paywall'),
+                      onPressed: () => context
+                          .push('/subscription/paywall?source=favorites_limit'),
                       icon: const Icon(Icons.workspace_premium_outlined),
                       label: const Text('サブスクに加入すると上限なく登録できます'),
                     ),

@@ -554,7 +554,8 @@ class _SummaryBody extends ConsumerWidget {
             _DetailedStats(summary: summary)
           else
             OutlinedButton.icon(
-              onPressed: () => context.push('/subscription/paywall'),
+              onPressed: () =>
+                  context.push('/subscription/paywall?source=summary_stats'),
               icon: const Icon(Icons.workspace_premium_outlined),
               label: const Text('サブスクに加入して詳細な統計グラフを見る'),
             ),

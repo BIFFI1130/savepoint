@@ -47,7 +47,8 @@ class SettingsPremiumScreen extends StatelessWidget {
                 leading: const Icon(Icons.workspace_premium_outlined),
                 title: const Text('プレミアムプランについて見る'),
                 subtitle: const Text('広告非表示・閲覧数の分析・ジャンル絞り込みなど'),
-                onTap: () => context.push('/subscription/paywall'),
+                onTap: () =>
+                    context.push('/subscription/paywall?source=settings_menu'),
               );
             },
           ),

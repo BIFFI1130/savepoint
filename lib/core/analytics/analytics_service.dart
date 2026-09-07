@@ -61,6 +61,44 @@ class AppAnalytics {
         name: 'backlog_reminder_toggled',
         parameters: {'enabled': enabled ? 1 : 0},
       );
+
+  /// ペイウォール画面が表示された。[source]は遷移元の画面・導線
+  /// （例: 'favorites_limit'、'genre_filter'、'settings_menu'）で、
+  /// どの導線が購読に繋がりやすいかを後から比較するために必須で渡す。
+  Future<void> logPaywallShown({required String source}) => _analytics.logEvent(
+        name: 'paywall_shown',
+        parameters: {'source': source},
+      );
+
+  Future<void> logPaywallPurchaseTapped({
+    required String source,
+    required String productId,
+  }) =>
+      _analytics.logEvent(
+        name: 'paywall_purchase_tapped',
+        parameters: {'source': source, 'product_id': productId},
+      );
+
+  Future<void> logPaywallPurchaseSucceeded({
+    required String source,
+    required String productId,
+  }) =>
+      _analytics.logEvent(
+        name: 'paywall_purchase_succeeded',
+        parameters: {'source': source, 'product_id': productId},
+      );
+
+  Future<void> logPaywallRestoreTapped({required String source}) =>
+      _analytics.logEvent(
+        name: 'paywall_restore_tapped',
+        parameters: {'source': source},
+      );
+
+  Future<void> logPaywallRestoreSucceeded({required String source}) =>
+      _analytics.logEvent(
+        name: 'paywall_restore_succeeded',
+        parameters: {'source': source},
+      );
 }
 
 final appAnalyticsProvider = Provider<AppAnalytics>((ref) {
