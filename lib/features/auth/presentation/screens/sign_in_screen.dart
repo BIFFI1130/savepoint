@@ -186,6 +186,15 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                       minimumSize: const Size.fromHeight(44),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '続行すると利用規約およびプライバシーポリシーに同意したことになります。'
+                    '不適切なコンテンツ・迷惑行為は一切許容されません。',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                  ),
                 ],
               ),
             ),

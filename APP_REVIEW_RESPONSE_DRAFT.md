@@ -1,5 +1,50 @@
 # App Review Resolution Center 返信文（下書き）
 
+## 2026-09-08 却下（Submission ID 3fda0e2f-b809-43b9-9100-e3086e26a131）への返信案
+
+Guideline 1.2 (Safety - User Generated Content), 2.1(a) (Information Needed), 2.1 (Information Needed) の3件への回答。
+
+---
+
+Thank you for the detailed feedback. We have addressed all three points below.
+
+**Guideline 1.2 — User Generated Content safeguards**
+
+The following precautions are now in place:
+- Age rating has been updated to 17+ in App Store Connect.
+- New users must agree to the Terms of Service (which now explicitly states a zero-tolerance policy for objectionable content and abusive users) before creating an account; users signing in via Sign in with Apple / Google see the same notice.
+- A keyword-based filter now blocks review submissions containing objectionable content at the point of posting.
+- Users can flag/report any individual review (via the report icon on that review) and any user profile.
+- Users can block abusive users directly from their profile; blocking is mutual (both sides can no longer follow each other).
+- Users can delete their own posts at any time; deletion is immediate (a real-time database delete), so the content disappears from the feed instantly.
+- We commit to reviewing reports within 24 hours and removing violating content / suspending the offending account when warranted (stated in the Terms of Service, section 3).
+- Contact information for reporting inappropriate activity is now available in-app at Settings > About > "お問い合わせ・不適切なコンテンツの報告" (savepoint.record.game@gmail.com).
+
+**Guideline 2.1(a) — Demo account / full feature access**
+
+We apologize — the demo account provided did not yet have any other users or reviews to browse, so the social features (Following, "Everyone's Reviews") appeared empty. We have now populated the production database with several additional demo user accounts, each with multiple posted reviews, and had the demo account follow them. Signing in with the demo account below now shows:
+- A populated "つながり" (Following) feed with reviews from followed users
+- Populated "みんなのレビュー" (Everyone's Reviews) sections on game detail pages, with multiple reviews per game
+- Working report/block actions on those reviews and profiles
+
+Demo account (same as before, in App Review Information):
+- Email: savepoint.record.game+applereview@gmail.com
+- Password: CfmZbXfDuGJhR3rD
+
+**Guideline 2.1 — Steps to post a review**
+
+1. Sign in (or use the demo account above).
+2. From the home tab, search for a game by title (or tap a game from the Home/Trending list).
+3. On the game's detail page, tap "遊んだ" (Played).
+4. Set a star rating (optional) and write a review in the text field (optional — a rating or review text is required to appear in public feeds, but the log itself can be saved with neither).
+5. Optionally toggle "ネタバレあり" (Contains spoilers) and choose visibility (Public / Private).
+6. Tap "保存" (Save). The review is saved immediately and, if set to Public, appears on the game's "みんなのレビュー" section and in followers' "つながり" feed right away.
+
+We believe all three issues are now resolved and a new build reflecting these fixes has been submitted. Please let us know if any further information is needed.
+
+---
+
+
 ## 1. 画面録画
 Recorded on a physical device (iPhone), running the latest iOS version:
 

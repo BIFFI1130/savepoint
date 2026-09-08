@@ -9,6 +9,7 @@ class SettingsAboutScreen extends StatelessWidget {
       'https://biffi1130.github.io/savepoint/privacy-policy.html';
   static const _termsOfServiceUrl =
       'https://biffi1130.github.io/savepoint/terms-of-service.html';
+  static const _contactEmail = 'savepoint.record.game@gmail.com';
 
   Future<void> _openUrl(String url) async {
     final uri = Uri.tryParse(url);
@@ -34,6 +35,13 @@ class SettingsAboutScreen extends StatelessWidget {
             leading: const Icon(Icons.description_outlined),
             title: const Text('利用規約'),
             onTap: () => _openUrl(_termsOfServiceUrl),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.mail_outline),
+            title: const Text('お問い合わせ・不適切なコンテンツの報告'),
+            subtitle: const Text(_contactEmail),
+            onTap: () => _openUrl('mailto:$_contactEmail'),
           ),
         ],
       ),

@@ -2,9 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/analytics/analytics_service.dart';
 import '../providers/auth_providers.dart';
+
+const _termsOfServiceUrl =
+    'https://biffi1130.github.io/savepoint/terms-of-service.html';
+const _privacyPolicyUrl =
+    'https://biffi1130.github.io/savepoint/privacy-policy.html';
+
+Future<void> _openUrl(String url) async {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return;
+  await launchUrl(uri, mode: LaunchMode.externalApplication);
+}
 
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
@@ -18,6 +30,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _agreedToTerms = false;
 
   @override
   void dispose() {
@@ -28,6 +41,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_agreedToTerms) {
+      _showError('利用規約への同意が必要です');
+      return;
+    }
     setState(() => _isLoading = true);
     try {
       await ref.read(authRepositoryProvider).signUpWithEmail(
@@ -100,7 +117,43 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         ? 'パスワードは6文字以上で入力してください'
                         : null,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    value: _agreedToTerms,
+                    onChanged: (value) =>
+                        setState(() => _agreedToTerms = value ?? false),
+                    title: Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        const Text('『'),
+                        GestureDetector(
+                          onTap: () => _openUrl(_termsOfServiceUrl),
+                          child: const Text(
+                            '利用規約',
+                            style: TextStyle(
+                              color: Colors.blue,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                        const Text('』および『'),
+                        GestureDetector(
+                          onTap: () => _openUrl(_privacyPolicyUrl),
+                          child: const Text(
+                            'プライバシーポリシー',
+                            style: TextStyle(
+                              color: Colors.blue,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                        const Text('』に同意します（不適切なコンテンツ・迷惑行為は一切許容されません）'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
                   FilledButton(
                     onPressed: _isLoading ? null : _signUp,
                     child: _isLoading

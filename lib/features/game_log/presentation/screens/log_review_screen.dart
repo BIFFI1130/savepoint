@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/analytics/analytics_service.dart';
+import '../../../../core/moderation/content_filter.dart';
 import '../../../../core/supabase/supabase_client.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/star_rating.dart';
@@ -100,15 +101,20 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
   }
 
   Future<void> _save() async {
+    final reviewText = _reviewController.text.trim();
+    if (reviewText.isNotEmpty && !checkReviewText(reviewText).isAllowed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('不適切な表現が含まれているため投稿できません')),
+      );
+      return;
+    }
     setState(() => _isSaving = true);
     final isNewReview = !_hadReview && _hasReview;
     try {
       await ref.read(logRepositoryProvider).upsertPlayedLog(
             gameId: widget.gameId,
             rating: _rating == 0 ? null : _rating,
-            reviewText: _reviewController.text.trim().isEmpty
-                ? null
-                : _reviewController.text.trim(),
+            reviewText: reviewText.isEmpty ? null : reviewText,
             hasSpoiler: _hasSpoiler,
             isCleared: _isCleared,
             visibility: _visibility,
