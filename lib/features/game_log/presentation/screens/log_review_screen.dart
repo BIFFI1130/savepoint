@@ -248,7 +248,7 @@ class _LogReviewScreenState extends ConsumerState<LogReviewScreen> {
               children: [
                 if (game != null)
                   Text(
-                    game.name,
+                    game.displayName,
                     style: Theme.of(context).textTheme.titleLarge,
                     textAlign: TextAlign.center,
                   ),

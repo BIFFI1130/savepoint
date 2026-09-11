@@ -299,14 +299,17 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
                   ),
                 );
               }
+              final showNativeAd = !ref.watch(isAdFreeProvider);
               return _isGridView
                   ? GameSliverGrid(
                       games: results.games,
                       isLoadingMore: results.isLoadingMore,
+                      showNativeAd: showNativeAd,
                     )
                   : GameSliverList(
                       games: results.games,
                       isLoadingMore: results.isLoadingMore,
+                      showNativeAd: showNativeAd,
                     );
             },
             loading: () => const SliverFillRemaining(
