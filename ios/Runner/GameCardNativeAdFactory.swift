@@ -16,6 +16,10 @@ class GameCardNativeAdFactory: NSObject, FLTNativeAdFactory {
 
     let mediaView = MediaView()
     mediaView.translatesAutoresizingMaskIntoConstraints = false
+    // メディア素材の読み込みに失敗した場合や、画像を持たない広告クリエイティブの場合に
+    // 背景が真っ黒になり「表示が壊れている」ように見えてしまうため、中間グレーで
+    // フォールバックする（CoverImageのプレースホルダーと近いトーン）。
+    mediaView.backgroundColor = UIColor(white: 0.38, alpha: 1)
     adView.addSubview(mediaView)
     adView.mediaView = mediaView
     NSLayoutConstraint.activate([

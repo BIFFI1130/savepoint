@@ -12,10 +12,14 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
+        <!-- メディア素材の読み込みに失敗した場合や、画像を持たない広告クリエイティブの
+             場合に背景が真っ黒になり「表示が壊れている」ように見えてしまうため、
+             中間グレーでフォールバックする（CoverImageのプレースホルダーと近いトーン）。 -->
         <com.google.android.gms.ads.nativead.MediaView
             android:id="@+id/ad_media"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="match_parent"
+            android:background="#616161" />
 
         <View
             android:layout_width="match_parent"
