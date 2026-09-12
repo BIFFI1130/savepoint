@@ -20,15 +20,6 @@ class Env {
     return Platform.isIOS ? _testBannerAdUnitIdIOS : _testBannerAdUnitIdAndroid;
   }
 
-  static const _testNativeAdUnitIdAndroid = 'ca-app-pub-3940256099942544/2247696110';
-  static const _testNativeAdUnitIdIOS = 'ca-app-pub-3940256099942544/3986624511';
-
-  static String get admobNativeAdUnitId {
-    const configured = String.fromEnvironment('ADMOB_NATIVE_AD_UNIT_ID');
-    if (configured.isNotEmpty) return configured;
-    return Platform.isIOS ? _testNativeAdUnitIdIOS : _testNativeAdUnitIdAndroid;
-  }
-
   static const _testInterstitialAdUnitIdAndroid = 'ca-app-pub-3940256099942544/1033173712';
   static const _testInterstitialAdUnitIdIOS = 'ca-app-pub-3940256099942544/4411468910';
 

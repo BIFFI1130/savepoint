@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/ads/banner_ad_widget.dart';
 import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/preferences/content_filter_prefs.dart';
 import '../../../../core/subscription/subscription_providers.dart';
@@ -40,6 +41,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
   Timer? _developerDebounce;
   Timer? _searchAnalyticsDebounce;
   bool _isGridView = false;
+  bool _showScrollToTop = false;
 
   bool get _hasActiveFilter =>
       _selectedPlatforms.isNotEmpty ||
@@ -76,6 +78,20 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
     if (nearBottom) {
       ref.read(gameSearchProvider.notifier).loadMore();
     }
+
+    // 検索ボックス・フィルターが画面外にスクロールされた後だけ、上に戻るボタンを出す。
+    final showScrollToTop = _scrollController.position.pixels > 400;
+    if (showScrollToTop != _showScrollToTop) {
+      setState(() => _showScrollToTop = showScrollToTop);
+    }
+  }
+
+  void _scrollToTop() {
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
   }
 
   void _onDeveloperChanged(String value) {
@@ -284,49 +300,60 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
           ),
         ],
       ),
-      body: CustomScrollView(
-        controller: _scrollController,
-        slivers: [
-          SliverToBoxAdapter(child: _buildHeader(context)),
-          resultsAsync.when(
-            data: (results) {
-              if (results.games.isEmpty) {
-                return const SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: EmptyView(
-                    message: 'ゲームタイトルを検索するか、\nジャンルを選んで探してみましょう',
-                    icon: Icons.videogame_asset_outlined,
+      body: Column(
+        children: [
+          Expanded(
+            child: CustomScrollView(
+              controller: _scrollController,
+              slivers: [
+                SliverToBoxAdapter(child: _buildHeader(context)),
+                resultsAsync.when(
+                  data: (results) {
+                    if (results.games.isEmpty) {
+                      return const SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: EmptyView(
+                          message: 'ゲームタイトルを検索するか、\nジャンルを選んで探してみましょう',
+                          icon: Icons.videogame_asset_outlined,
+                        ),
+                      );
+                    }
+                    return _isGridView
+                        ? GameSliverGrid(
+                            games: results.games,
+                            isLoadingMore: results.isLoadingMore,
+                          )
+                        : GameSliverList(
+                            games: results.games,
+                            isLoadingMore: results.isLoadingMore,
+                          );
+                  },
+                  loading: () => const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: LoadingView(),
                   ),
-                );
-              }
-              final showNativeAd = !ref.watch(isAdFreeProvider);
-              return _isGridView
-                  ? GameSliverGrid(
-                      games: results.games,
-                      isLoadingMore: results.isLoadingMore,
-                      showNativeAd: showNativeAd,
-                    )
-                  : GameSliverList(
-                      games: results.games,
-                      isLoadingMore: results.isLoadingMore,
-                      showNativeAd: showNativeAd,
-                    );
-            },
-            loading: () => const SliverFillRemaining(
-              hasScrollBody: false,
-              child: LoadingView(),
-            ),
-            error: (error, _) => SliverFillRemaining(
-              hasScrollBody: false,
-              child: ErrorView(
-                message: 'ゲームの検索に失敗しました',
-                onRetry: () => ref.invalidate(gameSearchProvider),
-              ),
+                  error: (error, _) => SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: ErrorView(
+                      message: 'ゲームの検索に失敗しました',
+                      onRetry: () => ref.invalidate(gameSearchProvider),
+                    ),
+                  ),
+                ),
+                const IgdbFooterSliver(),
+              ],
             ),
           ),
-          const IgdbFooterSliver(),
+          if (!ref.watch(isAdFreeProvider)) const BannerAdWidget(),
         ],
       ),
+      floatingActionButton: _showScrollToTop
+          ? FloatingActionButton.small(
+              onPressed: _scrollToTop,
+              tooltip: '上に戻る',
+              child: const Icon(Icons.arrow_upward),
+            )
+          : null,
     );
   }
 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/ads/native_ad_card.dart';
+import '../../../../core/ads/banner_ad_widget.dart';
 import '../../../../core/preferences/content_filter_prefs.dart';
 import '../../../../core/subscription/subscription_providers.dart';
 import '../../../../core/widgets/async_state_views.dart';
@@ -36,123 +36,137 @@ class HomeScreen extends ConsumerWidget {
     final top100Async = ref.watch(top100Provider(noFilter));
     final recommendedAsync = ref.watch(recommendedGamesProvider);
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 8),
-          recommendedAsync.when(
-            data: (games) {
-              if (games.isEmpty) return const SizedBox.shrink();
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _SectionHeader(
-                    title: 'あなたへのおすすめ',
-                    onTap: () => context.push('/home/recommended'),
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                recommendedAsync.when(
+                  data: (games) {
+                    if (games.isEmpty) return const SizedBox.shrink();
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _SectionHeader(
+                          title: 'あなたへのおすすめ',
+                          onTap: () => context.push('/home/recommended'),
+                        ),
+                        _RecommendedCarousel(games: games),
+                        const SizedBox(height: 24),
+                      ],
+                    );
+                  },
+                  loading: () => const SizedBox(
+                    height: 160,
+                    child: LoadingView(),
                   ),
-                  _RecommendedCarousel(games: games),
-                  const SizedBox(height: 24),
-                ],
-              );
-            },
-            loading: () => const SizedBox(
-              height: 160,
-              child: LoadingView(),
+                  error: (error, _) => const SizedBox.shrink(),
+                ),
+                _SectionHeader(
+                  title: '今週発売のゲーム',
+                  onTap: () => context.push('/home/weekly', extra: noFilter),
+                ),
+                releasesAsync.when(
+                  data: (games) {
+                    if (games.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 24,
+                        ),
+                        child: Text('今週発売予定のタイトルは見つかりませんでした'),
+                      );
+                    }
+                    return _CoverCarousel(games: games);
+                  },
+                  loading: () => const SizedBox(
+                    height: 160,
+                    child: LoadingView(),
+                  ),
+                  error: (error, _) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: ErrorView(
+                      message: '今週発売のゲームの取得に失敗しました',
+                      onRetry: () =>
+                          ref.invalidate(weeklyReleasesProvider(noFilter)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _SectionHeader(
+                  title: '今月発売のゲーム',
+                  onTap: () => context.push('/home/monthly', extra: noFilter),
+                ),
+                monthlyReleasesAsync.when(
+                  data: (games) {
+                    if (games.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 24,
+                        ),
+                        child: Text('今月発売予定のタイトルは見つかりませんでした'),
+                      );
+                    }
+                    return _CoverCarousel(games: games);
+                  },
+                  loading: () => const SizedBox(
+                    height: 160,
+                    child: LoadingView(),
+                  ),
+                  error: (error, _) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: ErrorView(
+                      message: '今月発売のゲームの取得に失敗しました',
+                      onRetry: () =>
+                          ref.invalidate(monthlyReleasesProvider(noFilter)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _SectionHeader(
+                  title: 'IGDB：TOP100',
+                  onTap: () => context.push('/home/top100', extra: noFilter),
+                ),
+                top100Async.when(
+                  data: (games) {
+                    if (games.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 24,
+                        ),
+                        child: Text('該当するタイトルは見つかりませんでした'),
+                      );
+                    }
+                    return _CoverCarousel(games: games, showRank: true);
+                  },
+                  loading: () => const SizedBox(
+                    height: 160,
+                    child: LoadingView(),
+                  ),
+                  error: (error, _) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: ErrorView(
+                      message: 'IGDB TOP100の取得に失敗しました',
+                      onRetry: () => ref.invalidate(top100Provider(noFilter)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: IgdbFooter(padding: EdgeInsets.zero),
+                ),
+              ],
             ),
-            error: (error, _) => const SizedBox.shrink(),
           ),
-          _SectionHeader(
-            title: '今週発売のゲーム',
-            onTap: () => context.push('/home/weekly', extra: noFilter),
-          ),
-          releasesAsync.when(
-            data: (games) {
-              if (games.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-                  child: Text('今週発売予定のタイトルは見つかりませんでした'),
-                );
-              }
-              return _CoverCarousel(
-                games: games,
-                showNativeAd: !ref.watch(isAdFreeProvider),
-              );
-            },
-            loading: () => const SizedBox(
-              height: 160,
-              child: LoadingView(),
-            ),
-            error: (error, _) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: ErrorView(
-                message: '今週発売のゲームの取得に失敗しました',
-                onRetry: () => ref.invalidate(weeklyReleasesProvider(noFilter)),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          _SectionHeader(
-            title: '今月発売のゲーム',
-            onTap: () => context.push('/home/monthly', extra: noFilter),
-          ),
-          monthlyReleasesAsync.when(
-            data: (games) {
-              if (games.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-                  child: Text('今月発売予定のタイトルは見つかりませんでした'),
-                );
-              }
-              return _CoverCarousel(games: games);
-            },
-            loading: () => const SizedBox(
-              height: 160,
-              child: LoadingView(),
-            ),
-            error: (error, _) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: ErrorView(
-                message: '今月発売のゲームの取得に失敗しました',
-                onRetry: () =>
-                    ref.invalidate(monthlyReleasesProvider(noFilter)),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          _SectionHeader(
-            title: 'IGDB：TOP100',
-            onTap: () => context.push('/home/top100', extra: noFilter),
-          ),
-          top100Async.when(
-            data: (games) {
-              if (games.isEmpty) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-                  child: Text('該当するタイトルは見つかりませんでした'),
-                );
-              }
-              return _CoverCarousel(games: games, showRank: true);
-            },
-            loading: () => const SizedBox(
-              height: 160,
-              child: LoadingView(),
-            ),
-            error: (error, _) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: ErrorView(
-                message: 'IGDB TOP100の取得に失敗しました',
-                onRetry: () => ref.invalidate(top100Provider(noFilter)),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: IgdbFooter(padding: EdgeInsets.zero),
-          ),
-        ],
-      ),
+        ),
+        if (!ref.watch(isAdFreeProvider)) const BannerAdWidget(),
+      ],
     );
   }
 }
@@ -224,41 +238,24 @@ class _RecommendedCarousel extends StatelessWidget {
 }
 
 /// ゲームカバーの横スクロール一覧。[showRank] を有効にすると各カードの左上に
-/// 順位（1始まり）バッジを重ねて表示する（IGDB TOP100用）。[showNativeAd] を有効にすると、
-/// 3枚目の位置にゲームカードと同じ寸法のネイティブ広告カードを差し込む
-/// （件数が少なく3枚目が存在しない場合は広告を出さない）。
+/// 順位（1始まり）バッジを重ねて表示する（IGDB TOP100用）。
 class _CoverCarousel extends StatelessWidget {
-  const _CoverCarousel({
-    required this.games,
-    this.showRank = false,
-    this.showNativeAd = false,
-  });
+  const _CoverCarousel({required this.games, this.showRank = false});
 
   final List<Game> games;
   final bool showRank;
-  final bool showNativeAd;
-
-  static const _nativeAdPosition = 2;
 
   @override
   Widget build(BuildContext context) {
-    final adIndex =
-        showNativeAd && games.length > _nativeAdPosition ? _nativeAdPosition : null;
-    final itemCount = games.length + (adIndex != null ? 1 : 0);
-
     return SizedBox(
       height: 160,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: itemCount,
+        itemCount: games.length,
         separatorBuilder: (context, index) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
-          if (adIndex != null && index == adIndex) {
-            return const NativeAdCard();
-          }
-          final gameIndex = adIndex != null && index > adIndex ? index - 1 : index;
-          final game = games[gameIndex];
+          final game = games[index];
           final cover = ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: CoverImage(url: game.coverUrl, width: 110, height: 160),
@@ -282,7 +279,7 @@ class _CoverCarousel extends StatelessWidget {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            '${gameIndex + 1}',
+                            '${index + 1}',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,

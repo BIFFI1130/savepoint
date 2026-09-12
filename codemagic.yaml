@@ -116,7 +116,6 @@ definitions:
           --dart-define=SUPABASE_URL=$SUPABASE_URL \
           --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
           --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID_IOS:-} \
-          --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID_IOS:-} \
           --dart-define=ADMOB_INTERSTITIAL_AD_UNIT_ID=${ADMOB_INTERSTITIAL_AD_UNIT_ID_IOS:-} \
           --dart-define=REVENUECAT_IOS_API_KEY= \
           --dart-define=GOOGLE_IOS_CLIENT_ID=${GOOGLE_IOS_CLIENT_ID:-} \
@@ -173,7 +172,6 @@ definitions:
           --dart-define=SUPABASE_URL=$SUPABASE_URL \
           --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
           --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID_ANDROID:-} \
-          --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID_ANDROID:-} \
           --dart-define=ADMOB_INTERSTITIAL_AD_UNIT_ID=${ADMOB_INTERSTITIAL_AD_UNIT_ID_ANDROID:-} \
           --dart-define=REVENUECAT_ANDROID_API_KEY=${REVENUECAT_ANDROID_API_KEY:-} \
           --dart-define=GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID:-}
@@ -193,7 +191,6 @@ definitions:
           --dart-define=SUPABASE_URL=$SUPABASE_URL \
           --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
           --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID_ANDROID:-} \
-          --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID_ANDROID:-} \
           --dart-define=ADMOB_INTERSTITIAL_AD_UNIT_ID=${ADMOB_INTERSTITIAL_AD_UNIT_ID_ANDROID:-} \
           --dart-define=REVENUECAT_ANDROID_API_KEY=${REVENUECAT_ANDROID_API_KEY:-} \
           --dart-define=GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID:-}
@@ -736,7 +733,6 @@ workflows:
               --dart-define=SUPABASE_URL=$SUPABASE_URL \
               --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
               --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID_IOS:-} \
-              --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID_IOS:-} \
               --dart-define=ADMOB_INTERSTITIAL_AD_UNIT_ID=${ADMOB_INTERSTITIAL_AD_UNIT_ID_IOS:-} \
               --dart-define=REVENUECAT_IOS_API_KEY= \
               --dart-define=GOOGLE_IOS_CLIENT_ID=${GOOGLE_IOS_CLIENT_ID:-} \
@@ -789,7 +785,6 @@ workflows:
               --dart-define=SUPABASE_URL=$SUPABASE_URL \
               --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY \
               --dart-define=ADMOB_BANNER_AD_UNIT_ID=${ADMOB_BANNER_AD_UNIT_ID_ANDROID:-} \
-              --dart-define=ADMOB_NATIVE_AD_UNIT_ID=${ADMOB_NATIVE_AD_UNIT_ID_ANDROID:-} \
               --dart-define=ADMOB_INTERSTITIAL_AD_UNIT_ID=${ADMOB_INTERSTITIAL_AD_UNIT_ID_ANDROID:-} \
               --dart-define=REVENUECAT_ANDROID_API_KEY=${REVENUECAT_ANDROID_API_KEY:-} \
               --dart-define=GOOGLE_WEB_CLIENT_ID=${GOOGLE_WEB_CLIENT_ID:-}

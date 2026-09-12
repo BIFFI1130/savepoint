@@ -1,10 +1,8 @@
 import Flutter
 import FirebaseCrashlytics
 import FirebaseMessaging
-import GoogleMobileAds
 import UIKit
 import firebase_messaging
-import google_mobile_ads
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -59,12 +57,5 @@ import google_mobile_ads
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
-
-    // ホーム画面のゲームカバー一覧に紛れ込ませるネイティブ広告のファクトリを登録する。
-    FLTGoogleMobileAdsPlugin.registerNativeAdFactory(
-      engineBridge.pluginRegistry,
-      factoryId: "gameCard",
-      nativeAdFactory: GameCardNativeAdFactory()
-    )
   }
 }

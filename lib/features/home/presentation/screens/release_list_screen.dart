@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/preferences/content_filter_prefs.dart';
-import '../../../../core/subscription/subscription_providers.dart';
 import '../../../../core/widgets/advanced_filters_section.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/game_sliver_grid.dart';
@@ -202,7 +201,6 @@ class _ReleaseListScreenState extends ConsumerState<ReleaseListScreen> {
     };
     final resultsAsync = ref.watch(provider);
     final showRank = widget.type == ReleaseListType.top100;
-    final showNativeAd = !showRank && !ref.watch(isAdFreeProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -237,16 +235,8 @@ class _ReleaseListScreenState extends ConsumerState<ReleaseListScreen> {
                 );
               }
               return _isGridView
-                  ? GameSliverGrid(
-                      games: games,
-                      showRank: showRank,
-                      showNativeAd: showNativeAd,
-                    )
-                  : GameSliverList(
-                      games: games,
-                      showRank: showRank,
-                      showNativeAd: showNativeAd,
-                    );
+                  ? GameSliverGrid(games: games, showRank: showRank)
+                  : GameSliverList(games: games, showRank: showRank);
             },
             loading: () => const SliverFillRemaining(
               hasScrollBody: false,
