@@ -31,13 +31,14 @@ class _HomeTabsScreenState extends State<HomeTabsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 40,
         title: Text(_tabTitles[_controller.index]),
         bottom: TabBar(
           controller: _controller,
           tabs: const [
-            Tab(text: 'ホーム'),
-            Tab(text: 'タイムライン'),
-            Tab(text: 'カレンダー'),
+            Tab(height: 36, text: 'ホーム'),
+            Tab(height: 36, text: 'タイムライン'),
+            Tab(height: 36, text: 'カレンダー'),
           ],
         ),
       ),
