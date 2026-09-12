@@ -280,6 +280,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
   @override
   Widget build(BuildContext context) {
     final resultsAsync = ref.watch(gameSearchProvider);
+    final isAdFree = ref.watch(isAdFreeProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -344,14 +345,19 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
               ],
             ),
           ),
-          if (!ref.watch(isAdFreeProvider)) const BannerAdWidget(),
+          if (!isAdFree) const BannerAdWidget(),
         ],
       ),
+      // バナー広告が表示されている間は、その上に重ならないよう分だけ底上げする
+      // （プレミアムでバナーが無い場合は通常位置のまま）。
       floatingActionButton: _showScrollToTop
-          ? FloatingActionButton.small(
-              onPressed: _scrollToTop,
-              tooltip: '上に戻る',
-              child: const Icon(Icons.arrow_upward),
+          ? Padding(
+              padding: EdgeInsets.only(bottom: isAdFree ? 0 : 60),
+              child: FloatingActionButton.small(
+                onPressed: _scrollToTop,
+                tooltip: '上に戻る',
+                child: const Icon(Icons.arrow_upward),
+              ),
             )
           : null,
     );
