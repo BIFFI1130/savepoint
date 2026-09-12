@@ -61,6 +61,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     return Scaffold(
       body: IndexedStack(index: _index, children: _screens),
       bottomNavigationBar: NavigationBar(
+        height: 56,
         selectedIndex: _index,
         onDestinationSelected: (value) => setState(() => _index = value),
         destinations: const [
