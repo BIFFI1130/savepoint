@@ -11,7 +11,13 @@ import '../config/env.dart';
 /// 配置だけでなく、左右にパディングのあるコンテンツ内に埋め込んでも
 /// 横にはみ出さない。
 class BannerAdWidget extends StatefulWidget {
-  const BannerAdWidget({super.key});
+  const BannerAdWidget({super.key, this.onHeightChanged});
+
+  /// 実際に読み込まれた広告の高さ（論理ピクセル）を通知する。アダプティブ
+  /// バナーは端末幅によって高さが変わるため、この上に浮かせて配置したい
+  /// UI（「上に戻る」ボタン等）がある画面で、決め打ちの高さに頼らず正確な
+  /// 値を使えるようにする。
+  final ValueChanged<double>? onHeightChanged;
 
   @override
   State<BannerAdWidget> createState() => _BannerAdWidgetState();
@@ -37,7 +43,9 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
             loadedAd.dispose();
             return;
           }
-          setState(() => _bannerAd = loadedAd as BannerAd);
+          final banner = loadedAd as BannerAd;
+          setState(() => _bannerAd = banner);
+          widget.onHeightChanged?.call(banner.size.height.toDouble());
         },
         onAdFailedToLoad: (failedAd, error) {
           failedAd.dispose();

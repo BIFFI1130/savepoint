@@ -42,6 +42,7 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
   Timer? _searchAnalyticsDebounce;
   bool _isGridView = false;
   bool _showScrollToTop = false;
+  double _bannerAdHeight = 0;
 
   bool get _hasActiveFilter =>
       _selectedPlatforms.isNotEmpty ||
@@ -345,14 +346,22 @@ class _GameSearchScreenState extends ConsumerState<GameSearchScreen> {
               ],
             ),
           ),
-          if (!isAdFree) const BannerAdWidget(),
+          if (!isAdFree)
+            BannerAdWidget(
+              onHeightChanged: (height) {
+                if (height == _bannerAdHeight) return;
+                setState(() => _bannerAdHeight = height);
+              },
+            ),
         ],
       ),
-      // バナー広告が表示されている間は、その上に重ならないよう分だけ底上げする
-      // （プレミアムでバナーが無い場合は通常位置のまま）。
+      // バナー広告が表示されている間は、実際の高さ＋余白の分だけ底上げして
+      // 重ならないようにする（プレミアムでバナーが無い場合は通常位置のまま）。
       floatingActionButton: _showScrollToTop
           ? Padding(
-              padding: EdgeInsets.only(bottom: isAdFree ? 0 : 60),
+              padding: EdgeInsets.only(
+                bottom: isAdFree ? 0 : _bannerAdHeight + 12,
+              ),
               child: FloatingActionButton.small(
                 onPressed: _scrollToTop,
                 tooltip: '上に戻る',
