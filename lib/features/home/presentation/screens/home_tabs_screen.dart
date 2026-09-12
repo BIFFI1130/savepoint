@@ -33,13 +33,17 @@ class _HomeTabsScreenState extends State<HomeTabsScreen>
       appBar: AppBar(
         toolbarHeight: 40,
         title: Text(_tabTitles[_controller.index]),
-        bottom: TabBar(
-          controller: _controller,
-          tabs: const [
-            Tab(height: 36, text: 'ホーム'),
-            Tab(height: 36, text: 'タイムライン'),
-            Tab(height: 36, text: 'カレンダー'),
-          ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(36),
+          child: TabBar(
+            controller: _controller,
+            padding: EdgeInsets.zero,
+            tabs: const [
+              Tab(height: 36, text: 'ホーム'),
+              Tab(height: 36, text: 'タイムライン'),
+              Tab(height: 36, text: 'カレンダー'),
+            ],
+          ),
         ),
       ),
       body: TabBarView(
