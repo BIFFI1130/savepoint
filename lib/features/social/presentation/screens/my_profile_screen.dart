@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/subscription/subscription_providers.dart';
@@ -47,22 +48,62 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
   }
 
   Future<void> _pickAndUploadAvatar() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('ライブラリから選択'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('カメラで撮影'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
     final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
+    final picked = await picker.pickImage(source: source, imageQuality: 90);
+    if (picked == null) return;
+
+    // ユーザー自身が表示範囲・サイズを調整できるよう、円形のクロップUIを挟む
+    // （アップロード前にAvatarImage（丸型表示）と同じ見た目で確認できる）。
+    final cropped = await ImageCropper().cropImage(
+      sourcePath: picked.path,
+      compressQuality: 85,
+      compressFormat: ImageCompressFormat.jpg,
       maxWidth: 1024,
       maxHeight: 1024,
-      imageQuality: 85,
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'プロフィール画像を編集',
+          cropStyle: CropStyle.circle,
+          lockAspectRatio: true,
+        ),
+        IOSUiSettings(
+          title: 'プロフィール画像を編集',
+          cropStyle: CropStyle.circle,
+          aspectRatioLockEnabled: true,
+        ),
+      ],
     );
-    if (picked == null) return;
+    if (cropped == null) return;
 
     setState(() => _isUploadingAvatar = true);
     try {
-      final bytes = await File(picked.path).readAsBytes();
-      final ext = picked.path.split('.').last.toLowerCase();
+      final bytes = await File(cropped.path).readAsBytes();
       await ref
           .read(socialRepositoryProvider)
-          .uploadAvatar(bytes, fileExt: ext);
+          .uploadAvatar(bytes, fileExt: 'jpg');
       ref.invalidate(myProfileProvider);
       if (mounted) {
         ScaffoldMessenger.of(

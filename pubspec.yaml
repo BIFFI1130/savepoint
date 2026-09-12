@@ -70,6 +70,8 @@ dependencies:
 
   # プロフィール画像の選択（ギャラリー/カメラ）に使用
   image_picker: ^1.1.2
+  # 選択した画像の範囲・サイズをユーザー自身が調整できるクロップUIに使用
+  image_cropper: ^11.0.0
 
   # 実行中のアプリ自身のビルド番号を取得（TestFlight/Firebase配信での更新チェック用）
   package_info_plus: ^8.1.2

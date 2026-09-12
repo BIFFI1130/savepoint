@@ -35,6 +35,9 @@ dependencies {
 
   // flutter_local_notificationsが要求するcore library desugaring用ランタイム。
   coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+
+  // image_cropperが内部で使うuCropのUCropActivityがTheme.AppCompatを要求するため必要。
+  implementation("androidx.appcompat:appcompat:1.7.0")
 }
 
 android {

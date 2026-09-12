@@ -4,6 +4,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- 端末再起動後もスケジュール済みのローカル通知を維持するために必要。 -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- プロフィール画像をカメラ撮影で選択する機能に使用。 -->
+    <uses-permission android:name="android.permission.CAMERA"/>
     <application
         android:label="savepoint"
         android:name="${applicationName}"
@@ -45,6 +47,11 @@
                 <data android:scheme="savepoint" android:host="user"/>
             </intent-filter>
         </activity>
+        <!-- プロフィール画像のクロップUI（image_cropperパッケージ、uCrop使用）。 -->
+        <activity
+            android:name="com.yalantis.ucrop.UCropActivity"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
         <!-- 積みゲーの中で発売が一番近い作品を表示するホーム画面ウィジェット。 -->
         <receiver
             android:name=".BacklogWidgetProvider"
