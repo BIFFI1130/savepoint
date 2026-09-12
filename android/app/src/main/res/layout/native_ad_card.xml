@@ -8,7 +8,12 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <FrameLayout
+    <!-- FrameLayoutでは兄弟View同士の相対位置指定ができず、headline/CTAの右端が
+         広告主アイコンと重なる実装不備（AdMob native ad validator「Assets can not be
+         placed on top of another asset」で検出）が起きていたため、RelativeLayoutに
+         変更し、headline/CTAの右端をアイコンの左端、headlineの下端をCTAの上端に
+         明示的に固定する（テキストの長さに関わらず重ならないようにするため）。 -->
+    <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
@@ -24,29 +29,32 @@
         <View
             android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:layout_gravity="bottom"
+            android:layout_alignParentBottom="true"
             android:background="#B3000000" />
 
-        <TextView
-            android:id="@+id/ad_headline"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom"
-            android:layout_marginLeft="8dp"
-            android:layout_marginRight="8dp"
-            android:layout_marginBottom="22dp"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:textColor="#FFFFFF"
-            android:textSize="12sp"
-            android:textStyle="bold" />
+        <!-- 広告主アイコン。素材が提供されているのにViewが未設定だと実装不備として
+             検証ツールに指摘されるため、右下に小さく表示する。headline/CTAの右端の
+             基準にするため、先に配置する。 -->
+        <ImageView
+            android:id="@+id/ad_icon"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentEnd="true"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="7dp"
+            android:background="@android:color/transparent"
+            android:scaleType="fitCenter" />
 
         <TextView
             android:id="@+id/ad_call_to_action"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="bottom"
-            android:layout_marginLeft="8dp"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentStart="true"
+            android:layout_toStartOf="@id/ad_icon"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="4dp"
             android:layout_marginBottom="6dp"
             android:paddingLeft="8dp"
             android:paddingRight="8dp"
@@ -59,22 +67,27 @@
             android:textSize="10sp"
             android:textStyle="bold" />
 
-        <!-- 広告主アイコン。素材が提供されているのにViewが未設定だと実装不備として
-             検証ツールに指摘されるため、CTAボタンの反対側に小さく表示する。 -->
-        <ImageView
-            android:id="@+id/ad_icon"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:layout_gravity="bottom|right"
-            android:layout_marginRight="8dp"
-            android:layout_marginBottom="7dp"
-            android:background="@android:color/transparent"
-            android:scaleType="fitCenter" />
+        <TextView
+            android:id="@+id/ad_headline"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_above="@id/ad_call_to_action"
+            android:layout_alignParentStart="true"
+            android:layout_toStartOf="@id/ad_icon"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="4dp"
+            android:layout_marginBottom="4dp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="top|left"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentStart="true"
             android:layout_margin="4dp"
             android:paddingLeft="6dp"
             android:paddingRight="6dp"
@@ -91,8 +104,9 @@
             android:id="@+id/ad_choices"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="top|right"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentEnd="true"
             android:layout_margin="4dp" />
 
-    </FrameLayout>
+    </RelativeLayout>
 </com.google.android.gms.ads.nativead.NativeAdView>

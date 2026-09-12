@@ -40,19 +40,29 @@ class GameCardNativeAdFactory: NSObject, FLTNativeAdFactory {
       scrim.heightAnchor.constraint(equalToConstant: 56),
     ])
 
-    let headlineLabel = UILabel()
-    headlineLabel.translatesAutoresizingMaskIntoConstraints = false
-    headlineLabel.numberOfLines = 1
-    headlineLabel.font = UIFont.boldSystemFont(ofSize: 12)
-    headlineLabel.textColor = .white
-    headlineLabel.text = nativeAd.headline
-    adView.addSubview(headlineLabel)
-    adView.headlineView = headlineLabel
-    NSLayoutConstraint.activate([
-      headlineLabel.leadingAnchor.constraint(equalTo: adView.leadingAnchor, constant: 8),
-      headlineLabel.trailingAnchor.constraint(equalTo: adView.trailingAnchor, constant: -8),
-      headlineLabel.bottomAnchor.constraint(equalTo: adView.bottomAnchor, constant: -24),
-    ])
+    // 広告主アイコン。素材が提供されているのにViewが未設定だと実装不備として
+    // 検証ツールに指摘されるため、右下に小さく表示する。headline/CTAより先に
+    // 生成し、両ラベルのtrailing制約をこのiconImageView基準にすることで、
+    // テキストの長さに関わらずアイコンの上に重ならないようにする。
+    var iconImageView: UIImageView?
+    if let icon = nativeAd.icon {
+      let imageView = UIImageView(image: icon.image)
+      imageView.translatesAutoresizingMaskIntoConstraints = false
+      imageView.contentMode = .scaleAspectFit
+      adView.addSubview(imageView)
+      adView.iconView = imageView
+      NSLayoutConstraint.activate([
+        imageView.trailingAnchor.constraint(equalTo: adView.trailingAnchor, constant: -8),
+        imageView.bottomAnchor.constraint(equalTo: adView.bottomAnchor, constant: -7),
+        imageView.widthAnchor.constraint(equalToConstant: 20),
+        imageView.heightAnchor.constraint(equalToConstant: 20),
+      ])
+      iconImageView = imageView
+    }
+    // アイコン未設定の場合のtrailing制約の基準として、アイコンと同じ位置に不可視の
+    // レイアウトガイドを置く（headline/CTAのtrailing制約を常に同じ書き方にできる）。
+    let iconTrailingAnchor = iconImageView?.leadingAnchor ?? adView.trailingAnchor
+    let iconTrailingInset: CGFloat = iconImageView != nil ? -4 : -8
 
     let callToActionLabel = UILabel()
     callToActionLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -65,24 +75,29 @@ class GameCardNativeAdFactory: NSObject, FLTNativeAdFactory {
     adView.callToActionView = callToActionLabel
     NSLayoutConstraint.activate([
       callToActionLabel.leadingAnchor.constraint(equalTo: adView.leadingAnchor, constant: 8),
+      // アイコン（またはadViewの端）より内側に収め、CTAテキストが長い場合でも
+      // 右側の要素と重ならないようにする。
+      callToActionLabel.trailingAnchor.constraint(
+        lessThanOrEqualTo: iconTrailingAnchor, constant: iconTrailingInset),
       callToActionLabel.bottomAnchor.constraint(equalTo: adView.bottomAnchor, constant: -6),
     ])
 
-    // 広告主アイコン。素材が提供されているのにViewが未設定だと実装不備として
-    // 検証ツールに指摘されるため、CTAボタンの反対側に小さく表示する。
-    if let icon = nativeAd.icon {
-      let iconImageView = UIImageView(image: icon.image)
-      iconImageView.translatesAutoresizingMaskIntoConstraints = false
-      iconImageView.contentMode = .scaleAspectFit
-      adView.addSubview(iconImageView)
-      adView.iconView = iconImageView
-      NSLayoutConstraint.activate([
-        iconImageView.trailingAnchor.constraint(equalTo: adView.trailingAnchor, constant: -8),
-        iconImageView.bottomAnchor.constraint(equalTo: adView.bottomAnchor, constant: -7),
-        iconImageView.widthAnchor.constraint(equalToConstant: 20),
-        iconImageView.heightAnchor.constraint(equalToConstant: 20),
-      ])
-    }
+    let headlineLabel = UILabel()
+    headlineLabel.translatesAutoresizingMaskIntoConstraints = false
+    headlineLabel.numberOfLines = 1
+    headlineLabel.font = UIFont.boldSystemFont(ofSize: 12)
+    headlineLabel.textColor = .white
+    headlineLabel.text = nativeAd.headline
+    adView.addSubview(headlineLabel)
+    adView.headlineView = headlineLabel
+    NSLayoutConstraint.activate([
+      headlineLabel.leadingAnchor.constraint(equalTo: adView.leadingAnchor, constant: 8),
+      headlineLabel.trailingAnchor.constraint(
+        lessThanOrEqualTo: iconTrailingAnchor, constant: iconTrailingInset),
+      // CTAラベルの上端からの相対位置で指定する（adView.bottomからの固定値同士
+      // だけに頼ると、Dynamic Type等で行の高さが伸びた際にCTAと重なってしまうため）。
+      headlineLabel.bottomAnchor.constraint(equalTo: callToActionLabel.topAnchor, constant: -4),
+    ])
 
     let badgeLabel = UILabel()
     badgeLabel.translatesAutoresizingMaskIntoConstraints = false
