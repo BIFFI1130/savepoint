@@ -7,11 +7,16 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../supabase/supabase_client.dart';
 
-/// TestFlight・Firebase App Distributionのように、ストア経由の自動更新チェックが
-/// 効かない配布経路向けに、アプリ自身のビルド番号と`app_versions`テーブルの
-/// `latest_build`を比較し、古いビルドを起動した場合にアップデート画面への強制
-/// リダイレクトが必要かどうかをrouterに伝える。`app_versions`はCI
-/// （codemagic.yaml）がビルド・パブリッシュ成功直後にservice roleで更新する。
+/// アプリ自身のビルド番号と`app_versions`テーブルの`latest_build`（＝実際には
+/// 「これ未満は強制アップデート対象」という下限値）を比較し、古いビルドを起動した
+/// 場合にアップデート画面への強制リダイレクトが必要かどうかをrouterに伝える。
+/// App Store／TestFlight／Firebase App Distributionのどの配布経路にも同じ仕組みで
+/// 対応できる（Apple自身の自動更新チェックとは独立した、アプリ内の強制ブロック）。
+///
+/// `app_versions`の値は自動更新ではなく、**重篤な不具合修正・破壊的変更を含む
+/// リリースの直後にのみ手動で更新する**運用にしている（通常のアップデートは
+/// Appleの自動更新に任せ、毎回強制するとUXを損なうため）。更新方法は
+/// [[project_release_checklist]]のメモリ、またはリポジトリの運用手順を参照。
 class UpdateGateController extends ChangeNotifier {
   UpdateGateController() {
     _refresh();

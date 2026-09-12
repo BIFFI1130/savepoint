@@ -6,18 +6,20 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/update/update_gate.dart';
 
-/// TestFlight／Firebase App Distributionで配布された古いビルドを起動した際に
-/// 必ず表示する強制アップデート画面。システムのバックボタンでは閉じられない。
+/// 重篤な不具合修正・破壊的変更を含むリリースの直後にのみ手動で表示対象とする
+/// 強制アップデート画面（配布経路がApp Store・TestFlight・Firebase App
+/// Distributionのいずれでも同じ画面を使う）。システムのバックボタンでは閉じられない。
 class UpdateRequiredScreen extends ConsumerWidget {
   const UpdateRequiredScreen({super.key});
 
   Future<void> _openUpdateLink(BuildContext context, WidgetRef ref) async {
     final url = ref.read(updateGateProvider).updateUrl;
-    // iOSはTestFlightアプリを直接開く（`itms-beta://`）。update_urlが未取得の場合の
-    // フォールバックとしても使う。Androidはservice roleがapp_versionsに保存した
-    // Firebase App Distributionのテスター向けリンクを開く。
-    final target = url ?? (Platform.isIOS ? 'itms-beta://' : null);
-    if (target == null) return;
+    // update_urlが未取得の場合のフォールバックとして、iOSはApp Storeの商品ページを、
+    // AndroidはPlay StoreのアプリページをそれぞれOSに開かせる。
+    final target = url ??
+        (Platform.isIOS
+            ? 'https://apps.apple.com/app/id6799825415'
+            : 'https://play.google.com/store/apps/details?id=com.biffi.savepoint');
     final uri = Uri.parse(target);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -59,9 +61,7 @@ class UpdateRequiredScreen extends ConsumerWidget {
                 const SizedBox(height: 24),
                 FilledButton(
                   onPressed: () => _openUpdateLink(context, ref),
-                  child: Text(
-                    Platform.isIOS ? 'TestFlightを開く' : 'ダウンロードページを開く',
-                  ),
+                  child: const Text('アップデートする'),
                 ),
               ],
             ),
