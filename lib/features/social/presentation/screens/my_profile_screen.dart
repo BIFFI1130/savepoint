@@ -10,6 +10,7 @@ import '../../../../core/subscription/subscription_providers.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/avatar_image.dart';
 import '../../../../core/widgets/genre_badge_selector.dart';
+import '../../../../core/widgets/toggle_option_tile.dart';
 import '../../../favorites/presentation/providers/favorite_providers.dart';
 import '../../../favorites/presentation/widgets/favorite_games_list.dart';
 import '../../domain/social_profile.dart';
@@ -324,20 +325,18 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
             Consumer(
               builder: (context, ref, _) {
                 final profileAsync = ref.watch(myProfileProvider);
-                return SwitchListTile(
+                return ToggleOptionTile(
                   value: profileAsync.value?.showIdentityInPublicReviews ??
                       false,
                   onChanged: profileAsync.isLoading
                       ? null
                       : _toggleShowIdentityInPublicReviews,
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('「みんなのレビュー」に身元を表示する'),
-                  subtitle: const Text(
-                    'フォロー関係のない全ユーザーが見る「みんなのレビュー」に、あなたの'
-                    'ユーザー名・アバターを表示します（デフォルトでオン）。タップで'
-                    'プロフィールに遷移できるため、フォローされるきっかけになります。'
-                    'オフにすると匿名で表示されます。',
-                  ),
+                  title: '「みんなのレビュー」に身元を表示する',
+                  subtitle:
+                      'フォロー関係のない全ユーザーが見る「みんなのレビュー」に、あなたの'
+                      'ユーザー名・アバターを表示します（デフォルトでオン）。タップで'
+                      'プロフィールに遷移できるため、フォローされるきっかけになります。'
+                      'オフにすると匿名で表示されます。',
                 );
               },
             ),

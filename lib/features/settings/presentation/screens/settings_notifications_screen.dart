@@ -8,6 +8,7 @@ import '../../../../core/notifications/memories_reminder_service.dart';
 import '../../../../core/notifications/monthly_recap_reminder_service.dart';
 import '../../../../core/notifications/push_notification_service.dart';
 import '../../../../core/notifications/streak_reminder_service.dart';
+import '../../../../core/widgets/toggle_option_tile.dart';
 import '../../../game_log/presentation/providers/log_providers.dart';
 import '../../../social/presentation/providers/social_providers.dart';
 
@@ -140,12 +141,11 @@ class _SettingsNotificationsScreenState
           Consumer(
             builder: (context, ref, _) {
               final enabledAsync = ref.watch(backlogReminderEnabledProvider);
-              return SwitchListTile(
+              return ToggleOptionTile(
                 value: enabledAsync.value ?? false,
                 onChanged: enabledAsync.isLoading ? null : _toggleBacklogReminder,
-                contentPadding: EdgeInsets.zero,
-                title: const Text('積みゲーリマインダー'),
-                subtitle: const Text('「遊びたい」の消化を週1回通知でお知らせします'),
+                title: '積みゲーリマインダー',
+                subtitle: '「遊びたい」の消化を週1回通知でお知らせします',
               );
             },
           ),
@@ -159,12 +159,11 @@ class _SettingsNotificationsScreenState
           Consumer(
             builder: (context, ref, _) {
               final enabledAsync = ref.watch(streakReminderEnabledProvider);
-              return SwitchListTile(
+              return ToggleOptionTile(
                 value: enabledAsync.value ?? false,
                 onChanged: enabledAsync.isLoading ? null : _toggleStreakReminder,
-                contentPadding: EdgeInsets.zero,
-                title: const Text('記録ストリークリマインダー'),
-                subtitle: const Text('週間記録ストリークが途切れそうな時にお知らせします'),
+                title: '記録ストリークリマインダー',
+                subtitle: '週間記録ストリークが途切れそうな時にお知らせします',
               );
             },
           ),
@@ -184,25 +183,23 @@ class _SettingsNotificationsScreenState
           Consumer(
             builder: (context, ref, _) {
               final enabledAsync = ref.watch(agedBacklogReminderEnabledProvider);
-              return SwitchListTile(
+              return ToggleOptionTile(
                 value: enabledAsync.value ?? false,
                 onChanged:
                     enabledAsync.isLoading ? null : _toggleAgedBacklogReminder,
-                contentPadding: EdgeInsets.zero,
-                title: const Text('積みゲー経年アラート'),
-                subtitle: const Text('長期間手つかずの「遊びたい」作品をお知らせします'),
+                title: '積みゲー経年アラート',
+                subtitle: '長期間手つかずの「遊びたい」作品をお知らせします',
               );
             },
           ),
           Consumer(
             builder: (context, ref, _) {
               final enabledAsync = ref.watch(monthlyRecapEnabledProvider);
-              return SwitchListTile(
+              return ToggleOptionTile(
                 value: enabledAsync.value ?? false,
                 onChanged: enabledAsync.isLoading ? null : _toggleMonthlyRecap,
-                contentPadding: EdgeInsets.zero,
-                title: const Text('月末のふりかえり通知'),
-                subtitle: const Text('月末に今月の記録の振り返りをお知らせします'),
+                title: '月末のふりかえり通知',
+                subtitle: '月末に今月の記録の振り返りをお知らせします',
               );
             },
           ),
@@ -216,66 +213,61 @@ class _SettingsNotificationsScreenState
           Consumer(
             builder: (context, ref, _) {
               final enabledAsync = ref.watch(memoriesReminderEnabledProvider);
-              return SwitchListTile(
+              return ToggleOptionTile(
                 value: enabledAsync.value ?? false,
                 onChanged:
                     enabledAsync.isLoading ? null : _toggleMemoriesReminder,
-                contentPadding: EdgeInsets.zero,
-                title: const Text('1年前の今日'),
-                subtitle: const Text('過去の同じ日に記録した作品があればお知らせします'),
+                title: '1年前の今日',
+                subtitle: '過去の同じ日に記録した作品があればお知らせします',
               );
             },
           ),
           Consumer(
             builder: (context, ref, _) {
               final profileAsync = ref.watch(myProfileProvider);
-              return SwitchListTile(
+              return ToggleOptionTile(
                 value: profileAsync.value?.notifyNewFollower ?? true,
                 onChanged:
                     profileAsync.isLoading ? null : _toggleNotifyNewFollower,
-                contentPadding: EdgeInsets.zero,
-                title: const Text('新しいフォロワーの通知'),
-                subtitle: const Text('誰かに新しくフォローされたときにお知らせします'),
+                title: '新しいフォロワーの通知',
+                subtitle: '誰かに新しくフォローされたときにお知らせします',
               );
             },
           ),
           Consumer(
             builder: (context, ref, _) {
               final profileAsync = ref.watch(myProfileProvider);
-              return SwitchListTile(
+              return ToggleOptionTile(
                 value: profileAsync.value?.notifyFollowingReviews ?? true,
                 onChanged: profileAsync.isLoading
                     ? null
                     : _toggleNotifyFollowingReviews,
-                contentPadding: EdgeInsets.zero,
-                title: const Text('フォロー中ユーザーの新着レビュー通知'),
-                subtitle: const Text('フォロー中のユーザーがレビューを投稿したときにお知らせします'),
+                title: 'フォロー中ユーザーの新着レビュー通知',
+                subtitle: 'フォロー中のユーザーがレビューを投稿したときにお知らせします',
               );
             },
           ),
           Consumer(
             builder: (context, ref, _) {
               final profileAsync = ref.watch(myProfileProvider);
-              return SwitchListTile(
+              return ToggleOptionTile(
                 value: profileAsync.value?.notifyWeeklyDigest ?? true,
                 onChanged:
                     profileAsync.isLoading ? null : _toggleNotifyWeeklyDigest,
-                contentPadding: EdgeInsets.zero,
-                title: const Text('フォロー中ユーザーの週間ダイジェスト'),
-                subtitle: const Text('週1回、フォロー中のユーザーの新着記録をまとめてお知らせします'),
+                title: 'フォロー中ユーザーの週間ダイジェスト',
+                subtitle: '週1回、フォロー中のユーザーの新着記録をまとめてお知らせします',
               );
             },
           ),
           Consumer(
             builder: (context, ref, _) {
               final profileAsync = ref.watch(myProfileProvider);
-              return SwitchListTile(
+              return ToggleOptionTile(
                 value: profileAsync.value?.notifyNewLike ?? true,
                 onChanged:
                     profileAsync.isLoading ? null : _toggleNotifyNewLike,
-                contentPadding: EdgeInsets.zero,
-                title: const Text('いいね通知'),
-                subtitle: const Text('自分の記録にいいねされたときにお知らせします'),
+                title: 'いいね通知',
+                subtitle: '自分の記録にいいねされたときにお知らせします',
               );
             },
           ),
@@ -332,7 +324,6 @@ class _PushPermissionTile extends ConsumerWidget {
         ),
     };
     return ListTile(
-      contentPadding: EdgeInsets.zero,
       leading: Icon(icon, color: color),
       title: const Text('プッシュ通知を有効にする'),
       subtitle: Text(subtitle),
