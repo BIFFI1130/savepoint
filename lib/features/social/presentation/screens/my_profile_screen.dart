@@ -359,20 +359,6 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
               selectedGenres: _favoriteGenres,
               onToggle: _toggleGenre,
             ),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton(
-                onPressed: _isSaving ? null : _save,
-                child: _isSaving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('保存する'),
-              ),
-            ),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -404,6 +390,9 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
                 child: Text('推しゲーの取得に失敗しました'),
               ),
             ),
+            // 下部に常時表示する保存ボタン（bottomNavigationBar）と
+            // コンテンツが重ならないよう、最後に余白を確保する。
+            const SizedBox(height: 80),
           ],
         ),
         loading: () => const LoadingView(),
@@ -411,6 +400,28 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
           message: 'プロフィールの取得に失敗しました',
           onRetry: () => ref.invalidate(myProfileProvider),
         ),
+      ),
+      // スクロールしなくても常に見えるよう、保存ボタンを画面下部に固定する。
+      bottomNavigationBar: profileAsync.maybeWhen(
+        data: (_) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _isSaving ? null : _save,
+                child: _isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('保存する'),
+              ),
+            ),
+          ),
+        ),
+        orElse: () => null,
       ),
     );
   }
