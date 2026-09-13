@@ -158,22 +158,31 @@ class _MyProfileScreenState extends ConsumerState<MyProfileScreen> {
             favoriteGenres: _favoriteGenres.toList(),
           );
       ref.invalidate(myProfileProvider);
-      if (!ref.read(isAdFreeProvider)) {
-        await ref.read(profileSaveAdProvider).show();
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('プロフィールを保存しました')));
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('保存に失敗しました: $e')));
       }
+      return;
     } finally {
       if (mounted) setState(() => _isSaving = false);
+    }
+
+    // 保存自体は既に成功しているため、この後の広告表示で何が起きても
+    // （SDKエラー・タイムアウト等）「保存に失敗した」という誤った表示には
+    // しない。広告表示の失敗は無視して、成功通知だけは必ず出す。
+    if (!ref.read(isAdFreeProvider)) {
+      try {
+        await ref.read(profileSaveAdProvider).show();
+      } catch (_) {
+        // 無視する（保存自体は成功しているため）。
+      }
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('プロフィールを保存しました')));
     }
   }
 
