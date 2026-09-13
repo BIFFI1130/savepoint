@@ -56,9 +56,6 @@ dependencies:
   # ゲームカバー画像のキャッシュ表示
   cached_network_image: ^3.4.1
 
-  # 5段階評価ウィジェット
-  flutter_rating_bar: ^4.0.1
-
   # Sign in with Apple の nonce ハッシュ生成用
   crypto: ^3.0.6
 
