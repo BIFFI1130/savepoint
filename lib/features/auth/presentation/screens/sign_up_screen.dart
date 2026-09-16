@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/analytics/analytics_service.dart';
+import '../../data/auth_repository.dart';
 import '../providers/auth_providers.dart';
 
 const _termsOfServiceUrl =
@@ -18,6 +19,9 @@ Future<void> _openUrl(String url) async {
   await launchUrl(uri, mode: LaunchMode.externalApplication);
 }
 
+/// 新規登録の入口となる画面。ここではメールアドレスのみを入力させ、確認メールを
+/// 送信するところまでを行う。ユーザーID・パスワードは、メール内のリンクを開いて
+/// セッションが確立された後のオンボーディング画面でまとめて設定する。
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
 
@@ -28,14 +32,12 @@ class SignUpScreen extends ConsumerStatefulWidget {
 class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _agreedToTerms = false;
 
   @override
   void dispose() {
     _emailController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
@@ -47,28 +49,31 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     }
     setState(() => _isLoading = true);
     try {
-      await ref.read(authRepositoryProvider).signUpWithEmail(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          );
+      await ref
+          .read(authRepositoryProvider)
+          .startEmailSignUp(_emailController.text.trim());
       await ref.read(appAnalyticsProvider).logSignUp('email');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('確認メールを送信しました。メール内のリンクを開いて登録を完了してください')),
+          const SnackBar(
+            content: Text('確認メールを送信しました。メール内のリンクを開いて登録を続けてください'),
+          ),
+        );
+        context.pop();
+      }
+    } on EmailAlreadyRegisteredException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'このメールアドレスは既に登録されています。サインイン画面からログインしてください',
+            ),
+          ),
         );
         context.pop();
       }
     } on AuthException catch (e) {
-      // メール確認を有効化している場合、既に確認済みのメールアドレスで再度サインアップ
-      // しても専用のエラーコードは返らない（GoTrue側がアカウント列挙対策として、
-      // 未登録の場合と同じ「確認メールを送信した」という見た目の応答を返すため）。
-      // ただしAPIバージョンによっては引き続きエラーコードが返るケースもあるため、
-      // 念のため他の失敗と見分けが付かない汎用メッセージに差し替える処理は残す。
-      if (e.code == 'user_already_exists' || e.code == 'email_exists') {
-        _showError('登録に失敗しました。時間をおいて再度お試しください。');
-      } else {
-        _showError(e.message);
-      }
+      _showError(e.message);
     } catch (_) {
       _showError('登録に失敗しました。時間をおいて再度お試しください。');
     } finally {
@@ -94,6 +99,11 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const Text(
+                    'まずはメールアドレスを入力してください。確認メールに記載のリンクを'
+                    '開くと、続けてユーザーIDとパスワードを設定できます。',
+                  ),
+                  const SizedBox(height: 16),
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -103,18 +113,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     ),
                     validator: (value) => (value == null || !value.contains('@'))
                         ? '有効なメールアドレスを入力してください'
-                        : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'パスワード（6文字以上）',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) => (value == null || value.length < 6)
-                        ? 'パスワードは6文字以上で入力してください'
                         : null,
                   ),
                   const SizedBox(height: 12),
@@ -162,7 +160,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('登録する'),
+                        : const Text('確認メールを送信'),
                   ),
                 ],
               ),

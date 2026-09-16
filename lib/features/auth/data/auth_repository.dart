@@ -9,6 +9,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_client.dart';
 
+/// [AuthRepository.startEmailSignUp]で、指定したメールアドレスが既に登録済みの
+/// アカウントだった場合に投げられる。
+class EmailAlreadyRegisteredException implements Exception {
+  const EmailAlreadyRegisteredException();
+}
+
 class AuthRepository {
   GoTrueClient get _auth => supabase.auth;
 
@@ -16,13 +22,31 @@ class AuthRepository {
 
   User? get currentUser => _auth.currentUser;
 
-  Future<void> signUpWithEmail({
-    required String email,
-    required String password,
-  }) async {
-    await _auth.signUp(
+  /// メールアドレスのみで新規登録を開始する。この時点ではパスワードは設定せず、
+  /// 確認メールのリンクを開いてセッションが確立された後、ユーザーID設定画面
+  /// （オンボーディング）でユーザーIDとパスワードをまとめて設定する
+  /// （[updatePassword]）。
+  ///
+  /// まず`shouldCreateUser: false`で呼び出し、既に登録済みのメールアドレスかどうかを
+  /// 確認する。GoTrueは未登録のメールアドレスに対してはエラーコード`otp_disabled`
+  /// （「Signups not allowed for otp」）を返すため、それ以外（＝成功した場合）は
+  /// 既存アカウントとみなし[EmailAlreadyRegisteredException]を投げる（この場合、
+  /// サインイン用のマジックリンクは送信済み）。未登録の場合のみ改めて
+  /// `shouldCreateUser: true`で呼び直し、新規登録用の確認メールを送信する。
+  Future<void> startEmailSignUp(String email) async {
+    try {
+      await _auth.signInWithOtp(
+        email: email,
+        shouldCreateUser: false,
+        emailRedirectTo: _emailConfirmedUrl,
+      );
+      throw const EmailAlreadyRegisteredException();
+    } on AuthException catch (e) {
+      if (e.code != 'otp_disabled') rethrow;
+    }
+    await _auth.signInWithOtp(
       email: email,
-      password: password,
+      shouldCreateUser: true,
       emailRedirectTo: _emailConfirmedUrl,
     );
   }
