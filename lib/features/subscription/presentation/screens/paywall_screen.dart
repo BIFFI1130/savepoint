@@ -132,6 +132,30 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     return '$totalUnits$unitLabel無料でお試しいただけます';
   }
 
+  /// プラン一覧の下に表示する注意書き。サブスクリプション（自動更新）と
+  /// 買い切り（非消耗型）が混在する場合があるため、実際に表示されている
+  /// パッケージの種類に応じて文言を出し分ける。
+  String _disclaimerText(List<Package> packages) {
+    final hasSubscription = packages.any(
+      (p) => p.packageType != PackageType.lifetime,
+    );
+    final hasLifetime = packages.any(
+      (p) => p.packageType == PackageType.lifetime,
+    );
+    final parts = <String>[];
+    if (hasSubscription) {
+      parts.add(
+        '購入したプランは自動更新されます。無料トライアル終了後は自動的に課金が開始されます。'
+        'iOSではApp Storeの「サブスクリプション」、AndroidではGoogle Playの'
+        '「お支払いと定期購入」から、次回更新の24時間前までにいつでも解約できます。',
+      );
+    }
+    if (hasLifetime) {
+      parts.add('「買い切り」プランは一度のお支払いで、以降自動更新・追加課金は発生しません。');
+    }
+    return parts.join('\n');
+  }
+
   @override
   Widget build(BuildContext context) {
     final isAdFree = ref.watch(isAdFreeProvider);
@@ -199,7 +223,18 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(package.storeProduct.description),
-                              if (_trialLabel(package.storeProduct) != null)
+                              if (package.packageType == PackageType.lifetime)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    '買い切り・自動更新なし',
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                )
+                              else if (_trialLabel(package.storeProduct) != null)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 4),
                                   child: Text(
@@ -212,7 +247,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                                 ),
                             ],
                           ),
-                          isThreeLine: _trialLabel(package.storeProduct) != null,
+                          isThreeLine: package.packageType == PackageType.lifetime ||
+                              _trialLabel(package.storeProduct) != null,
                           trailing: FilledButton(
                             onPressed: _isProcessing
                                 ? null
@@ -232,9 +268,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '購入したプランは自動更新されます。無料トライアル終了後は自動的に課金が開始されます。'
-                      'iOSではApp Storeの「サブスクリプション」、AndroidではGoogle Playの'
-                      '「お支払いと定期購入」から、次回更新の24時間前までにいつでも解約できます。',
+                      _disclaimerText(packages),
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(context).colorScheme.outline,

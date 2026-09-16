@@ -17,9 +17,9 @@ iOS/AndroidともCodemagic CIは使わず、このMacBook上でのローカル�
 
 ### 残っている主なブロッカー
 
-1. **iOS: 有料アプリ契約（Paid Applications Agreement）がApple側のバグで未締結** — Legal Entity住所編集画面の不具合により署名できない状態。Apple Developer Supportへ報告済み（Case-ID 22046905）、回答待ち。解決するまでRevenueCatの購読機能は無効化（`REVENUECAT_IOS_API_KEY`を空文字にしたビルド）でストア提出している。
+1. **【解消・2026-09-16】iOS有料アプリ契約（Paid Applications Agreement）** — Apple側の住所編集バグは解消し、契約・銀行口座・納税フォームすべて「有効」。RevenueCatの購読機能は本番で利用可能。
 2. **Android: Google Play製品版（本番）は未申請** — ストア掲載情報の審査は完了しているが、製品版アクセスの申請には「12人以上のテスターがクローズドテストにオプトインし、14日間以上継続」という条件が必要（現在0人）。参加リンク: `https://play.google.com/apps/testing/com.biffi.savepoint`
-3. **Twitch/IGDBパートナーシップ契約** — BIFFI本人は署名済みだが、Twitch側からの締結完了の返信が未着で停止中。広告収益化を伴うストア正式配信はこの返信待ち。
+3. **【解消】Twitch/IGDBパートナーシップ契約** — Twitch側からカウンターサインを待たずに正式ローンチしてよいと明示許可済み。
 
 ---
 

@@ -37,8 +37,11 @@ class SettingsPremiumScreen extends StatelessWidget {
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.check_circle_outline),
-                  title: const Text('ご契約中'),
-                  subtitle: const Text('広告非表示・閲覧数の分析・ジャンル絞り込みなどが使えます。タップで契約内容を確認できます'),
+                  title: const Text('ご利用中'),
+                  subtitle: const Text(
+                    '広告非表示・閲覧数の分析・ジャンル絞り込みなどが使えます。'
+                    'サブスクリプションの場合、タップで契約内容を確認できます',
+                  ),
                   onTap: () => _openManagementUrl(ref),
                 );
               }
