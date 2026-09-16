@@ -4,5 +4,7 @@
   "ADMOB_BANNER_AD_UNIT_ID": "<正式リリース前にAdMobで発行した本番用の広告ユニットIDに差し替える。未設定時はテスト広告ユニットIDが使われる>",
   "ADMOB_INTERSTITIAL_AD_UNIT_ID": "<正式リリース前にAdMobで発行した本番用の広告ユニットIDに差し替える。未設定時はテスト広告ユニットIDが使われる>",
   "REVENUECAT_IOS_API_KEY": "<正式リリース前にRevenueCatで発行したiOS用公開SDKキーに差し替える。未設定時は課金機能全体が無効化される>",
-  "REVENUECAT_ANDROID_API_KEY": "<正式リリース前にRevenueCatで発行したAndroid用公開SDKキーに差し替える。未設定時は課金機能全体が無効化される>"
+  "REVENUECAT_ANDROID_API_KEY": "<正式リリース前にRevenueCatで発行したAndroid用公開SDKキーに差し替える。未設定時は課金機能全体が無効化される>",
+  "GOOGLE_WEB_CLIENT_ID": "<Google Cloud ConsoleのOAuthクライアントID（Web用）。未設定時はGoogleサインイン自体が無効化される>",
+  "GOOGLE_IOS_CLIENT_ID": "<Google Cloud ConsoleのOAuthクライアントID（iOS用）。ios/Runner/Info.plistのURLスキームと対応>"
 }
