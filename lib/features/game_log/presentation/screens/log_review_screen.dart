@@ -386,6 +386,22 @@ class _ReviewSheetState extends State<_ReviewSheet> {
                 onChanged: (value) => setState(() => _rating = value),
               ),
             ),
+            if (_rating > 0) ...[
+              const SizedBox(height: 4),
+              Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.star, color: Colors.amber, size: 18),
+                    const SizedBox(width: 4),
+                    Text(
+                      _rating.toStringAsFixed(1),
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ],
+                ),
+              ),
+            ],
             if (_rating > 0)
               Center(
                 child: TextButton(
