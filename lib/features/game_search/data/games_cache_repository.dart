@@ -1,6 +1,5 @@
 import '../../../core/supabase/supabase_client.dart';
 import '../domain/game.dart';
-import '../domain/platform_options.dart';
 
 /// IGDB Data Dumps（Data Partner限定機能）を取り込んでローカルにミラーした
 /// `games`テーブルから、絞り込みのみで自由文検索を伴わない4つの一覧を返す。
@@ -19,7 +18,7 @@ class GamesCacheRepository {
     bool matchAllGenres = false,
   }) async {
     final data = await supabase.rpc('igdb_weekly_releases', params: {
-      'p_platforms': expandPlatformFilterValues(platforms).toList(),
+      'p_platforms': platforms.toList(),
       'p_genres': genres.toList(),
       'p_include_adult': includeAdult,
       'p_include_indie': includeIndie,
@@ -36,7 +35,7 @@ class GamesCacheRepository {
     bool matchAllGenres = false,
   }) async {
     final data = await supabase.rpc('igdb_monthly_releases', params: {
-      'p_platforms': expandPlatformFilterValues(platforms).toList(),
+      'p_platforms': platforms.toList(),
       'p_genres': genres.toList(),
       'p_include_adult': includeAdult,
       'p_include_indie': includeIndie,
@@ -53,7 +52,7 @@ class GamesCacheRepository {
     bool matchAllGenres = false,
   }) async {
     final data = await supabase.rpc('igdb_top100', params: {
-      'p_platforms': expandPlatformFilterValues(platforms).toList(),
+      'p_platforms': platforms.toList(),
       'p_genres': genres.toList(),
       'p_include_adult': includeAdult,
       'p_include_indie': includeIndie,
@@ -78,7 +77,7 @@ class GamesCacheRepository {
     final data = await supabase.rpc('igdb_calendar_releases', params: {
       'p_range_start': rangeStartStr,
       'p_days': days,
-      'p_platforms': expandPlatformFilterValues(platforms).toList(),
+      'p_platforms': platforms.toList(),
       'p_genres': genres.toList(),
       'p_include_adult': includeAdult,
       'p_include_indie': includeIndie,
