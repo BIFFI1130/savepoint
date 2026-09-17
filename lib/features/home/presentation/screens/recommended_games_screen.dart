@@ -17,6 +17,9 @@ import '../providers/home_providers.dart';
 /// 母集団（関連作品の候補）が既に確定しているため、ジャンル・対応ハード・
 /// 成人向け表示の絞り込みは他の一覧画面と違いクライアント側で行う
 /// （「インディー作品を表示しない」は判定に必要なデータを持たないため対象外）。
+/// 絞り込みで表示件数が極端に減らないよう、候補自体は表示件数よりかなり
+/// 多めに[recommendedGamesFullProvider]側で確保してあり、絞り込み後に
+/// 先頭[recommendedGamesDisplayLimit]件を表示する。
 class RecommendedGamesScreen extends ConsumerStatefulWidget {
   const RecommendedGamesScreen({super.key});
 
@@ -43,9 +46,13 @@ class _RecommendedGamesScreenState
       _selectedPlatforms.isNotEmpty || _selectedGenres.isNotEmpty || _includeAdult;
 
   List<Game> _applyFilter(List<Game> games) {
-    return games.where((game) {
-      if (_selectedPlatforms.isNotEmpty &&
-          !game.platforms.any(_selectedPlatforms.contains)) {
+    // `games.platforms`はIGDBの正式名称（例: "Nintendo Switch"）で保存されて
+    // いるため、フィルタ選択肢の短い値（例: 'Switch'）と完全一致比較する前に
+    // 正式名称へ展開する必要がある（詳細は[expandPlatformFilterValues]参照）。
+    final selectedPlatformNames = expandPlatformFilterValues(_selectedPlatforms);
+    final filtered = games.where((game) {
+      if (selectedPlatformNames.isNotEmpty &&
+          !game.platforms.any(selectedPlatformNames.contains)) {
         return false;
       }
       if (_selectedGenres.isNotEmpty) {
@@ -56,7 +63,8 @@ class _RecommendedGamesScreenState
       }
       if (!_includeAdult && game.isAdult) return false;
       return true;
-    }).toList(growable: false);
+    });
+    return filtered.take(recommendedGamesDisplayLimit).toList(growable: false);
   }
 
   void _openFilterSheet() {

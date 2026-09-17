@@ -117,13 +117,28 @@ final recommendedGamesProvider = FutureProvider<List<SimilarGame>>((ref) async {
   return _orderedSimilarGames(logs, limit: 20);
 });
 
-/// 「あなたへのおすすめ」全件一覧画面用。同じ優先順位で多め（上限60件）に集めたうえ、
-/// ジャンル・対応ハード等で絞り込めるよう、`games`テーブルから完全な[Game]情報を取得する。
-/// （関連作品として出てくるゲーム自体は、まだ誰も詳細を開いたことがなく`games`
-/// テーブルに存在しない場合もありうるため、そのようなIDは結果から除外する。）
+/// [recommendedGamesFullProvider]が候補として集めるゲーム数の上限。
+/// ジャンル・対応ハードで絞り込んでも表示件数が極端に減らないよう、実際の
+/// 表示件数（[recommendedGamesDisplayLimit]）よりかなり多めに候補を集めておき、
+/// 絞り込みは呼び出し側（画面）でこの大きい候補集合に対して行う。
+const recommendedGamesCandidateLimit = 300;
+
+/// 「あなたへのおすすめ」全件一覧画面の表示件数上限。絞り込み適用後、この件数まで表示する。
+const recommendedGamesDisplayLimit = 60;
+
+/// 「あなたへのおすすめ」全件一覧画面用。同じ優先順位で多め（候補として上限
+/// [recommendedGamesCandidateLimit]件）に集めたうえ、ジャンル・対応ハード等で
+/// 絞り込めるよう、`games`テーブルから完全な[Game]情報を取得する。実際に画面に
+/// 表示するのは絞り込み後の先頭[recommendedGamesDisplayLimit]件だが、絞り込みで
+/// 除外される分を見越して候補自体は多めに保持しておく（関連作品として出てくる
+/// ゲーム自体は、まだ誰も詳細を開いたことがなく`games`テーブルに存在しない場合も
+/// ありうるため、そのようなIDは結果から除外する）。
 final recommendedGamesFullProvider = FutureProvider<List<Game>>((ref) async {
   final logs = await ref.watch(myLogsProvider.future);
-  final similarGames = _orderedSimilarGames(logs, limit: 60);
+  final similarGames = _orderedSimilarGames(
+    logs,
+    limit: recommendedGamesCandidateLimit,
+  );
   if (similarGames.isEmpty) return const [];
 
   final ids = similarGames.map((e) => e.id).toList(growable: false);
