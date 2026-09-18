@@ -166,6 +166,36 @@ class IgdbRepository {
         .toList(growable: false);
   }
 
+  /// 「IGDBトレンド」: IGDB自体のサイト内エンゲージメント（現在プレイ中として
+  /// 登録されている件数）が多い順。IGDBのpopularity_primitivesはData Dumps
+  /// ミラー（他の一覧アクションが使うキャッシュ）に含まれないため、このメソッドは
+  /// 他と違い常にライブでigdb-proxyへ問い合わせる（キャッシュ経由のフォールバックが無い）。
+  /// [genres] は複数選択可能で、選択されたうちどれか1つでも当てはまればOR条件で含める。
+  Future<List<Game>> popularityTrend({
+    Set<String> genres = const {},
+    bool includeAdult = false,
+    bool includeIndie = false,
+    bool matchAllGenres = false,
+  }) async {
+    final response = await supabase.functions.invoke(
+      'igdb-proxy',
+      body: {
+        'action': 'popularity_trend',
+        if (genres.isNotEmpty) 'genres': genres.toList(),
+        if (genres.length > 1) 'genreMatchAll': matchAllGenres,
+        if (includeAdult) 'includeAdult': true,
+        if (includeIndie) 'includeIndie': true,
+      },
+    );
+
+    final data = response.data;
+    if (data is! List) return [];
+    return data
+        .cast<Map<String, dynamic>>()
+        .map(Game.fromJson)
+        .toList(growable: false);
+  }
+
   /// カレンダー表示（デイリー表示）用: [rangeStart] から [days] 日間に発売予定・
   /// 発売済みのゲーム一覧（人気順）。デイリー表示は日付を1件ずつ横スクロールするが、
   /// 表示中の日付の前後を一定期間まとめて取得しキャッシュすることで、スワイプの都度

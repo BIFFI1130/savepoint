@@ -11,6 +11,7 @@ import '../../../../core/widgets/genre_filter_section.dart';
 import '../../../../core/widgets/igdb_footer.dart';
 import '../../../../core/widgets/star_rating.dart';
 import '../../../game_log/domain/game_log_stats.dart';
+import '../../../game_search/domain/game.dart';
 import '../../../social/presentation/providers/social_providers.dart';
 import '../providers/trending_providers.dart';
 
@@ -116,7 +117,7 @@ class _TrendingScreenState extends ConsumerState<TrendingScreen> {
     );
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('トレンド'),
@@ -137,8 +138,9 @@ class _TrendingScreenState extends ConsumerState<TrendingScreen> {
           ],
           bottom: const TabBar(
             tabs: [
-              Tab(text: 'みんなが遊びたい'),
-              Tab(text: 'みんなが遊んだ'),
+              Tab(text: '遊びたい'),
+              Tab(text: '遊んだ'),
+              Tab(text: 'IGDBトレンド'),
             ],
           ),
         ),
@@ -161,6 +163,7 @@ class _TrendingScreenState extends ConsumerState<TrendingScreen> {
                     emptyMessage: 'まだ「遊んだ」の記録がありません',
                     isGridView: _isGridView,
                   ),
+                  _IgdbTrendList(filter: filter, isGridView: _isGridView),
                 ],
               ),
             ),
@@ -332,6 +335,137 @@ class _RankingGridItem extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 「IGDBトレンド」タブ本体。[_RankingList]と違い、SavePoint内の記録
+/// （[GameLogStats]）ではなくIGDB由来の[Game]一覧を扱う。人気度の数値
+/// 自体は正規化された相対スコアで実数として意味を持たないため、件数は
+/// 表示せず、順位（メダル色含む）とカバー画像・タイトルのみ表示する。
+class _IgdbTrendList extends ConsumerWidget {
+  const _IgdbTrendList({required this.filter, required this.isGridView});
+
+  final TrendingFilter filter;
+  final bool isGridView;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final gamesAsync = ref.watch(igdbPopularityTrendProvider(filter));
+
+    return gamesAsync.when(
+      data: (games) {
+        if (games.isEmpty) {
+          return const EmptyView(
+            message: 'トレンドデータを取得できませんでした',
+            icon: Icons.trending_up,
+          );
+        }
+        return isGridView
+            ? GridView.builder(
+                padding: const EdgeInsets.all(8),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  childAspectRatio: 0.68,
+                  crossAxisSpacing: 6,
+                  mainAxisSpacing: 6,
+                ),
+                itemCount: games.length,
+                itemBuilder: (context, index) => _IgdbTrendGridItem(
+                  game: games[index],
+                  rank: index + 1,
+                ),
+              )
+            : ListView.separated(
+                itemCount: games.length,
+                separatorBuilder: (context, index) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final game = games[index];
+                  final rank = index + 1;
+                  final medalColor = _medalColors[rank];
+                  return ListTile(
+                    leading: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 28,
+                          child: Text(
+                            '$rank',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: medalColor,
+                                  fontWeight: medalColor != null ? FontWeight.bold : null,
+                                ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        CoverImage(url: game.coverUrl, width: 40, height: 54),
+                      ],
+                    ),
+                    title: Text(
+                      game.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onTap: () => context.push('/games/${game.id}'),
+                  );
+                },
+              );
+      },
+      loading: () => const LoadingView(),
+      error: (error, _) => ErrorView(
+        message: 'ランキングの取得に失敗しました',
+        onRetry: () => ref.invalidate(igdbPopularityTrendProvider(filter)),
+      ),
+    );
+  }
+}
+
+/// グリッド表示用の1件分（カバー画像に順位バッジを重ねるのみ。IGDBの人気度
+/// スコアは実数として表示する意味を持たないため、件数表示は行わない）。
+class _IgdbTrendGridItem extends StatelessWidget {
+  const _IgdbTrendGridItem({required this.game, required this.rank});
+
+  final Game game;
+  final int rank;
+
+  @override
+  Widget build(BuildContext context) {
+    final medalColor = _medalColors[rank];
+    return GestureDetector(
+      onTap: () => context.push('/games/${game.id}'),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            CoverImage(
+              url: game.coverUrl,
+              width: double.infinity,
+              height: double.infinity,
+            ),
+            Positioned(
+              top: 4,
+              left: 4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: medalColor ?? Colors.black.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  '$rank',
+                  style: TextStyle(
+                    color: medalColor != null ? Colors.black : Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

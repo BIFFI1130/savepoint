@@ -64,6 +64,20 @@ const UNOFFICIAL_KEYWORD_IDS = [2004, 16696, 24124];
 const INDIE_GENRE_ID = 32;
 
 /**
+ * IGDBのpopularity_primitives（/popularity_typesエンドポイントで確認済み）のうち、
+ * 「IGDBトレンド」で使う指標のtype ID。popularity_source=121（IGDB自体）の
+ * 「Playing」（現在プレイ中として登録されている件数）を採用する。同じIGDB自体の
+ * 指標でも「Visits」はノイズが多く、「Want to Play」「Played」は積みたい/名作
+ * ランキング寄りで「今のトレンド」には合わないことを実データで検証済み。
+ * Steam/Twitch由来の指標（popularity_source=1/14）は大規模マルチプレイタイトルに
+ * 極端に偏るため採用しない。
+ */
+const POPULARITY_PLAYING_TYPE = 3;
+
+/** 「IGDBトレンド」の候補プール（200件）から絞り込み後に表示する最終件数。 */
+const POPULARITY_TREND_DISPLAY_LIMIT = 50;
+
+/**
  * IGDBのApicalypseクエリの二重引用符文字列リテラル内に埋め込むための文字列エスケープ。
  * バックスラッシュを先にエスケープしてから二重引用符をエスケープする必要がある
  * （逆順、またはバックスラッシュ未エスケープだと、例えば検索語が`\"`を含む場合に
@@ -1277,6 +1291,61 @@ Deno.serve(async (req) => {
 
       const jaNames = await fetchJapaneseLocalizedNames(accessToken, ranked.map((r) => r.id));
       const rows = ranked.map((raw) => toSearchRow(raw, jaNames.get(raw.id) ?? null));
+      if (rows.length > 0) {
+        const { error: upsertError } = await db.from('games').upsert(rows);
+        if (upsertError) {
+          throw new Error(`games upsert failed: ${upsertError.message}`);
+        }
+      }
+      const rowsWithDevFlag = await mergeCachedIsJapaneseDeveloper(db, rows);
+      const filteredRows = applyGenreMatchAllFilter(
+        rowsWithDevFlag,
+        releaseGenreList,
+        genreMatchAll === true,
+      );
+      return new Response(JSON.stringify(filteredRows), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // 「IGDBトレンド」: popularity_primitives（[POPULARITY_PLAYING_TYPE]参照）の
+    // 上位ゲームIDを取得し、そのID群だけをgamesエンドポイントに問い合わせて詳細を
+    // 補う。popularity_primitivesはIGDB Data Dumpsのミラー（gamesキャッシュ）には
+    // 含まれないため、他の一覧アクションと違いキャッシュ経由のフォールバックが無く、
+    // 常にIGDBへライブ問い合わせする。
+    if (action === 'popularity_trend') {
+      const popularityRows = await queryIgdbEndpoint<{ game_id: number }>(
+        accessToken,
+        'popularity_primitives',
+        `fields game_id; sort value desc; where popularity_type = ${POPULARITY_PLAYING_TYPE}; limit 200;`,
+      );
+      const rankedIds = popularityRows.map((p) => p.game_id);
+      if (rankedIds.length === 0) {
+        return new Response(JSON.stringify([]), {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      const trendFilters = [`id = (${rankedIds.join(',')})`];
+      const genreFilter = buildGenreFilter(releaseGenreList);
+      if (genreFilter) trendFilters.push(genreFilter);
+      trendFilters.push(
+        ...commonExclusionFilters(includeAdult, includeIndie, releaseExcludeIndie),
+      );
+
+      const raws = await queryIgdb(
+        accessToken,
+        `fields ${SEARCH_FIELDS}; where ${trendFilters.join(' & ')}; limit ${rankedIds.length};`,
+      );
+
+      // IGDBは`id = (...)`での絞り込み結果の順序を保証しないため、popularity_primitives
+      // から取得した人気順のインデックスを使って並べ直す。
+      const rankIndex = new Map(rankedIds.map((id, index) => [id, index]));
+      raws.sort((a, b) => (rankIndex.get(a.id) ?? 0) - (rankIndex.get(b.id) ?? 0));
+      const top = raws.slice(0, POPULARITY_TREND_DISPLAY_LIMIT);
+
+      const jaNames = await fetchJapaneseLocalizedNames(accessToken, top.map((r) => r.id));
+      const rows = top.map((raw) => toSearchRow(raw, jaNames.get(raw.id) ?? null));
       if (rows.length > 0) {
         const { error: upsertError } = await db.from('games').upsert(rows);
         if (upsertError) {
