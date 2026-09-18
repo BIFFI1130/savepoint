@@ -105,11 +105,27 @@ const DETAILS_FIELDS = `${SEARCH_FIELDS},` +
   'similar_games.game_type,similar_games.version_parent,similar_games.keywords,' +
   'websites.url,websites.type,screenshots.url,videos.video_id,' +
   'age_ratings.organization.name,age_ratings.rating_category.rating,' +
-  'age_ratings.rating_cover_url,' +
   'language_supports.language.name,language_supports.language_support_type.name,' +
   'collections.games.name,collections.games.cover.url,' +
   'collections.games.first_release_date,collections.games.game_type,' +
-  'collections.games.version_parent,collections.games.keywords';
+  'collections.games.version_parent,collections.games.keywords,' +
+  'game_modes.name,status';
+
+/**
+ * IGDBのgame status値（/game_statusesエンドポイントで確認済み、固定値）。
+ * ほとんどの（通常リリース済みの）作品はnull（未設定）で返ってくるため、
+ * 値が入っているのは早期アクセス・開発中止等、特筆すべき状態のときだけ。
+ */
+const GAME_STATUS_LABELS: Record<number, string> = {
+  0: 'Released',
+  2: 'Alpha',
+  3: 'Beta',
+  4: 'Early Access',
+  5: 'Offline',
+  6: 'Cancelled',
+  7: 'Rumored',
+  8: 'Delisted',
+};
 
 /**
  * 年齢レーティング団体の表示優先順位。日本向けアプリのため、CERO（日本）を
@@ -230,6 +246,8 @@ interface RawIgdbGame {
   age_ratings?: AgeRatingRaw[];
   language_supports?: LanguageSupportRaw[];
   collections?: CollectionRaw[];
+  game_modes?: { name: string }[];
+  status?: number; // 未設定（null）＝通常リリース済み。値がある場合のみ[GAME_STATUS_LABELS]で解釈する。
   rating?: number; // ユーザー評価の平均（0〜100）。top100の加重評価計算にのみ使う。
   rating_count?: number; // ユーザー評価の件数。同上。
 }
@@ -465,6 +483,9 @@ function toDetailRow(
     age_rating_organization: ageRating?.organization ?? null,
     age_rating_value: ageRating?.rating ?? null,
     language_supports: toLanguageSupportTable(raw.language_supports),
+    game_modes: (raw.game_modes ?? []).map((m) => m.name),
+    themes: (raw.themes ?? []).map((t) => t.name),
+    game_status: raw.status != null ? GAME_STATUS_LABELS[raw.status] ?? null : null,
   };
 }
 
@@ -659,6 +680,25 @@ async function fetchGameIdsByJapaneseLocalizedTitle(
     accessToken,
     'game_localizations',
     `fields game; where name ~ *"${escaped}"* & region.name = "${JAPAN_REGION_NAME}"; limit 50;`,
+  );
+  return [...new Set(rows.map((r) => r.game))];
+}
+
+/**
+ * タイトル検索が0件だった場合の最終フォールバック。「FF7」「MGS」のような略称や
+ * 海外版タイトル名はIGDBのalternative_namesに登録されていることが多く、
+ * 通常のsearch句だけではヒットしないことがあるため、別名テーブルを
+ * あいまい一致で検索し、該当ゲームIDを返す。
+ */
+async function fetchGameIdsByAlternativeName(
+  accessToken: string,
+  query: string,
+): Promise<number[]> {
+  const escaped = escapeApicalypseString(query);
+  const rows = await queryIgdbEndpoint<{ game: number }>(
+    accessToken,
+    'alternative_names',
+    `fields game; where name ~ *"${escaped}"*; limit 50;`,
   );
   return [...new Set(rows.map((r) => r.game))];
 }
@@ -957,6 +997,24 @@ Deno.serve(async (req) => {
           const retryClauses = [...clauses];
           retryClauses[0] = `search "${escapeApicalypseString(spaced)}"`;
           raws = await queryIgdb(accessToken, `${retryClauses.join('; ')};`);
+        }
+      }
+
+      // ここまでのsearch句でも0件の場合、「FF7」のような略称・別名の可能性を疑い
+      // alternative_namesをあいまい一致で検索する。翻訳前の原文（ユーザーの入力
+      // そのまま）で検索する。略称は自然文ではないため機械翻訳を通すとかえって
+      // 意図しない文字列に化けることがあるため。
+      if (raws.length === 0 && hasQuery) {
+        const altIds = await fetchGameIdsByAlternativeName(
+          accessToken,
+          (query as string).trim(),
+        );
+        if (altIds.length > 0) {
+          const idFilters = [...filters, `id = (${altIds.join(',')})`];
+          raws = await queryIgdb(
+            accessToken,
+            `fields ${SEARCH_FIELDS}; where ${idFilters.join(' & ')}; limit ${SEARCH_PAGE_SIZE};`,
+          );
         }
       }
 

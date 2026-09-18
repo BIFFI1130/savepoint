@@ -26,6 +26,7 @@ import '../../../social/presentation/providers/social_providers.dart';
 import '../../../social/presentation/widgets/report_user_dialog.dart';
 import '../../domain/game.dart';
 import '../../domain/genre_options.dart';
+import '../../domain/theme_options.dart';
 import '../providers/game_search_providers.dart';
 
 /// 対応言語テーブルでの表示名（IGDBの英語表記→日本語）。
@@ -65,6 +66,29 @@ const _languageDisplayNames = {
 String _languageLabel(String language) =>
     _languageDisplayNames[language] ?? language;
 
+/// 開発状況バッジの表示ラベル。「Released」（通常リリース済み）はここに
+/// 含めず、バッジ自体を表示しない（特筆すべき状態の時だけ目立たせるため）。
+const _gameStatusLabels = {
+  'Alpha': 'アルファ版',
+  'Beta': 'ベータ版',
+  'Early Access': '早期アクセス',
+  'Offline': 'オフライン化',
+  'Cancelled': '開発中止',
+  'Rumored': '噂・未確定',
+  'Delisted': '販売終了',
+};
+
+const _gameModeDisplayNames = {
+  'Single player': 'シングルプレイ',
+  'Multiplayer': 'マルチプレイ',
+  'Co-operative': '協力プレイ',
+  'Split screen': '画面分割',
+  'Massively Multiplayer Online (MMO)': 'MMO',
+  'Battle Royale': 'バトルロイヤル',
+};
+
+String _gameModeLabel(String mode) => _gameModeDisplayNames[mode] ?? mode;
+
 class GameDetailScreen extends ConsumerStatefulWidget {
   const GameDetailScreen({super.key, required this.gameId});
 
@@ -81,6 +105,10 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
   /// タップ中のジャンルバッジ（ラベル表示中のもの）。IGDBの正式なジャンル名で保持する。
   /// nullなら何も表示していない状態。
   String? _expandedGenre;
+
+  /// タップ中のテーマバッジ（ラベル表示中のもの）。IGDBの正式なテーマ名で保持する。
+  /// nullなら何も表示していない状態。
+  String? _expandedTheme;
 
   /// 「遊びたい」ボタンのトグル動作。既に「遊びたい」登録済みなら記録ごと削除して解除する
   /// （遊びたい記録は評価・レビューを持たないため、解除＝削除で問題ない）。
@@ -232,7 +260,12 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
         // 操作したら閉じる。Listenerはジェスチャーアリーナに参加しないため、
         // 子のGestureDetector/InkWellのタップ判定を邪魔せずポインター押下だけ検知できる。
         onPointerDown: (_) {
-          if (_expandedGenre != null) setState(() => _expandedGenre = null);
+          if (_expandedGenre != null || _expandedTheme != null) {
+            setState(() {
+              _expandedGenre = null;
+              _expandedTheme = null;
+            });
+          }
         },
         child: gameAsync.when(
           data: (game) {
@@ -284,7 +317,18 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                         color: Theme.of(context).colorScheme.outline,
                       ),
                     ),
-                  if (game.genres.isNotEmpty) ...[
+                  if (game.gameStatus != null &&
+                      _gameStatusLabels.containsKey(game.gameStatus)) ...[
+                    const SizedBox(height: 4),
+                    Chip(
+                      label: Text(_gameStatusLabels[game.gameStatus]!),
+                      backgroundColor: Theme.of(context).colorScheme.errorContainer,
+                      labelStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                      ),
+                    ),
+                  ],
+                  if (game.genres.isNotEmpty || game.themes.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 6,
@@ -296,6 +340,23 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                             selected: _expandedGenre == genre,
                             onTap: () => setState(() => _expandedGenre = genre),
                           ),
+                        for (final theme in game.themes)
+                          _ThemeBadge(
+                            themeName: theme,
+                            selected: _expandedTheme == theme,
+                            onTap: () => setState(() => _expandedTheme = theme),
+                          ),
+                      ],
+                    ),
+                  ],
+                  if (game.gameModes.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final mode in game.gameModes)
+                          Chip(label: Text(_gameModeLabel(mode))),
                       ],
                     ),
                   ],
@@ -523,18 +584,21 @@ class _TimeToBeatRow extends StatelessWidget {
   }
 }
 
-/// ジャンルを表す小さな正方形バッジ。発売年チップと高さを揃えている。
+/// ジャンル・テーマ共通の、小さな正方形バッジ。発売年チップと高さを揃えている。
 /// タップするとラベルが横に展開表示され、他の操作（別バッジのタップや画面上の
-/// どこかへのタップなど）を行うと閉じる（親のGameDetailScreenがLIstenerで管理）。
-class _GenreBadge extends StatelessWidget {
-  const _GenreBadge({
-    required this.genre,
+/// どこかへのタップなど）を行うと閉じる（親のGameDetailScreenがListenerで管理）。
+class _IconBadge extends StatelessWidget {
+  const _IconBadge({
+    required this.label,
+    required this.icon,
+    required this.color,
     required this.selected,
     required this.onTap,
   });
 
-  /// IGDBの正式なジャンル名（英語）。
-  final String genre;
+  final String label;
+  final IconData icon;
+  final Color color;
 
   /// ラベルを展開表示中かどうか。
   final bool selected;
@@ -543,13 +607,6 @@ class _GenreBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final option = genreOptions
-        .cast<(String, String, IconData, Color)?>()
-        .firstWhere((o) => o!.$2 == genre, orElse: () => null);
-    final label = option?.$1 ?? genre;
-    final icon = option?.$3 ?? Icons.sports_esports;
-    final color = option?.$4 ?? Theme.of(context).colorScheme.outline;
-
     return GestureDetector(
       onTap: onTap,
       child: AnimatedSize(
@@ -576,6 +633,66 @@ class _GenreBadge extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _GenreBadge extends StatelessWidget {
+  const _GenreBadge({
+    required this.genre,
+    required this.selected,
+    required this.onTap,
+  });
+
+  /// IGDBの正式なジャンル名（英語）。
+  final String genre;
+
+  /// ラベルを展開表示中かどうか。
+  final bool selected;
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final option = genreOptions
+        .cast<(String, String, IconData, Color)?>()
+        .firstWhere((o) => o!.$2 == genre, orElse: () => null);
+    return _IconBadge(
+      label: option?.$1 ?? genre,
+      icon: option?.$3 ?? Icons.sports_esports,
+      color: option?.$4 ?? Theme.of(context).colorScheme.outline,
+      selected: selected,
+      onTap: onTap,
+    );
+  }
+}
+
+class _ThemeBadge extends StatelessWidget {
+  const _ThemeBadge({
+    required this.themeName,
+    required this.selected,
+    required this.onTap,
+  });
+
+  /// IGDBの正式なテーマ名（英語）。
+  final String themeName;
+
+  /// ラベルを展開表示中かどうか。
+  final bool selected;
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final option = themeOptions
+        .cast<(String, String, IconData, Color)?>()
+        .firstWhere((o) => o!.$2 == themeName, orElse: () => null);
+    return _IconBadge(
+      label: option?.$1 ?? themeName,
+      icon: option?.$3 ?? Icons.local_offer,
+      color: option?.$4 ?? Theme.of(context).colorScheme.outline,
+      selected: selected,
+      onTap: onTap,
     );
   }
 }

@@ -85,6 +85,9 @@ class Game {
     this.ageRatingValue,
     this.languageSupports = const [],
     this.seriesGames = const [],
+    this.gameModes = const [],
+    this.themes = const [],
+    this.gameStatus,
   });
 
   final int id;
@@ -139,6 +142,16 @@ class Game {
 
   /// 同じシリーズの他の作品（IGDBの公式コレクション情報に基づく、試験実装）。
   final List<SimilarGame> seriesGames;
+
+  /// 対応ゲームモード一覧（例: "Single player"・"Co-operative"、試験実装）。
+  final List<String> gameModes;
+
+  /// IGDBのテーマ一覧（例: "Horror"・"Open world"、試験実装）。
+  final List<String> themes;
+
+  /// 開発状況（例: "Early Access"・"Cancelled"）。通常リリース済みならnull
+  /// （IGDB側で未設定のため。「Released」を明示的に返すことはない、試験実装）。
+  final String? gameStatus;
 
   /// 上記いずれか1つでもデータがあれば true。
   bool get hasTimeToBeat =>
@@ -196,6 +209,9 @@ class Game {
               .map(SimilarGame.fromJson)
               .toList() ??
           const [],
+      gameModes: (json['game_modes'] as List?)?.cast<String>() ?? const [],
+      themes: (json['themes'] as List?)?.cast<String>() ?? const [],
+      gameStatus: json['game_status'] as String?,
     );
   }
 }
