@@ -103,7 +103,30 @@ const DETAILS_FIELDS = `${SEARCH_FIELDS},` +
   'involved_companies.developer,involved_companies.publisher,' +
   'similar_games.name,similar_games.cover.url,similar_games.first_release_date,' +
   'similar_games.game_type,similar_games.version_parent,similar_games.keywords,' +
-  'websites.url,websites.type,screenshots.url,videos.video_id';
+  'websites.url,websites.type,screenshots.url,videos.video_id,' +
+  'age_ratings.organization.name,age_ratings.rating_category.rating,' +
+  'age_ratings.rating_cover_url,' +
+  'language_supports.language.name,language_supports.language_support_type.name,' +
+  'collections.games.name,collections.games.cover.url,' +
+  'collections.games.first_release_date,collections.games.game_type,' +
+  'collections.games.version_parent,collections.games.keywords';
+
+/**
+ * 年齢レーティング団体の表示優先順位。日本向けアプリのため、CERO（日本）を
+ * 最優先とし、無ければ国際的に広く使われるESRB・PEGIの順にフォールバックする。
+ */
+const AGE_RATING_ORG_PRIORITY = [
+  'CERO',
+  'ESRB',
+  'PEGI',
+  'USK',
+  'ACB',
+  'GRAC',
+  'CLASS_IND',
+];
+
+/** 対応言語のうち、日本語対応の有無をユーザーに示すために着目する言語名。 */
+const JAPANESE_LANGUAGE_NAME = 'Japanese';
 
 /** ISO 3166-1数値コードの日本（IGDBのcompanies.countryはこの体系。実データで確認済み）。 */
 const JAPAN_COUNTRY_CODE = 392;
@@ -136,6 +159,7 @@ interface SimilarGameRaw {
   id: number;
   name?: string;
   cover?: { url?: string };
+  first_release_date?: number; // unix seconds。シリーズ作品を発売日順に並べるためだけに使う。
   game_type?: number;
   version_parent?: number;
   keywords?: number[];
@@ -174,6 +198,20 @@ interface VideoRaw {
   video_id?: string; // YouTubeの動画ID
 }
 
+interface AgeRatingRaw {
+  organization?: { name?: string };
+  rating_category?: { rating?: string };
+}
+
+interface LanguageSupportRaw {
+  language?: { name?: string };
+  language_support_type?: { name?: string }; // "Audio" | "Subtitles" | "Interface"
+}
+
+interface CollectionRaw {
+  games?: SimilarGameRaw[];
+}
+
 interface RawIgdbGame {
   id: number;
   name?: string;
@@ -189,8 +227,76 @@ interface RawIgdbGame {
   websites?: WebsiteRaw[];
   screenshots?: ScreenshotRaw[];
   videos?: VideoRaw[];
+  age_ratings?: AgeRatingRaw[];
+  language_supports?: LanguageSupportRaw[];
+  collections?: CollectionRaw[];
   rating?: number; // ユーザー評価の平均（0〜100）。top100の加重評価計算にのみ使う。
   rating_count?: number; // ユーザー評価の件数。同上。
+}
+
+/**
+ * 年齢レーティングを1件だけ選ぶ（[AGE_RATING_ORG_PRIORITY]の優先順位で最初に
+ * 見つかったもの）。複数団体分をすべて表示すると煩雑になるため、日本向け
+ * アプリとしてCERO優先・無ければ国際的に馴染みのある団体にフォールバックする。
+ */
+function pickAgeRating(
+  ageRatings: AgeRatingRaw[] | undefined,
+): { organization: string; rating: string } | null {
+  for (const org of AGE_RATING_ORG_PRIORITY) {
+    const found = (ageRatings ?? []).find(
+      (r) => r.organization?.name === org && r.rating_category?.rating,
+    );
+    if (found) {
+      return { organization: org, rating: found.rating_category!.rating! };
+    }
+  }
+  return null;
+}
+
+interface LanguageSupportEntry {
+  language: string;
+  audio: boolean;
+  subtitles: boolean;
+  interface: boolean;
+}
+
+/** 対応言語一覧を「言語ごとに音声・字幕・UIどれに対応するか」の表形式にまとめる。 */
+function toLanguageSupportTable(
+  languageSupports: LanguageSupportRaw[] | undefined,
+): LanguageSupportEntry[] {
+  const byLanguage = new Map<string, LanguageSupportEntry>();
+  for (const support of languageSupports ?? []) {
+    const language = support.language?.name;
+    const type = support.language_support_type?.name;
+    if (!language || !type) continue;
+    const entry = byLanguage.get(language) ??
+      { language, audio: false, subtitles: false, interface: false };
+    if (type === 'Audio') entry.audio = true;
+    else if (type === 'Subtitles') entry.subtitles = true;
+    else if (type === 'Interface') entry.interface = true;
+    byLanguage.set(language, entry);
+  }
+  // 日本向けアプリのため日本語・英語を先頭に、それ以外はIGDBの返却順のまま続ける。
+  const priority = [JAPANESE_LANGUAGE_NAME, 'English'];
+  return Array.from(byLanguage.values()).sort((a, b) => {
+    const aIndex = priority.indexOf(a.language);
+    const bIndex = priority.indexOf(b.language);
+    if (aIndex === -1 && bIndex === -1) return 0;
+    if (aIndex === -1) return 1;
+    if (bIndex === -1) return -1;
+    return aIndex - bIndex;
+  });
+}
+
+function dedupeById<T extends { id: number }>(items: T[]): T[] {
+  const seen = new Set<number>();
+  const result: T[] = [];
+  for (const item of items) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    result.push(item);
+  }
+  return result;
 }
 
 /** 公式サイトのURLを選ぶ。日本語ページらしいものがあればそれを優先する。 */
@@ -303,12 +409,30 @@ function toSearchRow(raw: RawIgdbGame, nameJa: string | null) {
   };
 }
 
+/** [SimilarGameRaw]の配列をクライアント向けの軽量な形（[SimilarGameSummary]）に変換する。 */
+function toGameSummaries(
+  games: SimilarGameRaw[],
+  jaNames: Map<number, string>,
+): SimilarGameSummary[] {
+  return games.map((g) => ({
+    id: g.id,
+    name: g.name ?? '(タイトル不明)',
+    name_ja: jaNames.get(g.id) ?? null,
+    cover_url: toBigCoverUrl(g.cover?.url),
+  }));
+}
+
 /**
  * 詳細表示用に、企業情報・関連作品まで含めた行。details取得時のみ使う。
- * jaNamesは対象ゲーム自身と関連作品（similar_games）分のIDをキーにした
- * Localized Title（Japan）のマップ。
+ * jaNamesは対象ゲーム自身・関連作品（similar_games）・シリーズ作品
+ * （collections、[seriesGames]）分のIDをキーにしたLocalized Title（Japan）のマップ。
+ * [seriesGames]は呼び出し側で発売日順ソート・DLC等の除外まで済ませたもの。
  */
-function toDetailRow(raw: RawIgdbGame, jaNames: Map<number, string>) {
+function toDetailRow(
+  raw: RawIgdbGame,
+  jaNames: Map<number, string>,
+  seriesGames: SimilarGameRaw[],
+) {
   const involved = raw.involved_companies ?? [];
   const developers = involved
     .filter((c) => c.developer && c.company?.name)
@@ -319,12 +443,6 @@ function toDetailRow(raw: RawIgdbGame, jaNames: Map<number, string>) {
   const isJapaneseDeveloper = involved.some(
     (c) => c.developer && c.company?.country === JAPAN_COUNTRY_CODE,
   );
-  const similarGames: SimilarGameSummary[] = (raw.similar_games ?? []).map((g) => ({
-    id: g.id,
-    name: g.name ?? '(タイトル不明)',
-    name_ja: jaNames.get(g.id) ?? null,
-    cover_url: toBigCoverUrl(g.cover?.url),
-  }));
 
   const screenshotUrls = (raw.screenshots ?? [])
     .map((s) => toBigScreenshotUrl(s.url))
@@ -332,15 +450,21 @@ function toDetailRow(raw: RawIgdbGame, jaNames: Map<number, string>) {
   // 最初の動画をトレーラーとして扱う（IGDBのvideosは通常トレーラーが先頭に来る）。
   const trailerYoutubeId = raw.videos?.find((v) => v.video_id)?.video_id ?? null;
 
+  const ageRating = pickAgeRating(raw.age_ratings);
+
   return {
     ...toSearchRow(raw, jaNames.get(raw.id) ?? null),
     developers,
     publishers,
     is_japanese_developer: isJapaneseDeveloper,
-    similar_games: similarGames,
+    similar_games: toGameSummaries(raw.similar_games ?? [], jaNames),
+    series_games: toGameSummaries(seriesGames, jaNames),
     official_url: pickOfficialWebsiteUrl(raw.websites),
     screenshot_urls: screenshotUrls,
     trailer_youtube_id: trailerYoutubeId,
+    age_rating_organization: ageRating?.organization ?? null,
+    age_rating_value: ageRating?.rating ?? null,
+    language_supports: toLanguageSupportTable(raw.language_supports),
   };
 }
 
@@ -924,8 +1048,23 @@ Deno.serve(async (req) => {
       const raw = raws[0];
       raw.similar_games = (raw.similar_games ?? []).filter(isAllowedSimilarGame);
       const similarIds = raw.similar_games.map((g) => g.id);
-      const jaNames = await fetchJapaneseLocalizedNames(accessToken, [raw.id, ...similarIds]);
-      const row = toDetailRow(raw, jaNames);
+
+      // シリーズ作品（collections）はsimilar_games同様、DLC・拡張版・非公式作品を
+      // 除外し、自分自身も除く。1本のゲームが複数コレクションに属すこともあるため
+      // 重複除去し、発売日順（古い順）に並べてシリーズの時系列が分かるようにする。
+      const seriesGames = dedupeById(
+        (raw.collections ?? []).flatMap((c) => c.games ?? []),
+      )
+        .filter((g) => g.id !== raw.id)
+        .filter(isAllowedSimilarGame)
+        .sort((a, b) => (a.first_release_date ?? 0) - (b.first_release_date ?? 0));
+      const seriesIds = seriesGames.map((g) => g.id);
+
+      const jaNames = await fetchJapaneseLocalizedNames(
+        accessToken,
+        [raw.id, ...similarIds, ...seriesIds],
+      );
+      const row = toDetailRow(raw, jaNames, seriesGames);
 
       // 概要の翻訳は既に翻訳済みならAPIを呼ばずに使い回す（翻訳コストの節約とレスポンス短縮のため）。
       // タイトル（name_ja）はIGDBのLocalized Titleを毎回そのまま使うため、キャッシュ再利用は不要。

@@ -1,3 +1,27 @@
+/// 1言語分の対応状況（音声・字幕・UIそれぞれに対応しているか）。
+class LanguageSupport {
+  const LanguageSupport({
+    required this.language,
+    this.audio = false,
+    this.subtitles = false,
+    this.interfaceSupport = false,
+  });
+
+  final String language;
+  final bool audio;
+  final bool subtitles;
+  final bool interfaceSupport;
+
+  factory LanguageSupport.fromJson(Map<String, dynamic> json) {
+    return LanguageSupport(
+      language: json['language'] as String? ?? '',
+      audio: json['audio'] as bool? ?? false,
+      subtitles: json['subtitles'] as bool? ?? false,
+      interfaceSupport: json['interface'] as bool? ?? false,
+    );
+  }
+}
+
 /// 関連作品（ゲーム詳細画面で表示する簡易情報のみ）。
 class SimilarGame {
   const SimilarGame({
@@ -57,6 +81,10 @@ class Game {
     this.timeToBeatCompletelySeconds,
     this.screenshotUrls = const [],
     this.trailerYoutubeId,
+    this.ageRatingOrganization,
+    this.ageRatingValue,
+    this.languageSupports = const [],
+    this.seriesGames = const [],
   });
 
   final int id;
@@ -97,6 +125,20 @@ class Game {
 
   /// トレーラーのYouTube動画ID（試験実装、詳細取得時のみ。無ければnull）。
   final String? trailerYoutubeId;
+
+  /// 年齢レーティング団体名（例: "CERO"）。日本向けにCERO優先、無ければESRB等に
+  /// フォールバックして1件だけ選んだもの（試験実装、詳細取得時のみ）。
+  final String? ageRatingOrganization;
+
+  /// 年齢レーティングの区分（例: CEROなら"D"）。
+  final String? ageRatingValue;
+
+  /// 対応言語一覧（言語ごとに音声・字幕・UIの対応状況を持つ、試験実装）。
+  /// データが無い場合は空リスト（「非対応」ではなく「不明」の意味）。
+  final List<LanguageSupport> languageSupports;
+
+  /// 同じシリーズの他の作品（IGDBの公式コレクション情報に基づく、試験実装）。
+  final List<SimilarGame> seriesGames;
 
   /// 上記いずれか1つでもデータがあれば true。
   bool get hasTimeToBeat =>
@@ -142,6 +184,18 @@ class Game {
       screenshotUrls:
           (json['screenshot_urls'] as List?)?.cast<String>() ?? const [],
       trailerYoutubeId: json['trailer_youtube_id'] as String?,
+      ageRatingOrganization: json['age_rating_organization'] as String?,
+      ageRatingValue: json['age_rating_value'] as String?,
+      languageSupports: (json['language_supports'] as List?)
+              ?.cast<Map<String, dynamic>>()
+              .map(LanguageSupport.fromJson)
+              .toList() ??
+          const [],
+      seriesGames: (json['series_games'] as List?)
+              ?.cast<Map<String, dynamic>>()
+              .map(SimilarGame.fromJson)
+              .toList() ??
+          const [],
     );
   }
 }

@@ -28,6 +28,43 @@ import '../../domain/game.dart';
 import '../../domain/genre_options.dart';
 import '../providers/game_search_providers.dart';
 
+/// 対応言語テーブルでの表示名（IGDBの英語表記→日本語）。
+/// 一覧に無い言語はIGDBの英語表記のまま表示する。
+const _languageDisplayNames = {
+  'Japanese': '日本語',
+  'English': '英語',
+  'French': 'フランス語',
+  'Italian': 'イタリア語',
+  'German': 'ドイツ語',
+  'Spanish (Spain)': 'スペイン語',
+  'Spanish (Latin America)': 'スペイン語（中南米）',
+  'Portuguese (Brazil)': 'ポルトガル語（ブラジル）',
+  'Portuguese (Portugal)': 'ポルトガル語',
+  'Russian': 'ロシア語',
+  'Polish': 'ポーランド語',
+  'Dutch': 'オランダ語',
+  'Danish': 'デンマーク語',
+  'Swedish': 'スウェーデン語',
+  'Norwegian': 'ノルウェー語',
+  'Finnish': 'フィンランド語',
+  'Turkish': 'トルコ語',
+  'Arabic': 'アラビア語',
+  'Thai': 'タイ語',
+  'Vietnamese': 'ベトナム語',
+  'Korean': '韓国語',
+  'Chinese (Simplified)': '中国語（簡体字）',
+  'Chinese (Traditional)': '中国語（繁体字）',
+  'Czech': 'チェコ語',
+  'Hungarian': 'ハンガリー語',
+  'Ukrainian': 'ウクライナ語',
+  'Greek': 'ギリシャ語',
+  'Romanian': 'ルーマニア語',
+  'Indonesian': 'インドネシア語',
+};
+
+String _languageLabel(String language) =>
+    _languageDisplayNames[language] ?? language;
+
 class GameDetailScreen extends ConsumerStatefulWidget {
   const GameDetailScreen({super.key, required this.gameId});
 
@@ -240,20 +277,31 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                         color: Theme.of(context).colorScheme.outline,
                       ),
                     ),
+                  if (game.firstReleaseDate != null)
+                    Text(
+                      _formatReleaseDate(game.firstReleaseDate!),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                    ),
+                  if (game.genres.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final genre in game.genres)
+                          _GenreBadge(
+                            genre: genre,
+                            selected: _expandedGenre == genre,
+                            onTap: () => setState(() => _expandedGenre = genre),
+                          ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   _OfficialSiteLink(url: game.officialUrl),
                   _IgdbAttribution(igdbUrl: game.igdbUrl),
-                  const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      if (game.releaseYear != null)
-                        Chip(label: Text('${game.releaseYear}年')),
-                      for (final platform in game.platforms)
-                        Chip(label: Text(platform)),
-                    ],
-                  ),
                   const SizedBox(height: 8),
                   _StatsRow(gameId: widget.gameId),
                   if (countdownLabel != null) ...[
@@ -274,21 +322,6 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                  if (game.genres.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        for (final genre in game.genres)
-                          _GenreBadge(
-                            genre: genre,
-                            selected: _expandedGenre == genre,
-                            onTap: () => setState(() => _expandedGenre = genre),
-                          ),
                       ],
                     ),
                   ],
@@ -354,6 +387,27 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                     const SizedBox(height: 8),
                     _TimeToBeatRow(game: game),
                   ],
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      if (game.ageRatingOrganization != null)
+                        Chip(
+                          label: Text(
+                            '${game.ageRatingOrganization} ${game.ageRatingValue}',
+                          ),
+                        ),
+                      for (final platform in game.platforms)
+                        Chip(label: Text(platform)),
+                    ],
+                  ),
+                  if (game.languageSupports.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Text('対応言語', style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    _LanguageSupportTable(languages: game.languageSupports),
+                  ],
                   if (!ref.watch(isAdFreeProvider)) ...[
                     const SizedBox(height: 16),
                     const BannerAdWidget(),
@@ -377,6 +431,15 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                     ),
                     error: (error, stackTrace) => const SizedBox.shrink(),
                   ),
+                  if (game.seriesGames.isNotEmpty) ...[
+                    const SizedBox(height: 24),
+                    Text(
+                      'シリーズ作品',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    _GameCoverRow(games: game.seriesGames),
+                  ],
                   if (game.similarGames.isNotEmpty) ...[
                     const SizedBox(height: 24),
                     Text(
@@ -384,43 +447,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
-                    SizedBox(
-                      height: 164,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: game.similarGames.length,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(width: 12),
-                        itemBuilder: (context, index) {
-                          final similar = game.similarGames[index];
-                          return GestureDetector(
-                            onTap: () => context.push('/games/${similar.id}'),
-                            child: SizedBox(
-                              width: 90,
-                              child: Column(
-                                children: [
-                                  CoverImage(
-                                    url: similar.coverUrl,
-                                    width: 90,
-                                    height: 120,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    similar.displayName,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.center,
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
+                    _GameCoverRow(games: game.similarGames),
                   ],
                   _PublicReviewsSection(gameId: widget.gameId),
                   const IgdbFooter(),
@@ -447,6 +474,10 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
       parts.add('発売: ${game.publishers.join(', ')}');
     }
     return parts.join(' / ');
+  }
+
+  String _formatReleaseDate(DateTime date) {
+    return '${date.year}年${date.month}月${date.day}日';
   }
 }
 
@@ -621,6 +652,142 @@ class _StatsRow extends ConsumerWidget {
       },
       loading: () => const SizedBox.shrink(),
       error: (error, _) => const SizedBox.shrink(),
+    );
+  }
+}
+
+/// 対応言語一覧を「言語×音声/字幕/UI」の表形式で表示する（試験実装）。
+/// 日本語・英語のみ最初から表示し、それ以外は折りたたんでおく
+/// （対応言語が多い作品だと表が縦に長くなりすぎるため）。
+class _LanguageSupportTable extends StatefulWidget {
+  const _LanguageSupportTable({required this.languages});
+
+  final List<LanguageSupport> languages;
+
+  @override
+  State<_LanguageSupportTable> createState() => _LanguageSupportTableState();
+}
+
+class _LanguageSupportTableState extends State<_LanguageSupportTable> {
+  static const _alwaysShownLanguages = {'Japanese', 'English'};
+
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = widget.languages
+        .where((l) => _alwaysShownLanguages.contains(l.language))
+        .toList();
+    final others = widget.languages
+        .where((l) => !_alwaysShownLanguages.contains(l.language))
+        .toList();
+    final visibleRows = [...primary, if (_expanded) ...others];
+    final borderColor = Theme.of(context).colorScheme.outlineVariant;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Table(
+          border: TableBorder.all(color: borderColor),
+          columnWidths: const {
+            0: FlexColumnWidth(3),
+            1: FlexColumnWidth(1),
+            2: FlexColumnWidth(1),
+            3: FlexColumnWidth(1),
+          },
+          children: [
+            TableRow(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              ),
+              children: const [
+                _LanguageTableCell(text: ''),
+                _LanguageTableCell(text: '音声'),
+                _LanguageTableCell(text: '字幕'),
+                _LanguageTableCell(text: 'UI'),
+              ],
+            ),
+            for (final entry in visibleRows)
+              TableRow(
+                children: [
+                  _LanguageTableCell(
+                    text: _languageLabel(entry.language),
+                    alignStart: true,
+                  ),
+                  _LanguageTableCell(text: entry.audio ? '○' : ''),
+                  _LanguageTableCell(text: entry.subtitles ? '○' : ''),
+                  _LanguageTableCell(text: entry.interfaceSupport ? '○' : ''),
+                ],
+              ),
+          ],
+        ),
+        if (others.isNotEmpty)
+          TextButton(
+            onPressed: () => setState(() => _expanded = !_expanded),
+            child: Text(
+              _expanded ? '折りたたむ' : 'その他の対応言語を表示（${others.length}）',
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _LanguageTableCell extends StatelessWidget {
+  const _LanguageTableCell({required this.text, this.alignStart = false});
+
+  final String text;
+  final bool alignStart;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+      child: Text(
+        text,
+        textAlign: alignStart ? TextAlign.start : TextAlign.center,
+        style: Theme.of(context).textTheme.bodyMedium,
+      ),
+    );
+  }
+}
+
+class _GameCoverRow extends StatelessWidget {
+  const _GameCoverRow({required this.games});
+
+  final List<SimilarGame> games;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 164,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: games.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          final game = games[index];
+          return GestureDetector(
+            onTap: () => context.push('/games/${game.id}'),
+            child: SizedBox(
+              width: 90,
+              child: Column(
+                children: [
+                  CoverImage(url: game.coverUrl, width: 90, height: 120),
+                  const SizedBox(height: 4),
+                  Text(
+                    game.displayName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }
