@@ -55,6 +55,8 @@ class Game {
     this.timeToBeatHastilySeconds,
     this.timeToBeatNormallySeconds,
     this.timeToBeatCompletelySeconds,
+    this.screenshotUrls = const [],
+    this.trailerYoutubeId,
   });
 
   final int id;
@@ -89,6 +91,12 @@ class Game {
   final int? timeToBeatHastilySeconds;
   final int? timeToBeatNormallySeconds;
   final int? timeToBeatCompletelySeconds;
+
+  /// ゲームのスクリーンショット画像URL一覧（試験実装、詳細取得時のみ）。
+  final List<String> screenshotUrls;
+
+  /// トレーラーのYouTube動画ID（試験実装、詳細取得時のみ。無ければnull）。
+  final String? trailerYoutubeId;
 
   /// 上記いずれか1つでもデータがあれば true。
   bool get hasTimeToBeat =>
@@ -131,6 +139,9 @@ class Game {
       timeToBeatHastilySeconds: json['time_to_beat_hastily_seconds'] as int?,
       timeToBeatNormallySeconds: json['time_to_beat_normally_seconds'] as int?,
       timeToBeatCompletelySeconds: json['time_to_beat_completely_seconds'] as int?,
+      screenshotUrls:
+          (json['screenshot_urls'] as List?)?.cast<String>() ?? const [],
+      trailerYoutubeId: json['trailer_youtube_id'] as String?,
     );
   }
 }

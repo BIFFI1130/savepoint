@@ -102,7 +102,8 @@ const DETAILS_FIELDS = `${SEARCH_FIELDS},` +
   'involved_companies.company.name,involved_companies.company.country,' +
   'involved_companies.developer,involved_companies.publisher,' +
   'similar_games.name,similar_games.cover.url,similar_games.first_release_date,' +
-  'websites.url,websites.type';
+  'similar_games.game_type,similar_games.version_parent,similar_games.keywords,' +
+  'websites.url,websites.type,screenshots.url,videos.video_id';
 
 /** ISO 3166-1数値コードの日本（IGDBのcompanies.countryはこの体系。実データで確認済み）。 */
 const JAPAN_COUNTRY_CODE = 392;
@@ -135,11 +136,42 @@ interface SimilarGameRaw {
   id: number;
   name?: string;
   cover?: { url?: string };
+  game_type?: number;
+  version_parent?: number;
+  keywords?: number[];
+}
+
+/**
+ * similar_gamesはIGDBの関連作品リストをそのまま返すサブフィールドで、一覧系
+ * アクション（search/weekly_releases等）と違いwhere句での絞り込みができない。
+ * そのため、同じ意図の除外条件（[commonExclusionFilters]のversion_parent・
+ * game_type・keywords部分）を取得後にJS側で適用し、DLC・拡張版・バンドル・
+ * 非公式Mod等が「あなたへのおすすめ」の候補に混ざらないようにする。
+ * （成人向け・インディー除外はクライアント側で[Game.isAdult]等を使って
+ * 別途フィルタ済みのため、ここでは行わない。）
+ */
+function isAllowedSimilarGame(g: SimilarGameRaw): boolean {
+  if (g.version_parent != null) return false;
+  if (g.game_type != null && !ALLOWED_GAME_TYPE_IDS.includes(g.game_type)) {
+    return false;
+  }
+  if ((g.keywords ?? []).some((k) => UNOFFICIAL_KEYWORD_IDS.includes(k))) {
+    return false;
+  }
+  return true;
 }
 
 interface WebsiteRaw {
   url: string;
   type?: number;
+}
+
+interface ScreenshotRaw {
+  url?: string;
+}
+
+interface VideoRaw {
+  video_id?: string; // YouTubeの動画ID
 }
 
 interface RawIgdbGame {
@@ -155,6 +187,8 @@ interface RawIgdbGame {
   involved_companies?: InvolvedCompany[];
   similar_games?: SimilarGameRaw[];
   websites?: WebsiteRaw[];
+  screenshots?: ScreenshotRaw[];
+  videos?: VideoRaw[];
   rating?: number; // ユーザー評価の平均（0〜100）。top100の加重評価計算にのみ使う。
   rating_count?: number; // ユーザー評価の件数。同上。
 }
@@ -235,6 +269,13 @@ function toBigCoverUrl(url: string | undefined): string | null {
   return withScheme.replace('t_thumb', 't_cover_big');
 }
 
+/** スクリーンショットのサムネイルURLを、表示に十分な解像度（t_screenshot_big）に差し替える。 */
+function toBigScreenshotUrl(url: string | undefined): string | null {
+  if (!url) return null;
+  const withScheme = url.startsWith('//') ? `https:${url}` : url;
+  return withScheme.replace('t_thumb', 't_screenshot_big');
+}
+
 function toIsoDate(unixSeconds: number | undefined): string | null {
   if (!unixSeconds) return null;
   return new Date(unixSeconds * 1000).toISOString().slice(0, 10);
@@ -285,6 +326,12 @@ function toDetailRow(raw: RawIgdbGame, jaNames: Map<number, string>) {
     cover_url: toBigCoverUrl(g.cover?.url),
   }));
 
+  const screenshotUrls = (raw.screenshots ?? [])
+    .map((s) => toBigScreenshotUrl(s.url))
+    .filter((url): url is string => url != null);
+  // 最初の動画をトレーラーとして扱う（IGDBのvideosは通常トレーラーが先頭に来る）。
+  const trailerYoutubeId = raw.videos?.find((v) => v.video_id)?.video_id ?? null;
+
   return {
     ...toSearchRow(raw, jaNames.get(raw.id) ?? null),
     developers,
@@ -292,6 +339,8 @@ function toDetailRow(raw: RawIgdbGame, jaNames: Map<number, string>) {
     is_japanese_developer: isJapaneseDeveloper,
     similar_games: similarGames,
     official_url: pickOfficialWebsiteUrl(raw.websites),
+    screenshot_urls: screenshotUrls,
+    trailer_youtube_id: trailerYoutubeId,
   };
 }
 
@@ -873,7 +922,8 @@ Deno.serve(async (req) => {
         });
       }
       const raw = raws[0];
-      const similarIds = (raw.similar_games ?? []).map((g) => g.id);
+      raw.similar_games = (raw.similar_games ?? []).filter(isAllowedSimilarGame);
+      const similarIds = raw.similar_games.map((g) => g.id);
       const jaNames = await fetchJapaneseLocalizedNames(accessToken, [raw.id, ...similarIds]);
       const row = toDetailRow(raw, jaNames);
 

@@ -94,6 +94,7 @@ dependencies:
   # Sign in with Google
   google_sign_in: ^7.2.0
   qr_flutter: ^4.1.0
+  youtube_player_iframe: ^6.0.2
 
 dev_dependencies:
   flutter_test:

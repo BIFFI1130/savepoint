@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../../../../core/ads/banner_ad_widget.dart';
 import '../../../../core/analytics/analytics_service.dart';
@@ -319,6 +320,34 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                           : (game.displaySummary ?? ''),
                     ),
                   ],
+                  if (game.trailerYoutubeId != null) ...[
+                    const SizedBox(height: 16),
+                    Text('トレーラー', style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    _TrailerPlayer(youtubeId: game.trailerYoutubeId!),
+                  ],
+                  if (game.screenshotUrls.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'スクリーンショット',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 120,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: game.screenshotUrls.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(width: 8),
+                        itemBuilder: (context, index) => CoverImage(
+                          url: game.screenshotUrls[index],
+                          width: 213,
+                          height: 120,
+                        ),
+                      ),
+                    ),
+                  ],
                   if (game.hasTimeToBeat) ...[
                     const SizedBox(height: 16),
                     Text('平均クリア時間', style: Theme.of(context).textTheme.titleMedium),
@@ -596,6 +625,52 @@ class _StatsRow extends ConsumerWidget {
   }
 }
 
+/// トレーラー動画（YouTube）のアプリ内埋め込み再生（試験実装）。
+class _TrailerPlayer extends StatefulWidget {
+  const _TrailerPlayer({required this.youtubeId});
+
+  final String youtubeId;
+
+  static final _youtubeIdPattern = RegExp(r'^[A-Za-z0-9_-]+$');
+
+  @override
+  State<_TrailerPlayer> createState() => _TrailerPlayerState();
+}
+
+class _TrailerPlayerState extends State<_TrailerPlayer> {
+  YoutubePlayerController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // youtubeIdはIGDB由来（igdb-proxy経由で取得・キャッシュ）だが、動画IDとして
+    // 想定外の文字が混ざっていないか一応検証してからコントローラーに渡す。
+    if (_TrailerPlayer._youtubeIdPattern.hasMatch(widget.youtubeId)) {
+      _controller = YoutubePlayerController.fromVideoId(
+        videoId: widget.youtubeId,
+        autoPlay: false,
+        params: const YoutubePlayerParams(showFullscreenButton: true),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = _controller;
+    if (controller == null) return const SizedBox.shrink();
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: YoutubePlayer(controller: controller, aspectRatio: 16 / 9),
+    );
+  }
+}
+
 /// 公式サイトへのリンク（あれば表示）。複数の公式サイトがある場合は
 /// 日本語ページらしいものをigdb-proxy側で優先的に選んでいる。
 class _OfficialSiteLink extends StatelessWidget {
@@ -713,6 +788,23 @@ class _StatusAndLogSection extends StatelessWidget {
     final isPlayed = log?.status == GameLogStatus.played;
     final isUnreleased = releaseDate != null && releaseDate!.isAfter(DateTime.now());
 
+    // 3つを1つのRowに横並びさせるため、アイコン・文字を小さめにしてラベルが
+    // 折り返さず1行に収まるようにしている。
+    const statusIconSize = 14.0;
+    const statusButtonPadding = EdgeInsets.zero;
+    const statusLabelStyle = TextStyle(
+      fontSize: 18,
+      overflow: TextOverflow.ellipsis,
+    );
+    final filledStatusStyle = FilledButton.styleFrom(
+      padding: statusButtonPadding,
+      textStyle: statusLabelStyle,
+    );
+    final outlinedStatusStyle = OutlinedButton.styleFrom(
+      padding: statusButtonPadding,
+      textStyle: statusLabelStyle,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -721,48 +813,54 @@ class _StatusAndLogSection extends StatelessWidget {
             Expanded(
               child: isWantToPlay
                   ? FilledButton.icon(
+                      style: filledStatusStyle,
                       onPressed: isUpdatingStatus ? null : onMarkWantToPlay,
-                      icon: const Icon(Icons.bookmark),
-                      label: const Text('遊びたい登録済み'),
+                      icon: const Icon(Icons.bookmark, size: statusIconSize),
+                      label: const Text('遊びたい', maxLines: 1),
                     )
                   : OutlinedButton.icon(
+                      style: outlinedStatusStyle,
                       onPressed: isUpdatingStatus ? null : onMarkWantToPlay,
-                      icon: const Icon(Icons.bookmark_outline),
-                      label: const Text('遊びたい'),
+                      icon: const Icon(Icons.bookmark_outline, size: statusIconSize),
+                      label: const Text('遊びたい', maxLines: 1),
+                    ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: isPlaying
+                  ? FilledButton.icon(
+                      style: filledStatusStyle,
+                      onPressed: isUpdatingStatus ? null : onMarkPlaying,
+                      icon: const Icon(Icons.sports_esports, size: statusIconSize),
+                      label: const Text('プレイ中', maxLines: 1),
+                    )
+                  : OutlinedButton.icon(
+                      style: outlinedStatusStyle,
+                      onPressed: isUpdatingStatus ? null : onMarkPlaying,
+                      icon: const Icon(Icons.sports_esports_outlined, size: statusIconSize),
+                      label: const Text('プレイ中', maxLines: 1),
                     ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: isPlayed
                   ? FilledButton.icon(
+                      style: filledStatusStyle,
                       onPressed: () => context.push('/games/$gameId/log'),
-                      icon: const Icon(Icons.edit_outlined),
-                      label: const Text('記録を編集する'),
+                      icon: const Icon(Icons.edit_outlined, size: statusIconSize),
+                      label: const Text('記録を編集', maxLines: 1),
                     )
                   : OutlinedButton.icon(
+                      style: outlinedStatusStyle,
                       onPressed: isUnreleased
                           ? null
                           : () => context.push('/games/$gameId/log'),
-                      icon: const Icon(Icons.videogame_asset),
-                      label: Text(isUnreleased ? '発売前です' : '遊んだ'),
+                      icon: const Icon(Icons.videogame_asset, size: statusIconSize),
+                      label: Text(isUnreleased ? '発売前' : '遊んだ', maxLines: 1),
                     ),
             ),
           ],
         ),
-        if (!isPlayed) ...[
-          const SizedBox(height: 8),
-          isPlaying
-              ? FilledButton.icon(
-                  onPressed: isUpdatingStatus ? null : onMarkPlaying,
-                  icon: const Icon(Icons.sports_esports),
-                  label: const Text('プレイ中'),
-                )
-              : OutlinedButton.icon(
-                  onPressed: isUpdatingStatus ? null : onMarkPlaying,
-                  icon: const Icon(Icons.sports_esports_outlined),
-                  label: const Text('プレイ中にする'),
-                ),
-        ],
         const SizedBox(height: 8),
         OutlinedButton.icon(
           onPressed: () => CollectionPickerSheet.show(context, gameId),

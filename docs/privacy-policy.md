@@ -62,6 +62,7 @@ BIFFI（以下「当方」といいます）は、当方が提供するアプリ
 | Firebase Crashlytics（Google） | 不具合の検出・調査 | クラッシュ・エラー情報、発生時の端末情報 |
 | Firebase Cloud Messaging（Google） | プッシュ通知の配信 | プッシュ通知用のデバイストークン |
 | RevenueCat | サブスクリプション・購入管理 | 購入情報、サブスクリプションの状態、アプリ内で発行されるユーザーID |
+| YouTube API Services（Google） | ゲームトレーラー動画のアプリ内再生 | 動画再生時に端末情報・IPアドレス等がGoogleに送信される場合があります。本アプリはYouTube API Servicesを利用しており、これに伴い[YouTubeの利用規約](https://www.youtube.com/t/terms)および[Googleのプライバシーポリシー](https://policies.google.com/privacy)が適用されます |
 
 ## 5. 広告について
 
