@@ -27,10 +27,15 @@ class BacklogWidgetProvider : HomeWidgetProvider() {
         widgetData: SharedPreferences,
     ) {
         appWidgetIds.forEach { widgetId ->
-            val title = widgetData.getString("backlog_title", null)
-            val releaseDateIso = widgetData.getString("backlog_release_date", null)
-            val gameId = widgetData.getString("backlog_game_id", null)
-            val coverImagePath = widgetData.getString("backlog_cover_image", null)
+            // Flutter側は「値なし」を空文字で書き込む（iOS実機でのApp Group
+            // UserDefaults書き込みクラッシュを避けるための対応）。Android側でも
+            // 空文字はnull相当として扱う。
+            val title = widgetData.getString("backlog_title", null)?.takeIf { it.isNotEmpty() }
+            val releaseDateIso =
+                widgetData.getString("backlog_release_date", null)?.takeIf { it.isNotEmpty() }
+            val gameId = widgetData.getString("backlog_game_id", null)?.takeIf { it.isNotEmpty() }
+            val coverImagePath =
+                widgetData.getString("backlog_cover_image", null)?.takeIf { it.isNotEmpty() }
             val streak = widgetData.getString("backlog_streak", null)
             val countdown = releaseDateIso?.let { computeCountdownLabel(it) }
             val hasEntry = title != null && countdown != null

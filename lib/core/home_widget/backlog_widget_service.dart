@@ -92,13 +92,18 @@ class BacklogWidgetService {
     }
   }
 
+  /// [HomeWidget.saveWidgetData]にnullを渡すと、iOS側で共有UserDefaultsへの
+  /// 書き込みが未捕捉のネイティブ例外を起こし、アプリごとクラッシュする既知の不具合
+  /// （home_widgetパッケージ GitHub Issue #449）がある。そのため「値なし」は必ず
+  /// 空文字で表現し、読み取り側（iOS/Android双方のWidget実装）で空文字をnull同様に
+  /// 扱う。
   Future<void> _syncNearest(List<GameLogWithGame> logs) async {
     final nearest = nearestUpcomingBacklogEntry(logs);
     if (nearest == null) {
-      await HomeWidget.saveWidgetData<String?>('backlog_title', null);
-      await HomeWidget.saveWidgetData<String?>('backlog_release_date', null);
-      await HomeWidget.saveWidgetData<String?>('backlog_game_id', null);
-      await HomeWidget.saveWidgetData<String?>('backlog_cover_image', null);
+      await HomeWidget.saveWidgetData<String>('backlog_title', '');
+      await HomeWidget.saveWidgetData<String>('backlog_release_date', '');
+      await HomeWidget.saveWidgetData<String>('backlog_game_id', '');
+      await HomeWidget.saveWidgetData<String>('backlog_cover_image', '');
       return;
     }
 
@@ -121,7 +126,10 @@ class BacklogWidgetService {
       'backlog_cover_image',
       nearest.game.coverUrl,
     );
-    await HomeWidget.saveWidgetData<String?>('backlog_cover_image', coverPath);
+    await HomeWidget.saveWidgetData<String>(
+      'backlog_cover_image',
+      coverPath ?? '',
+    );
   }
 
   /// 週間記録ストリークをウィジェットに同期する（0週なら空文字にして非表示）。

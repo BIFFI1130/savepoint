@@ -29,6 +29,12 @@ private func countdownLabel(from releaseDateIso: String) -> String? {
   return nil
 }
 
+/// 空文字を「値なし」としてnilに正規化する（[BacklogProvider.currentEntry]参照）。
+private func nonEmpty(_ value: String?) -> String? {
+  guard let value = value, !value.isEmpty else { return nil }
+  return value
+}
+
 /// [path]が存在すれば読み込んだUIImageを返す。存在しない・デコード失敗時はnil
 /// （強制アンラップせず、常に安全にフォールバックする）。
 private func loadImage(from path: String?) -> UIImage? {
@@ -67,15 +73,18 @@ struct BacklogProvider: TimelineProvider {
 
   private func currentEntry() -> BacklogEntry {
     let data = UserDefaults(suiteName: widgetGroupId)
-    let title = data?.string(forKey: "backlog_title")
-    let releaseDateIso = data?.string(forKey: "backlog_release_date")
-    let gameId = data?.string(forKey: "backlog_game_id")
-    let coverImagePath = data?.string(forKey: "backlog_cover_image")
-    let streak = data?.string(forKey: "backlog_streak")
+    // Flutter側は「値なし」を空文字で書き込む（nilを書き込むとApp Group共有
+    // UserDefaultsへの書き込みが実機でネイティブクラッシュする既知の問題があるため）。
+    // そのため読み取り側でも空文字はnil相当として扱う。
+    let title = nonEmpty(data?.string(forKey: "backlog_title"))
+    let releaseDateIso = nonEmpty(data?.string(forKey: "backlog_release_date"))
+    let gameId = nonEmpty(data?.string(forKey: "backlog_game_id"))
+    let coverImagePath = nonEmpty(data?.string(forKey: "backlog_cover_image"))
+    let streak = nonEmpty(data?.string(forKey: "backlog_streak"))
     let countdown = releaseDateIso.flatMap(countdownLabel(from:))
     return BacklogEntry(
       date: Date(), title: title, countdown: countdown, gameId: gameId,
-      coverImagePath: coverImagePath, streak: (streak?.isEmpty ?? true) ? nil : streak)
+      coverImagePath: coverImagePath, streak: streak)
   }
 }
 
