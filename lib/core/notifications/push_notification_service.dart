@@ -38,6 +38,23 @@ class PushNotificationService {
         iOS: iosSettings,
       ),
     );
+    // Androidの通知チャンネルは、showForeground()（アプリがフォアグラウンドの時に
+    // 届いた通知を表示する処理）が一度も呼ばれるまで端末上に作られない。その結果、
+    // アプリがバックグラウンド/未起動の状態でサーバーからのプッシュ（新しいフォロワー）を
+    // 最初に受け取った際、チャンネル未作成のままAndroid標準のフォールバック挙動
+    // （重要度が低く扱われ、音が鳴らない等）になってしまう。ここで事前に作成しておき、
+    // 常にshowForeground()と同じ設定のチャンネルが存在する状態にする。
+    await _localPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'new_follower',
+            '新しいフォロワー',
+            description: '誰かに新しくフォローされたときに通知します',
+            importance: Importance.defaultImportance,
+          ),
+        );
     _localInitialized = true;
   }
 

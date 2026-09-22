@@ -115,21 +115,18 @@ class AuthRepository {
   Future<void> signInWithGoogle() async {
     final googleUser = await GoogleSignIn.instance.authenticate();
 
-    final authorization =
-        await googleUser.authorizationClient.authorizationForScopes([
-          'email',
-        ]) ??
-        await googleUser.authorizationClient.authorizeScopes(['email']);
-
     final idToken = googleUser.authentication.idToken;
     if (idToken == null) {
       throw const AuthException('Googleからのサインインに失敗しました（IDトークンが取得できません）。');
     }
 
+    // authorizationClient.authorizeScopes()はaccessToken取得のための
+    // 追加の認可ステップだが、accessTokenはsignInWithIdTokenで必須ではなく、
+    // Android実機でこの2段階目のネイティブ呼び出しがUIを表示せず無反応のまま
+    // 固まる不具合が確認されているため、idTokenのみでサインインする。
     await _auth.signInWithIdToken(
       provider: OAuthProvider.google,
       idToken: idToken,
-      accessToken: authorization.accessToken,
     );
   }
 

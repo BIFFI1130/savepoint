@@ -131,6 +131,10 @@ async function sendFcmMessage(
           notification: { title, body },
           data,
           apns: { payload: { aps: { sound: 'default' } } },
+          // channel_id未指定だと、バックグラウンド/未起動時にAndroidが標準の
+          // フォールバックチャンネルで表示してしまい、音が鳴らない等iOSと挙動が
+          // 揃わなくなる。アプリ側が作成するチャンネル（new_follower）と合わせる。
+          android: { notification: { channel_id: 'new_follower' } },
         },
       }),
     },
