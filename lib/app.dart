@@ -37,6 +37,12 @@ class SavePointApp extends ConsumerStatefulWidget {
 }
 
 class _SavePointAppState extends ConsumerState<SavePointApp> {
+  /// ディープリンク処理の失敗など、特定の画面に紐付かないエラーをユーザーに
+  /// 通知するためのグローバルキー。`_handleDeepLink`はScaffoldツリーの外側
+  /// （アプリ起動直後、まだ画面が構築されていない場合もある）から呼ばれうるため、
+  /// 個別画面のScaffoldMessenger.ofではなくこちらを使う。
+  static final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
   StreamSubscription<Uri?>? _widgetClickSubscription;
   StreamSubscription<RemoteMessage>? _foregroundPushSubscription;
   StreamSubscription<RemoteMessage>? _pushTapSubscription;
@@ -203,6 +209,20 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
       }
     } catch (error, stackTrace) {
       debugPrint('ディープリンクの処理に失敗しました: $error\n$stackTrace');
+      // getSessionFromUrlの失敗（リンクの期限切れ・使用済み等）を握りつぶすと、
+      // 画面遷移が起きないままアプリが固まって見える不具合になっていた
+      // （実機でパスワード再設定リンクが「画面が真っ黒のまま」になる報告があった）。
+      // エラーを可視化し、サインイン画面へ確実に戻す。
+      if (uri.host == 'reset-password' || uri.host == 'email-confirmed') {
+        ref.read(routerProvider).go('/sign-in');
+        scaffoldMessengerKey.currentState?.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'リンクの有効期限が切れているか、無効なリンクです。もう一度お試しください。',
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -259,6 +279,7 @@ class _SavePointAppState extends ConsumerState<SavePointApp> {
 
     return MaterialApp.router(
       title: 'SavePoint',
+      scaffoldMessengerKey: scaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
       locale: const Locale('ja', 'JP'),
       supportedLocales: const [Locale('ja', 'JP')],

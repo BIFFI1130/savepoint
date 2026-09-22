@@ -12,7 +12,12 @@
           "package_name": "com.biffi.savepoint"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "763009686501-e33cluk1g1p4758k18r1knn632pakb4u.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyC6KbzMqVzr2356T9OgSQRkabgWNhZr95I"
@@ -20,7 +25,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "763009686501-e33cluk1g1p4758k18r1knn632pakb4u.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "763009686501-hl7sjse7u55jr69dr0t4qpr23fi4rg0v.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.biffi.savepoint"
+              }
+            }
+          ]
         }
       }
     }
