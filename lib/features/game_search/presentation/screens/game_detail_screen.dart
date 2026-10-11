@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
+import '../../../../core/config/app_links.dart';
 import '../../../../core/ads/banner_ad_widget.dart';
 import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/notifications/release_reminder_service.dart';
@@ -226,8 +227,9 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
   Future<void> _shareGame(Game game) async {
     final buffer = StringBuffer('SavePointで「${game.displayName}」を記録しました。\n');
     if (game.igdbUrl != null) {
-      buffer.write(game.igdbUrl);
+      buffer.writeln(game.igdbUrl);
     }
+    buffer.write(AppLinks.shareFooter);
     await SharePlus.instance.share(ShareParams(text: buffer.toString()));
     await ref.read(appAnalyticsProvider).logShare(contentType: 'game');
   }

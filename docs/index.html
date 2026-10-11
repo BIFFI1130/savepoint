@@ -3,7 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SavePoint</title>
+<title>SavePoint - ゲーム記録・積みゲー管理アプリ</title>
+<meta name="description" content="遊んだゲーム・遊びたいゲームを記録し、評価やレビュー、積みゲー管理、発売日カレンダー、月間・年間まとめまで。あなたのゲーム人生を残すアプリ。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="SavePoint - ゲーム記録・積みゲー管理アプリ">
+<meta property="og:description" content="遊んだゲーム・遊びたいゲームを記録し、評価やレビュー、積みゲー管理、発売日カレンダーまで。">
+<meta property="og:url" content="https://biffi1130.github.io/savepoint/">
+<meta property="og:image" content="https://biffi1130.github.io/savepoint/ogp.png">
+<meta name="twitter:card" content="summary">
 <style>
   :root { color-scheme: light; }
   body {
@@ -28,6 +35,8 @@
   th, td { border: 1px solid #ddd; padding: 8px 10px; text-align: left; font-size: 0.95rem; vertical-align: top; }
   th { background: #f0f2fa; }
   a { color: #4a6cf7; }
+  .cta { margin: 1.4em 0 0; }
+  .btn { display: inline-block; background: #4a6cf7; color: #fff; padding: 12px 22px; border-radius: 10px; font-weight: 600; text-decoration: none; }
   .links { list-style: none; padding-left: 0; margin-top: 2.4em; }
   .links li { margin: 0.4em 0; }
   .links a { font-size: 1.05rem; }
@@ -39,6 +48,7 @@
 <main>
   <h1>SavePoint</h1>
   <p class="tagline">遊んだゲームを記録・評価・レビューできる、あなただけのゲーム履歴帳。</p>
+  <p class="cta"><a class="btn" href="https://apps.apple.com/app/id6799825415">App Storeでダウンロード（iPhone）</a></p>
 
   <h2>アプリ概要</h2>
   <p>SavePointは、これまで遊んだゲーム・これから遊びたいゲームを記録し、評価やレビューを残せるiOS/Androidアプリです。主な機能は次のとおりです。</p>
@@ -58,9 +68,8 @@
     <tr><td>バックエンド</td><td>Supabase（PostgreSQL / Auth / Edge Functions）</td><td>認証、データベース、サーバーサイド処理</td></tr>
     <tr><td>ゲームデータ</td><td><a href="https://www.igdb.com/" target="_blank" rel="noopener">IGDB</a>（Twitch Developer APIのOAuth経由）</td><td>ゲームのタイトル・カバー画像・発売日・ジャンル・対応ハード・クリア時間等の取得。サーバー側のEdge Function（<code>igdb-proxy</code>）を経由してのみアクセスし、APIキーはクライアントに一切渡していません</td></tr>
     <tr><td>翻訳</td><td>Google Cloud Translation API</td><td>ゲーム概要文（英語）の日本語自動翻訳。翻訳結果はデータベースにキャッシュし、同じ作品への再翻訳リクエストを発生させない設計です</td></tr>
-    <tr><td>認証</td><td>Sign in with Apple / メール・パスワード</td><td>ログイン</td></tr>
+    <tr><td>認証</td><td>Sign in with Apple / Googleサインイン / メール・パスワード</td><td>ログイン</td></tr>
     <tr><td>クラッシュレポート</td><td>Firebase Crashlytics</td><td>アプリの不具合調査・品質改善</td></tr>
-    <tr><td>CI/CD</td><td>Codemagic</td><td>ビルド・配信の自動化</td></tr>
   </table>
   <p>ゲームデータの提供元であるIGDBへの帰属表示は、アプリ内の該当画面すべてに表示しています。データ提供元: <a href="https://www.igdb.com/" target="_blank" rel="noopener">IGDB.com</a></p>
 

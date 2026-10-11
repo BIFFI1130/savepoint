@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../../core/config/app_links.dart';
 import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/streak/app_open_streak_service.dart';
 import '../../../../core/widgets/async_state_views.dart';
@@ -189,7 +190,8 @@ class _AchievementShareDialogState extends ConsumerState<_AchievementShareDialog
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)],
-          text: 'SavePointで実績「${widget.achievement.title}」を達成しました',
+          text:
+              'SavePointで実績「${widget.achievement.title}」を達成しました\n${AppLinks.shareFooter}',
         ),
       );
       await ref.read(appAnalyticsProvider).logShare(contentType: 'achievement');

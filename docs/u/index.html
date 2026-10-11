@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>SavePointでフォローしよう</title>
+<meta property="og:type" content="website">
+<meta property="og:title" content="SavePointでフォローしよう">
+<meta property="og:description" content="遊んだゲームを記録・レビューできるアプリ「SavePoint」で、友だちのゲーム履歴をチェックしよう。">
+<meta property="og:image" content="https://biffi1130.github.io/savepoint/ogp.png">
+<meta name="twitter:card" content="summary">
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; background:#fafafa; color:#1a1a1a; margin:0; text-align:center; }
+  main { max-width: 420px; margin: 0 auto; padding: 56px 20px; }
+  img { width: 96px; height: 96px; border-radius: 22px; }
+  h1 { font-size: 1.4rem; margin: 16px 0 6px; }
+  p { color:#555; line-height:1.7; }
+  .btn { display:block; margin:14px 0; padding:14px; border-radius:12px; font-size:1.05rem; font-weight:600; text-decoration:none; }
+  .primary { background:#4a6cf7; color:#fff; }
+  .secondary { background:#fff; color:#4a6cf7; border:1px solid #4a6cf7; }
+  .note { font-size:.85rem; color:#888; }
+</style>
+</head>
+<body>
+<main>
+  <img src="../ogp.png" alt="SavePoint">
+  <h1>SavePointでフォローしよう</h1>
+  <p>遊んだゲームを記録・レビューできるアプリです。</p>
+  <a id="open" class="btn primary" href="#" style="display:none">アプリで開く</a>
+  <a id="store" class="btn secondary" href="https://apps.apple.com/app/id6799825415">アプリをダウンロード（App Store）</a>
+  <p class="note" id="note">アプリをインストール済みの方は「アプリで開く」を押してください。</p>
+</main>
+<script>
+(function () {
+  // idはUUID形式のみ許可し、固定のカスタムスキームにだけ組み立てる（任意URLへは飛ばさない）。
+  var id = new URLSearchParams(location.search).get('id') || '';
+  var valid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  var open = document.getElementById('open');
+  if (valid) {
+    open.href = 'savepoint://user/' + id;
+    open.style.display = 'block';
+  }
+  if (/Android/i.test(navigator.userAgent)) {
+    var store = document.getElementById('store');
+    store.href = 'https://biffi1130.github.io/savepoint/';
+    store.textContent = 'SavePointについて';
+    document.getElementById('note').textContent =
+      'Android版は現在クローズドテスト中です。インストール済みの方は「アプリで開く」を押してください。';
+  }
+})();
+</script>
+</body>
+</html>

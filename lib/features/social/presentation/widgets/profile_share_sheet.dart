@@ -3,10 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../../core/config/app_links.dart';
+
 /// プロフィール共有用のQRコード・招待リンクを表示するボトムシート。
-/// リンクは`savepoint://user/{userId}`形式のカスタムURLスキームで、アプリが
-/// インストール済みの端末でタップすると該当プロフィールへ直接遷移する
-/// （[DeepLinkService]・app.dartの`_handleDeepLink`で処理）。
+/// リンクはhttpsの中継ページ（docs/u/）で、アプリ導入済みなら「アプリで開く」から
+/// `savepoint://user/{userId}`経由で該当プロフィールへ遷移し（[DeepLinkService]・
+/// app.dartの`_handleDeepLink`で処理）、未導入ならストアへ誘導する。カスタムスキームを
+/// 直接共有すると、LINE/Xなどでリンク化されず、未導入の相手には何も起きない。
 class ProfileShareSheet extends StatelessWidget {
   const ProfileShareSheet({
     super.key,
@@ -17,7 +20,7 @@ class ProfileShareSheet extends StatelessWidget {
   final String userId;
   final String displayLabel;
 
-  String get _link => 'savepoint://user/$userId';
+  String get _link => AppLinks.profileUrl(userId);
 
   static Future<void> show(
     BuildContext context, {
@@ -102,7 +105,8 @@ class ProfileShareSheet extends StatelessWidget {
               onPressed: () {
                 SharePlus.instance.share(
                   ShareParams(
-                    text: '$displayLabelさんをSavePointでフォローしよう\n$_link',
+                    text:
+                        '$displayLabelさんをSavePointでフォローしよう\n$_link\n${AppLinks.shareHashtag}',
                   ),
                 );
               },

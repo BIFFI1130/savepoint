@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../../core/config/app_links.dart';
 import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/subscription/subscription_providers.dart';
 import '../../../../core/widgets/async_state_views.dart';
@@ -107,7 +108,7 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen>
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)],
-          text: 'SavePointでの記録をシェア（$_periodLabel）',
+          text: 'SavePointでの記録をシェア（$_periodLabel）\n${AppLinks.shareFooter}',
         ),
       );
       await ref.read(appAnalyticsProvider).logShare(contentType: 'summary');

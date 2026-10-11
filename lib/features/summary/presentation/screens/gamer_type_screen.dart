@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../../core/config/app_links.dart';
 import '../../../../core/ads/banner_ad_widget.dart';
 import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/subscription/subscription_providers.dart';
@@ -48,7 +49,7 @@ class _GamerTypeScreenState extends ConsumerState<GamerTypeScreen> {
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)],
-          text: 'SavePointでプレイ傾向を診断してみました',
+          text: 'SavePointでプレイ傾向を診断してみました\n${AppLinks.shareFooter}',
         ),
       );
       await ref.read(appAnalyticsProvider).logShare(contentType: 'gamer_type');
