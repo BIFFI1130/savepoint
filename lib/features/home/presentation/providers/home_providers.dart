@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../game_log/domain/game_log.dart';
@@ -83,11 +84,32 @@ final top100Provider =
   );
 });
 
-/// 自分が「遊んだ／遊びたい」に追加したゲームの関連作品（IGDBのsimilar_games、
-/// 関連度順）を、最近追加した記録から順にたどって上限[limit]件まで集める。
-/// 既に自分の記録にあるゲームは除外し、複数の記録から重複して出てきた関連作品は
-/// 最初に見つかった（＝より最近追加した記録に近い）ものを優先する。
-List<SimilarGame> _orderedSimilarGames(
+/// 記録1件が「好みのシグナル」としてどれだけ強いか。関連作品の重み付けに使う。
+/// 低評価の作品に似たゲームは薦めたくないので0（＝候補の根拠に使わない）にする。
+double _preferenceWeight(GameLog log) {
+  switch (log.status) {
+    case GameLogStatus.wantToPlay:
+      return 1.5;
+    case GameLogStatus.playing:
+      return 2.0;
+    case GameLogStatus.played:
+      final rating = log.rating;
+      if (rating == null) return 1.0;
+      if (rating >= 4.5) return 3.0;
+      if (rating >= 4.0) return 2.5;
+      if (rating >= 3.0) return 1.0;
+      return 0;
+  }
+}
+
+/// 自分が「遊んだ／遊びたい」に追加したゲームの関連作品（IGDBのsimilar_games）を、
+/// 好みの強さで重み付けしておすすめ順に並べ、上限[limit]件まで返す。
+///
+/// 同じ作品が複数の記録から関連作品として挙がる場合は重みを合算するため、
+/// 「高評価の作品に何本も似ている」ものほど上位に来る。同点の場合は、より最近
+/// 追加した記録から見つかったものを先にする。既に自分の記録にあるゲームは除外する。
+@visibleForTesting
+List<SimilarGame> rankSimilarGames(
   List<GameLogWithGame> logs, {
   required int limit,
 }) {
@@ -97,24 +119,35 @@ List<SimilarGame> _orderedSimilarGames(
     ..sort((a, b) => b.log.createdAt.compareTo(a.log.createdAt));
   final loggedGameIds = logs.map((e) => e.game.id).toSet();
 
-  final seenIds = <int>{};
-  final recommendations = <SimilarGame>[];
+  final candidates = <int, ({SimilarGame game, double score, int order})>{};
+  var order = 0;
   for (final entry in sortedLogs) {
+    final weight = _preferenceWeight(entry.log);
+    if (weight <= 0) continue;
     for (final similar in entry.game.similarGames) {
       if (loggedGameIds.contains(similar.id)) continue;
-      if (!seenIds.add(similar.id)) continue;
-      recommendations.add(similar);
-      if (recommendations.length >= limit) return recommendations;
+      final existing = candidates[similar.id];
+      candidates[similar.id] = (
+        game: similar,
+        score: (existing?.score ?? 0) + weight,
+        order: existing?.order ?? order++,
+      );
     }
   }
-  return recommendations;
+
+  final ranked = candidates.values.toList()
+    ..sort((a, b) {
+      final byScore = b.score.compareTo(a.score);
+      return byScore != 0 ? byScore : a.order.compareTo(b.order);
+    });
+  return [for (final c in ranked.take(limit)) c.game];
 }
 
 /// ホーム画面「あなたへのおすすめ」カルーセル用（表示件数が少ないため軽量な
 /// [SimilarGame]のまま、上限20件）。
 final recommendedGamesProvider = FutureProvider<List<SimilarGame>>((ref) async {
   final logs = await ref.watch(myLogsProvider.future);
-  return _orderedSimilarGames(logs, limit: 20);
+  return rankSimilarGames(logs, limit: 20);
 });
 
 /// [recommendedGamesFullProvider]が候補として集めるゲーム数の上限。
@@ -135,7 +168,7 @@ const recommendedGamesDisplayLimit = 60;
 /// ありうるため、そのようなIDは結果から除外する）。
 final recommendedGamesFullProvider = FutureProvider<List<Game>>((ref) async {
   final logs = await ref.watch(myLogsProvider.future);
-  final similarGames = _orderedSimilarGames(
+  final similarGames = rankSimilarGames(
     logs,
     limit: recommendedGamesCandidateLimit,
   );
