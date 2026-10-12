@@ -380,6 +380,19 @@ verify_jwt = true
 # 代わりに関数内でx-cron-secretヘッダ（CRON_SECRET）を検証する。
 verify_jwt = false
 
+[functions.notify-release-changes]
+# pg_cronからの呼び出しにはユーザーJWTが無いため、JWT検証を無効化し、関数内でx-cron-secretを検証する。
+verify_jwt = false
+
+[functions.notify-app-update]
+# リリース後にSQL Editor（pg_net）から手動で呼ぶ。ユーザーJWTが無いため、JWT検証を無効化し、
+# 関数内でx-cron-secretを検証する。
+verify_jwt = false
+
+[functions.steam-import]
+# ログイン中のユーザーのみ呼び出し可能（関数内でもJWTからユーザーを検証する）。
+verify_jwt = true
+
 [functions.sign-in]
 # サインイン前（未認証）に呼び出す関数のため、ユーザーJWTを要求しない。
 verify_jwt = false
