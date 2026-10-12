@@ -515,7 +515,7 @@ class _FollowCountButton extends StatelessWidget {
   }
 }
 
-/// マイログ画面の入り口として、コレクション・まとめ・実績への導線をまとめた横並びカード。
+/// マイログ画面の入り口として、まとめ・実績・コレクション・積みゲー消化への導線をまとめた横並びカード。
 class _HubRow extends StatelessWidget {
   const _HubRow();
 
@@ -544,6 +544,14 @@ class _HubRow extends StatelessWidget {
             icon: Icons.collections_bookmark_outlined,
             label: 'コレクション',
             onTap: () => context.push('/collections'),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _HubCard(
+            icon: Icons.hourglass_bottom_outlined,
+            label: '積みゲー',
+            onTap: () => context.push('/backlog-estimate'),
           ),
         ),
       ],

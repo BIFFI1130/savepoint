@@ -31,6 +31,7 @@ import '../../features/settings/presentation/screens/settings_notifications_scre
 import '../../features/settings/presentation/screens/settings_premium_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/subscription/presentation/screens/paywall_screen.dart';
+import '../../features/game_log/presentation/screens/backlog_estimate_screen.dart';
 import '../../features/summary/presentation/screens/gamer_type_screen.dart';
 import '../../features/summary/presentation/screens/summary_screen.dart';
 import '../../features/update/presentation/screens/update_required_screen.dart';
@@ -209,6 +210,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/summary',
         builder: (context, state) => const SummaryScreen(),
+      ),
+      GoRoute(
+        path: '/backlog-estimate',
+        builder: (context, state) => const BacklogEstimateScreen(),
       ),
       GoRoute(
         path: '/summary/gamer-type',

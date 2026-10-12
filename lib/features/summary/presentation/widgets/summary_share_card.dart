@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
-
-import '../../../../core/config/app_links.dart';
 import '../../../../core/widgets/cover_image.dart';
+import '../../../../core/widgets/share_install_footer.dart';
 import '../../../game_log/domain/game_log.dart';
 import '../../domain/period_summary.dart';
 
@@ -168,7 +166,7 @@ class SummaryShareCard extends StatelessWidget {
             ),
           ],
           const Spacer(),
-          const _InstallFooter(),
+          const ShareInstallFooter(),
         ],
       ),
     );
@@ -231,56 +229,6 @@ class _BestGameTile extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _InstallFooter extends StatelessWidget {
-  const _InstallFooter();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(5),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: QrImageView(
-            data: AppLinks.landingUrl,
-            size: 58,
-            padding: EdgeInsets.zero,
-            backgroundColor: Colors.white,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'ゲーム人生を記録しよう',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 2),
-              const Text(
-                'SavePoint（無料）',
-                style: TextStyle(color: Colors.white, fontSize: 12),
-              ),
-              Text(
-                AppLinks.landingUrl.replaceFirst('https://', ''),
-                style: const TextStyle(color: Colors.white70, fontSize: 10),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
