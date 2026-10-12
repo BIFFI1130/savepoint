@@ -125,6 +125,22 @@ class SocialRepository {
         .update({'notify_new_like': value}).eq('id', _myId);
   }
 
+  /// 「遊びたい」に入れた作品の発売日が変わった時の通知を受け取るかどうかを設定する。
+  /// サーバー側（notify-release-changes Edge Function）が送信可否を判断する際に使う。
+  Future<void> setNotifyReleaseChanges(bool value) async {
+    await supabase
+        .from('profiles')
+        .update({'notify_release_changes': value}).eq('id', _myId);
+  }
+
+  /// アプリの新バージョン公開のお知らせ通知を受け取るかどうかを設定する。
+  /// サーバー側（notify-app-update Edge Function）が送信可否を判断する際に使う。
+  Future<void> setNotifyAppUpdate(bool value) async {
+    await supabase
+        .from('profiles')
+        .update({'notify_app_update': value}).eq('id', _myId);
+  }
+
   /// 「みんなのレビュー」でユーザー名・アバターなど身元がわかる情報を表示するかどうかを
   /// 設定する。デフォルトは表示（全公開）で、オフにした場合のみ匿名になる。
   Future<void> setShowIdentityInPublicReviews(bool value) async {

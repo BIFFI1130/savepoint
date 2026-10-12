@@ -5,7 +5,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
 import '../supabase/supabase_client.dart';
 
@@ -25,6 +27,17 @@ import '../supabase/supabase_client.dart';
 class PushNotificationService {
   PushNotificationService();
 
+  /// サーバー側の各Edge Functionが`android.notification.channel_id`に指定するIDと一致させる。
+  /// キーはFCMのdataの`type`とも同じ。
+  static const _channels = <String, ({String name, String description})>{
+    'new_follower': (name: '新しいフォロワー', description: '誰かに新しくフォローされたときに通知します'),
+    'new_like': (name: 'いいね', description: '自分の記録にいいねされたときに通知します'),
+    'new_review': (name: '新着レビュー', description: 'フォロー中のユーザーが新しいレビューを書いたときに通知します'),
+    'weekly_digest': (name: '週間ダイジェスト', description: 'フォロー中のユーザーの新着記録を週1回まとめて通知します'),
+    'release_change': (name: '発売日の変更', description: '「遊びたい」に入れた作品の発売日が決まった・変更されたときに通知します'),
+    'app_update': (name: 'アップデートのお知らせ', description: '新しいバージョンが公開されたときに通知します'),
+  };
+
   final _localPlugin = FlutterLocalNotificationsPlugin();
   bool _localInitialized = false;
 
@@ -40,21 +53,23 @@ class PushNotificationService {
     );
     // Androidの通知チャンネルは、showForeground()（アプリがフォアグラウンドの時に
     // 届いた通知を表示する処理）が一度も呼ばれるまで端末上に作られない。その結果、
-    // アプリがバックグラウンド/未起動の状態でサーバーからのプッシュ（新しいフォロワー）を
-    // 最初に受け取った際、チャンネル未作成のままAndroid標準のフォールバック挙動
-    // （重要度が低く扱われ、音が鳴らない等）になってしまう。ここで事前に作成しておき、
-    // 常にshowForeground()と同じ設定のチャンネルが存在する状態にする。
-    await _localPlugin
+    // アプリがバックグラウンド/未起動の状態でサーバーからのプッシュを最初に受け取った際、
+    // チャンネル未作成のまま汎用の「その他」チャンネルで表示され、種別ごとに通知を
+    // 設定できなくなる。サーバー（Edge Function）がFCMペイロードで指定するchannel_idと
+    // 同じIDのチャンネルを、ここで事前に全種別分作成しておく。
+    final androidPlugin = _localPlugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(
-          const AndroidNotificationChannel(
-            'new_follower',
-            '新しいフォロワー',
-            description: '誰かに新しくフォローされたときに通知します',
-            importance: Importance.defaultImportance,
-          ),
-        );
+            AndroidFlutterLocalNotificationsPlugin>();
+    for (final entry in _channels.entries) {
+      await androidPlugin?.createNotificationChannel(
+        AndroidNotificationChannel(
+          entry.key,
+          entry.value.name,
+          description: entry.value.description,
+          importance: Importance.defaultImportance,
+        ),
+      );
+    }
     _localInitialized = true;
   }
 
@@ -130,12 +145,23 @@ class PushNotificationService {
         );
         return;
       }
-      await supabase.from('device_tokens').upsert({
+      final row = {
         'user_id': userId,
         'token': token,
         'platform': defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android',
         'updated_at': DateTime.now().toUtc().toIso8601String(),
-      }, onConflict: 'token');
+      };
+      final appVersion = (await PackageInfo.fromPlatform()).version;
+      try {
+        // アップデート通知の送信先判定（既に最新版の端末には送らない）に使う。
+        await supabase.from('device_tokens').upsert({
+          ...row,
+          'app_version': appVersion,
+        }, onConflict: 'token');
+      } on PostgrestException {
+        // app_version列がまだ無い環境でも、通知の登録自体は失敗させない。
+        await supabase.from('device_tokens').upsert(row, onConflict: 'token');
+      }
     } catch (error, stackTrace) {
       debugPrint('push token registration failed: $error\n$stackTrace');
       unawaited(
@@ -196,18 +222,21 @@ class PushNotificationService {
     final notification = message.notification;
     if (notification == null) return;
     await _ensureLocalInitialized();
+    final type = message.data['type'];
+    final channelId = _channels.containsKey(type) ? type as String : 'new_follower';
+    final channel = _channels[channelId]!;
     await _localPlugin.show(
       id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
       title: notification.title,
       body: notification.body,
-      notificationDetails: const NotificationDetails(
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
-          'new_follower',
-          '新しいフォロワー',
-          channelDescription: '誰かに新しくフォローされたときに通知します',
+          channelId,
+          channel.name,
+          channelDescription: channel.description,
           importance: Importance.defaultImportance,
         ),
-        iOS: DarwinNotificationDetails(),
+        iOS: const DarwinNotificationDetails(),
       ),
     );
   }

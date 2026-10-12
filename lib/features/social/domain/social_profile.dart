@@ -44,6 +44,8 @@ class SocialProfile {
     this.notifyNewFollower = true,
     this.notifyWeeklyDigest = true,
     this.notifyNewLike = true,
+    this.notifyReleaseChanges = true,
+    this.notifyAppUpdate = true,
     this.showIdentityInPublicReviews = true,
   });
 
@@ -74,6 +76,11 @@ class SocialProfile {
   /// 自分の記録にいいねされた時の通知を受け取るかどうか。[notifyFollowingReviews]と
   /// 同様、自分のプロフィールでのみ意味を持つ。
   final bool notifyNewLike;
+  /// 「遊びたい」に入れた作品の発売日が変更・決定された時の通知を受け取るかどうか。
+  /// 自分のプロフィールでのみ意味を持つ。
+  final bool notifyReleaseChanges;
+  /// アプリの新バージョン公開のお知らせ通知を受け取るかどうか。自分のプロフィールでのみ意味を持つ。
+  final bool notifyAppUpdate;
   /// 「みんなのレビュー」（フォロー関係を問わない全公開レビュー一覧）で、
   /// ユーザー名・アバターなど身元がわかる情報を表示するかどうか。デフォルトは
   /// 表示（全公開）で、オフにした場合のみ匿名になる。
@@ -112,6 +119,8 @@ class SocialProfile {
       notifyNewFollower: json['notify_new_follower'] as bool? ?? true,
       notifyWeeklyDigest: json['notify_weekly_digest'] as bool? ?? true,
       notifyNewLike: json['notify_new_like'] as bool? ?? true,
+      notifyReleaseChanges: json['notify_release_changes'] as bool? ?? true,
+      notifyAppUpdate: json['notify_app_update'] as bool? ?? true,
       showIdentityInPublicReviews:
           json['show_identity_in_public_reviews'] as bool? ?? true,
     );

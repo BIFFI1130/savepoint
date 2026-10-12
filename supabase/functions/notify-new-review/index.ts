@@ -129,6 +129,8 @@ async function sendFcmMessage(
           notification: { title, body },
           data,
           apns: { payload: { aps: { sound: 'default' } } },
+          // アプリが作成する通知チャンネルと同じID（未指定だとAndroidの汎用チャンネルで表示される）。
+          android: { notification: { channel_id: 'new_review' } },
         },
       }),
     },

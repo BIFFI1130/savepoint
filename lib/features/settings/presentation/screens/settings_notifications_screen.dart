@@ -127,6 +127,16 @@ class _SettingsNotificationsScreenState
     ref.invalidate(myProfileProvider);
   }
 
+  Future<void> _toggleNotifyReleaseChanges(bool value) async {
+    await ref.read(socialRepositoryProvider).setNotifyReleaseChanges(value);
+    ref.invalidate(myProfileProvider);
+  }
+
+  Future<void> _toggleNotifyAppUpdate(bool value) async {
+    await ref.read(socialRepositoryProvider).setNotifyAppUpdate(value);
+    ref.invalidate(myProfileProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -268,6 +278,31 @@ class _SettingsNotificationsScreenState
                     profileAsync.isLoading ? null : _toggleNotifyNewLike,
                 title: 'いいね通知',
                 subtitle: '自分の記録にいいねされたときにお知らせします',
+              );
+            },
+          ),
+          Consumer(
+            builder: (context, ref, _) {
+              final profileAsync = ref.watch(myProfileProvider);
+              return ToggleOptionTile(
+                value: profileAsync.value?.notifyReleaseChanges ?? true,
+                onChanged: profileAsync.isLoading
+                    ? null
+                    : _toggleNotifyReleaseChanges,
+                title: '発売日の変更通知',
+                subtitle: '「遊びたい」に入れた作品の発売日が決まった・変更されたときにお知らせします',
+              );
+            },
+          ),
+          Consumer(
+            builder: (context, ref, _) {
+              final profileAsync = ref.watch(myProfileProvider);
+              return ToggleOptionTile(
+                value: profileAsync.value?.notifyAppUpdate ?? true,
+                onChanged:
+                    profileAsync.isLoading ? null : _toggleNotifyAppUpdate,
+                title: 'アップデートのお知らせ',
+                subtitle: '新しいバージョンが公開されたときにお知らせします',
               );
             },
           ),
