@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/update/app_update_prompt.dart';
 import '../../../calendar/presentation/screens/release_calendar_screen.dart';
 import '../../../timeline/presentation/screens/timeline_screen.dart';
 import 'home_screen.dart';
@@ -20,6 +21,15 @@ class _HomeTabsScreenState extends State<HomeTabsScreen>
     with SingleTickerProviderStateMixin {
   late final _controller = TabController(length: _tabTitles.length, vsync: this)
     ..addListener(() => setState(() {}));
+
+  @override
+  void initState() {
+    super.initState();
+    // 起動直後の描画を妨げないよう、最初のフレームの後に新バージョンの有無を確認する。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) showAppUpdateNoticeIfNeeded(context);
+    });
+  }
 
   @override
   void dispose() {
