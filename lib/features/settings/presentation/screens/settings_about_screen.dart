@@ -1,7 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// 設定 → アプリについて。プライバシーポリシー・利用規約へのリンク。
+import '../../../../core/config/app_links.dart';
+
+/// 設定 → アプリについて。レビュー投稿・プライバシーポリシー・利用規約へのリンク。
 class SettingsAboutScreen extends StatelessWidget {
   const SettingsAboutScreen({super.key});
 
@@ -24,6 +28,15 @@ class SettingsAboutScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Android版はまだ製品版のストアページが無いため、公開後に追加する。
+          if (Platform.isIOS)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.star_outline),
+              title: const Text('SavePointを評価する'),
+              subtitle: const Text('App Storeでレビューを書く'),
+              onTap: () => _openUrl(AppLinks.appStoreWriteReviewUrl),
+            ),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.privacy_tip_outlined),

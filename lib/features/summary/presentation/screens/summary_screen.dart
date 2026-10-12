@@ -18,6 +18,7 @@ import '../../../game_log/presentation/providers/log_providers.dart';
 import '../../../game_search/domain/genre_options.dart';
 import '../../../social/presentation/providers/social_providers.dart';
 import '../../domain/period_summary.dart';
+import '../widgets/summary_share_card.dart';
 
 class SummaryScreen extends ConsumerStatefulWidget {
   const SummaryScreen({super.key});
@@ -225,10 +226,7 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen>
               top: 0,
               child: RepaintBoundary(
                 key: _shareCardKey,
-                child: _ShareCard(
-                  periodLabel: _periodLabel,
-                  summary: _lastSummary!,
-                ),
+                child: SummaryShareCard(summary: _lastSummary!),
               ),
             ),
         ],
@@ -345,147 +343,6 @@ class _LeaderboardCard extends ConsumerWidget {
 /// 「まとめ」画面の内容をSNS等に共有するための、ブランドカラーで統一した
 /// 縦長カード（9:16、Instagram Stories等にそのまま使えるサイズ感）。
 /// 画面表示用の[_SummaryBody]とは別に、共有専用に見た目を作り込んでいる。
-class _ShareCard extends StatelessWidget {
-  const _ShareCard({required this.periodLabel, required this.summary});
-
-  final String periodLabel;
-  final PeriodSummary summary;
-
-  static const _bgLight = Color(0xFF5A74FF);
-  static const _bgDark = Color(0xFF2836C8);
-
-  @override
-  Widget build(BuildContext context) {
-    final average = summary.averageRating;
-    final topGenres = summary.genreCounts.entries.take(4).toList();
-    final covers = summary.playedEntries.take(6).toList();
-
-    return Container(
-      width: 360,
-      height: 640,
-      padding: const EdgeInsets.fromLTRB(28, 40, 28, 32),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [_bgLight, _bgDark],
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'SavePoint',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            periodLabel,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 15,
-            ),
-          ),
-          const SizedBox(height: 28),
-          Row(
-            children: [
-              _ShareStat(value: '${summary.playedCount}', label: '記録した本数'),
-              const SizedBox(width: 20),
-              _ShareStat(
-                value: average != null ? average.toStringAsFixed(1) : '-',
-                label: '平均評価',
-              ),
-              const SizedBox(width: 20),
-              _ShareStat(
-                value: '${summary.wantToPlayAddedCount}',
-                label: '遊びたいに追加',
-              ),
-            ],
-          ),
-          if (covers.isNotEmpty) ...[
-            const SizedBox(height: 32),
-            Expanded(
-              child: GridView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  childAspectRatio: 0.7,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                ),
-                itemCount: covers.length,
-                itemBuilder: (context, index) => ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: CoverImage(
-                    url: covers[index].game.coverUrl,
-                    width: double.infinity,
-                    height: double.infinity,
-                  ),
-                ),
-              ),
-            ),
-          ] else
-            const Spacer(),
-          if (topGenres.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final entry in topGenres)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(100),
-                    ),
-                    child: Text(
-                      entry.key,
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _ShareStat extends StatelessWidget {
-  const _ShareStat({required this.value, required this.label});
-
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 26,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white70, fontSize: 11),
-        ),
-      ],
-    );
-  }
-}
-
 class _SummaryBody extends ConsumerWidget {
   const _SummaryBody({required this.summary});
 
