@@ -24,6 +24,11 @@ class SettingsScreen extends StatelessWidget {
             onTap: () => context.push('/settings/notifications'),
           ),
           _SettingsMenuTile(
+            icon: Icons.download_outlined,
+            title: 'Steamから取り込む',
+            onTap: () => context.push('/steam-import'),
+          ),
+          _SettingsMenuTile(
             icon: Icons.workspace_premium_outlined,
             title: 'プレミアム',
             onTap: () => context.push('/settings/premium'),

@@ -108,9 +108,23 @@ class _BacklogEstimateScreenState extends ConsumerState<BacklogEstimateScreen> {
 
   Widget _buildBody(BuildContext context, BacklogEstimate estimate) {
     if (estimate.totalGames == 0) {
-      return const EmptyView(
-        message: '「遊びたい」にゲームを追加すると、消化にかかる期間を計算できます',
-        icon: Icons.hourglass_empty,
+      return Column(
+        children: [
+          const Expanded(
+            child: EmptyView(
+              message: '「遊びたい」にゲームを追加すると、消化にかかる期間を計算できます',
+              icon: Icons.hourglass_empty,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            child: OutlinedButton.icon(
+              onPressed: () => context.push('/steam-import'),
+              icon: const Icon(Icons.download_outlined),
+              label: const Text('Steamの積みゲーを取り込む'),
+            ),
+          ),
+        ],
       );
     }
     final theme = Theme.of(context);

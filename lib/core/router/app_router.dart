@@ -32,6 +32,7 @@ import '../../features/settings/presentation/screens/settings_premium_screen.dar
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/subscription/presentation/screens/paywall_screen.dart';
 import '../../features/game_log/presentation/screens/backlog_estimate_screen.dart';
+import '../../features/game_log/presentation/screens/steam_import_screen.dart';
 import '../../features/summary/presentation/screens/gamer_type_screen.dart';
 import '../../features/summary/presentation/screens/summary_screen.dart';
 import '../../features/update/presentation/screens/update_required_screen.dart';
@@ -210,6 +211,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/summary',
         builder: (context, state) => const SummaryScreen(),
+      ),
+      GoRoute(
+        path: '/steam-import',
+        builder: (context, state) => const SteamImportScreen(),
       ),
       GoRoute(
         path: '/backlog-estimate',

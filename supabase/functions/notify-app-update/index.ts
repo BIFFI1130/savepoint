@@ -14,6 +14,20 @@
 // 端末に記録された版（device_tokens.app_version）が[version]より古い（未記録を含む）トークン。
 //
 // 必要なSecrets: FCM_SERVICE_ACCOUNT_JSON、CRON_SECRET。
+//
+// 実行例（Supabase DashboardのSQL Editor。Vaultのシークレットを使うので値を手で扱わない）。
+// まず dry_run := true で対象件数を確認してから、falseで本番送信する:
+//   select net.http_post(
+//     url := (select decrypted_secret from vault.decrypted_secrets where name = 'project_url')
+//            || '/functions/v1/notify-app-update',
+//     headers := jsonb_build_object(
+//       'Content-Type', 'application/json',
+//       'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret')
+//     ),
+//     body := jsonb_build_object('version', '1.0.8', 'dry_run', true)
+//   );
+//   -- 結果は net._http_response（直近のid）で確認できる:
+//   select status_code, content from net._http_response order by id desc limit 1;
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
