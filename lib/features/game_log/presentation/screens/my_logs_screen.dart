@@ -15,6 +15,7 @@ import '../../../favorites/presentation/widgets/favorite_games_list.dart';
 import '../../../game_search/domain/game.dart';
 import '../../../social/presentation/providers/social_providers.dart';
 import '../../domain/game_log.dart';
+import '../widgets/empty_library_card.dart';
 import '../providers/log_providers.dart';
 
 enum MyLogSortType {
@@ -296,6 +297,7 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
                 logsAsync.when(
                   data: (logs) => _LogList(
                     logs: _filterAndSort(logs, GameLogStatus.played),
+                    showStartCard: logs.isEmpty,
                     emptyMessage: 'まだ「遊んだ」記録がありません',
                     onRefresh: () => ref.refresh(myLogsProvider.future),
                     sortType: _sort,
@@ -310,6 +312,7 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
                 logsAsync.when(
                   data: (logs) => _LogList(
                     logs: _filterAndSort(logs, GameLogStatus.playing),
+                    showStartCard: logs.isEmpty,
                     emptyMessage: 'まだ「プレイ中」の作品がありません',
                     onRefresh: () => ref.refresh(myLogsProvider.future),
                     sortType: _sort,
@@ -324,6 +327,7 @@ class _MyLogsScreenState extends ConsumerState<MyLogsScreen>
                 logsAsync.when(
                   data: (logs) => _LogList(
                     logs: _filterAndSort(logs, GameLogStatus.wantToPlay),
+                    showStartCard: logs.isEmpty,
                     emptyMessage: 'まだ「遊びたい」に登録した作品がありません',
                     onRefresh: () => ref.refresh(myLogsProvider.future),
                     sortType: _sort,
@@ -599,10 +603,14 @@ class _LogList extends StatelessWidget {
     required this.onRefresh,
     required this.sortType,
     required this.isGridView,
+    this.showStartCard = false,
   });
 
   final List<GameLogWithGame> logs;
   final String emptyMessage;
+
+  /// 記録がまだ1件も無いとき、空の表示の上に「ゲームを記録しはじめよう」の案内を出す。
+  final bool showStartCard;
   final Future<void> Function() onRefresh;
   final MyLogSortType sortType;
   final bool isGridView;
@@ -628,7 +636,12 @@ class _LogList extends StatelessWidget {
         onRefresh: onRefresh,
         child: ListView(
           children: [
-            const SizedBox(height: 120),
+            if (showStartCard)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: EmptyLibraryCard(),
+              ),
+            SizedBox(height: showStartCard ? 48 : 120),
             EmptyView(message: emptyMessage, icon: Icons.bookmark_border),
           ],
         ),

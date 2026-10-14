@@ -8,6 +8,8 @@ import '../../../../core/subscription/subscription_providers.dart';
 import '../../../../core/widgets/async_state_views.dart';
 import '../../../../core/widgets/cover_image.dart';
 import '../../../../core/widgets/igdb_footer.dart';
+import '../../../game_log/presentation/providers/log_providers.dart';
+import '../../../game_log/presentation/widgets/empty_library_card.dart';
 import '../../../game_search/domain/game.dart';
 import '../providers/home_providers.dart';
 
@@ -35,6 +37,8 @@ class HomeScreen extends ConsumerWidget {
     final monthlyReleasesAsync = ref.watch(monthlyReleasesProvider(noFilter));
     final top100Async = ref.watch(top100Provider(noFilter));
     final recommendedAsync = ref.watch(recommendedGamesProvider);
+    // 記録が1件も無い（登録直後など）間だけ、最初の一歩を案内するカードを先頭に出す。
+    final hasNoLogs = ref.watch(myLogsProvider).valueOrNull?.isEmpty ?? false;
 
     return Column(
       children: [
@@ -44,6 +48,12 @@ class HomeScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 8),
+                if (hasNoLogs) ...const [
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    child: EmptyLibraryCard(),
+                  ),
+                ],
                 recommendedAsync.when(
                   data: (games) {
                     if (games.isEmpty) return const SizedBox.shrink();
